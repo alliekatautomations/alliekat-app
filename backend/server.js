@@ -5,8 +5,32 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+async function decodeVIN(vin) {
+  try {
+    const cleanVin = String(vin || '').trim();
+    if (cleanVin.length < 11) return null;
+
+    const res = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/${cleanVin}?format=json`);
+    const data = await res.json();
+
+    if (!data || !data.Results || !data.Results[0]) {
+      return null;
+    }
+
+    return data.Results[0];
+  } catch (e) {
+    return null;
+  }
+}
+
 app.post('/diagnose', async (req, res) => {
   const { vin, code, symptom, notes } = req.body;
+
+  let vehicleInfo = null;
+
+  if (vin && String(vin).trim().length >= 11) {
+    vehicleInfo = await decodeVIN(vin);
+  }
 
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -20,8 +44,8 @@ app.post('/diagnose', async (req, res) => {
         temperature: 0.2,
         messages: [
           {
-  role: 'system',
-  content: `
+            role: 'system',
+            content: `
 You are a master diesel and automotive diagnostic technician.
 
 Your job is to respond like a Cummins-style troubleshooting tree, not like a general AI assistant.
@@ -87,17 +111,28 @@ IMPORTANT:
 - No generic summary language
 - No broad guesses
 `
-},
+          },
           {
             role: 'user',
             content: `
 VIN: ${vin || 'not provided'}
+
+DECODED VEHICLE:
+Make: ${vehicleInfo?.Make || 'unknown'}
+Model: ${vehicleInfo?.Model || 'unknown'}
+Year: ${vehicleInfo?.ModelYear || 'unknown'}
+Engine: ${vehicleInfo?.EngineModel || vehicleInfo?.DisplacementL || 'unknown'}
+Trim: ${vehicleInfo?.Trim || 'unknown'}
+Drive Type: ${vehicleInfo?.DriveType || 'unknown'}
+Fuel Type: ${vehicleInfo?.FuelTypePrimary || 'unknown'}
+
 Fault Code: ${code || 'none provided'}
 Symptom: ${symptom || 'not provided'}
+
 Completed test results / notes:
 ${notes || 'none provided'}
 
-Give the next best diagnostic step based on the information already entered.
+Give the next correct diagnostic branch based on the information already entered.
 `
           }
         ]
@@ -107,14 +142,38 @@ Give the next best diagnostic step based on the information already entered.
     const data = await response.json();
     const reply = data.choices?.[0]?.message?.content || JSON.stringify(data);
 
-    res.json({ diagnosis: reply });
+    res.json({
+      diagnosis: reply,
+      vehicle: {
+        vin: vin || '',
+        year: vehicleInfo?.ModelYear || '',
+        make: vehicleInfo?.Make || '',
+        model: vehicleInfo?.Model || '',
+        engine: vehicleInfo?.EngineModel || vehicleInfo?.DisplacementL || '',
+        trim: vehicleInfo?.Trim || '',
+        driveType: vehicleInfo?.DriveType || '',
+        fuelType: vehicleInfo?.FuelTypePrimary || ''
+      }
+    });
   } catch (err) {
-    res.json({ diagnosis: 'Error connecting to AI: ' + err.message });
+    res.json({
+      diagnosis: 'Error connecting to AI: ' + err.message,
+      vehicle: {
+        vin: vin || '',
+        year: vehicleInfo?.ModelYear || '',
+        make: vehicleInfo?.Make || '',
+        model: vehicleInfo?.Model || '',
+        engine: vehicleInfo?.EngineModel || vehicleInfo?.DisplacementL || '',
+        trim: vehicleInfo?.Trim || '',
+        driveType: vehicleInfo?.DriveType || '',
+        fuelType: vehicleInfo?.FuelTypePrimary || ''
+      }
+    });
   }
 });
 
 app.get('/', (req, res) => {
-  res.send('Allie-kat backend running with AI');
+  res.send('Allie-kat backend running with AI + VIN decode');
 });
 
 const PORT = process.env.PORT;
