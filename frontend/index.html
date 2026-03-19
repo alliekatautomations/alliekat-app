@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Allie-kat Assistant</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0b0f14;
+      color: #00eaff;
+      padding: 20px;
+    }
+    .wrap {
+      max-width: 500px;
+      margin: 40px auto;
+      background: #111823;
+      padding: 20px;
+      border-radius: 12px;
+    }
+    h1 {
+      margin-top: 0;
+    }
+    input, button {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px;
+      margin-top: 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 16px;
+    }
+    input {
+      background: #1a2430;
+      color: white;
+    }
+    button {
+      background: #00eaff;
+      color: black;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    pre {
+      white-space: pre-wrap;
+      background: #1a2430;
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 15px;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Allie-kat Assistant</h1>
+    <input id="vin" placeholder="Enter VIN" />
+    <input id="code" placeholder="Enter Fault Code" />
+    <button onclick="diagnose()">Diagnose</button>
+    <pre id="result">Result will show here</pre>
+  </div>
+
+  <script>
+    async function diagnose() {
+      const vin = document.getElementById('vin').value;
+      const code = document.getElementById('code').value;
+
+      const res = await fetch('alliekat-app-production.up.railway.app', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vin, code })
+      });
+
+      const data = await res.json();
+      document.getElementById('result').innerText = data.diagnosis;
+    }
+  </script>
+</body>
+</html>
