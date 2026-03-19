@@ -32,7 +32,7 @@ app.post('/diagnose', async (req, res) => {
 
         const data = await response.json();
 
-        const reply = data.choices?.[0]?.message?.content || "No response";
+        const reply = data.choices?.[0]?.message?.content || JSON.stringify(data);
 
         res.json({ diagnosis: reply });
 
