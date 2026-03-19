@@ -60,19 +60,28 @@
   </div>
 
   <script>
-    async function diagnose() {
-      const vin = document.getElementById('vin').value;
-      const code = document.getElementById('code').value;
+function diagnose() {
+  const vin = document.getElementById('vin').value;
+  const code = document.getElementById('code').value;
 
-      const res = await fetch('const res = await fetch('https://alliekat-app-production.up.railway.app/diagnose', {', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vin, code })
-      });
+  const resultBox = document.getElementById('result');
+  resultBox.innerText = "Working...";
 
-      const data = await res.json();
-      document.getElementById('result').innerText = data.diagnosis;
-    }
-  </script>
+  fetch('https://alliekat-app-production.up.railway.app/diagnose', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ vin: vin, code: code })
+  })
+  .then(res => res.json())
+  .then(data => {
+    resultBox.innerText = data.diagnosis;
+  })
+  .catch(err => {
+    resultBox.innerText = "Error: " + err;
+  });
+}
+</script>
 </body>
 </html>
