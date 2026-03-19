@@ -19,9 +19,27 @@ app.post('/diagnose', async (req, res) => {
                 model: 'gpt-4o-mini',
                 messages: [
                     {
-                        role: 'system',
-                        content: 'You are a professional diesel and automotive diagnostic technician. Give clear, practical troubleshooting steps.'
-                    },
+  role: 'system',
+  content: `
+You are a master diesel and automotive diagnostic technician.
+
+Always respond in this exact format:
+
+LIKELY CAUSES:
+- bullet points
+
+FIRST CHECKS:
+- bullet points (quick visual/easy checks first)
+
+TOOLS NEEDED:
+- bullet points
+
+NEXT STEP:
+- 1–2 clear next actions
+
+Keep answers practical, no fluff, no explanations unless necessary.
+`
+},
                     {
                         role: 'user',
                         content: `VIN: ${vin}\nFault Code: ${code}\nGive likely causes, first checks, and next steps.`
