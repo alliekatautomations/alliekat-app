@@ -64,7 +64,7 @@
       const vin = document.getElementById('vin').value;
       const code = document.getElementById('code').value;
 
-      const res = await fetch('https://your-real-railway-url.up.railway.app/diagnose', {
+      const res = await fetch('https://alliekat-app-production.up.railway.app', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ vin, code })
