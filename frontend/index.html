@@ -47,6 +47,7 @@
       border-radius: 8px;
       margin-top: 15px;
       color: white;
+      min-height: 80px;
     }
   </style>
 </head>
@@ -55,33 +56,33 @@
     <h1>Allie-kat Assistant</h1>
     <input id="vin" placeholder="Enter VIN" />
     <input id="code" placeholder="Enter Fault Code" />
-    <button onclick="diagnose()">Diagnose</button>
+    <button id="diagBtn">Diagnose</button>
     <pre id="result">Result will show here</pre>
   </div>
 
   <script>
-function diagnose() {
-  const vin = document.getElementById('vin').value;
-  const code = document.getElementById('code').value;
+    document.getElementById('diagBtn').addEventListener('click', async function () {
+      const vin = document.getElementById('vin').value;
+      const code = document.getElementById('code').value;
+      const resultBox = document.getElementById('result');
 
-  const resultBox = document.getElementById('result');
-  resultBox.innerText = "Working...";
+      resultBox.textContent = 'Checking...';
 
-  fetch('https://alliekat-app-production.up.railway.app/diagnose', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ vin: vin, code: code })
-  })
-  .then(res => res.json())
-  .then(data => {
-    resultBox.innerText = data.diagnosis;
-  })
-  .catch(err => {
-    resultBox.innerText = "Error: " + err;
-  });
-}
-</script>
+      try {
+        const res = await fetch('https://alliekat-app-production.up.railway.app/diagnose', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ vin, code })
+        });
+
+        const data = await res.json();
+        resultBox.textContent = data.diagnosis || JSON.stringify(data);
+      } catch (err) {
+        resultBox.textContent = 'Error: ' + err.message;
+      }
+    });
+  </script>
 </body>
 </html>
