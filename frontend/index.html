@@ -4,102 +4,202 @@
   <title>Allie-kat Assistant</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
+    :root {
+      --bg-1: #05070c;
+      --bg-2: #0a0f1c;
+      --panel: rgba(13, 19, 30, 0.94);
+      --panel-2: #111823;
+      --panel-3: #0e1621;
+      --line: rgba(0, 234, 255, 0.22);
+      --cyan: #00eaff;
+      --cyan-2: #00bcd4;
+      --text: #ffffff;
+      --muted: #8fb9c4;
+      --glow: 0 0 24px rgba(0, 234, 255, 0.18);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-      background: radial-gradient(circle at top, #0a0f1c, #05070c);
-      color: #00eaff;
+      background:
+        radial-gradient(circle at top, rgba(0, 234, 255, 0.09), transparent 28%),
+        radial-gradient(circle at 20% 10%, rgba(0, 188, 212, 0.07), transparent 20%),
+        linear-gradient(180deg, var(--bg-2), var(--bg-1));
+      color: var(--cyan);
+      min-height: 100vh;
     }
 
-    .container {
-      max-width: 820px;
-      margin: 30px auto;
-      padding: 20px;
+    .shell {
+      max-width: 980px;
+      margin: 24px auto;
+      padding: 18px;
     }
 
-    .card {
-      background: rgba(17, 24, 35, 0.92);
+    .hero {
+      background: linear-gradient(180deg, rgba(17, 24, 35, 0.98), rgba(10, 16, 28, 0.95));
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--glow);
+      overflow: hidden;
+    }
+
+    .hero-top {
+      padding: 22px 22px 14px 22px;
+      border-bottom: 1px solid rgba(0, 234, 255, 0.12);
+      background:
+        linear-gradient(90deg, rgba(0, 234, 255, 0.06), transparent 40%),
+        linear-gradient(180deg, rgba(255,255,255,0.01), transparent);
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .brand-badge {
+      width: 58px;
+      height: 58px;
       border-radius: 14px;
-      padding: 20px;
-      box-shadow: 0 0 20px rgba(0, 234, 255, 0.15);
-      border: 1px solid rgba(0, 234, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      background: linear-gradient(180deg, rgba(0, 234, 255, 0.16), rgba(0, 188, 212, 0.08));
+      border: 1px solid rgba(0, 234, 255, 0.24);
+      box-shadow: inset 0 0 18px rgba(0, 234, 255, 0.08);
     }
 
-    .logo {
-      text-align: center;
-      font-size: 26px;
-      font-weight: bold;
-      margin-bottom: 5px;
+    .brand-text {
+      flex: 1;
+      min-width: 240px;
+    }
+
+    .brand-title {
+      margin: 0;
+      font-size: 28px;
       letter-spacing: 1px;
+      color: var(--text);
     }
 
-    .tagline {
-      text-align: center;
+    .brand-title span {
+      color: var(--cyan);
+    }
+
+    .brand-sub {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .status-pill {
+      padding: 10px 14px;
+      border-radius: 999px;
       font-size: 12px;
-      color: #7ad6e3;
-      margin-bottom: 20px;
+      font-weight: bold;
+      color: var(--cyan);
+      border: 1px solid rgba(0, 234, 255, 0.25);
+      background: rgba(0, 234, 255, 0.08);
+      white-space: nowrap;
     }
 
-    .row {
+    .body-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 18px;
+      padding: 18px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.01);
+    }
+
+    .panel-title {
+      margin: 0 0 10px 0;
+      font-size: 13px;
+      letter-spacing: 1px;
+      color: var(--cyan);
+      text-transform: uppercase;
+    }
+
+    .input-row {
       display: flex;
       gap: 10px;
     }
 
-    .row > * {
+    .input-row > * {
       flex: 1;
     }
 
     input, textarea, button {
       width: 100%;
-      box-sizing: border-box;
-      padding: 12px;
       margin-top: 10px;
-      border-radius: 8px;
+      border-radius: 10px;
       border: none;
       font-size: 15px;
+      padding: 12px 13px;
     }
 
     input, textarea {
-      background: #111823;
-      color: white;
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid rgba(0, 234, 255, 0.12);
+      outline: none;
+    }
+
+    input::placeholder, textarea::placeholder {
+      color: #84a7b1;
+    }
+
+    input:focus, textarea:focus {
+      border-color: rgba(0, 234, 255, 0.4);
+      box-shadow: 0 0 0 2px rgba(0, 234, 255, 0.08);
     }
 
     textarea {
-      min-height: 110px;
+      min-height: 120px;
       resize: vertical;
     }
 
     button {
       font-weight: bold;
       cursor: pointer;
+      transition: transform 0.08s ease, opacity 0.08s ease;
+    }
+
+    button:active {
+      transform: translateY(1px);
     }
 
     .primary {
-      background: linear-gradient(90deg, #00eaff, #00bcd4);
-      color: black;
+      color: #02161a;
+      background: linear-gradient(90deg, var(--cyan), var(--cyan-2));
+      box-shadow: 0 0 16px rgba(0, 234, 255, 0.16);
     }
 
     .secondary {
-      background: #1a2430;
-      color: #00eaff;
-      border: 1px solid #00eaff;
-      max-width: 140px;
+      color: var(--cyan);
+      background: #162130;
+      border: 1px solid rgba(0, 234, 255, 0.18);
+      max-width: 150px;
     }
 
-    .section-title {
-      margin-top: 18px;
-      font-size: 13px;
-      color: #7ad6e3;
-      font-weight: bold;
-      letter-spacing: 0.5px;
-    }
-
-    .vehicle-box, .result {
-      margin-top: 12px;
-      padding: 15px;
-      background: #0e1621;
-      border-radius: 10px;
-      border: 1px solid rgba(0, 234, 255, 0.2);
+    .vehicle-box, .result-box {
+      margin-top: 10px;
+      border-radius: 14px;
+      background: var(--panel-3);
+      border: 1px solid rgba(0, 234, 255, 0.14);
+      padding: 14px;
     }
 
     .vehicle-grid {
@@ -109,37 +209,57 @@
     }
 
     .vehicle-item {
-      background: #111823;
-      border-radius: 8px;
-      padding: 10px;
+      background: #101925;
+      border: 1px solid rgba(0, 234, 255, 0.09);
+      border-radius: 12px;
+      padding: 10px 11px;
     }
 
     .vehicle-label {
+      color: #7db5c0;
       font-size: 11px;
-      color: #7ad6e3;
-      margin-bottom: 4px;
       text-transform: uppercase;
+      letter-spacing: 0.7px;
+      margin-bottom: 4px;
     }
 
     .vehicle-value {
+      color: var(--text);
       font-size: 15px;
-      color: #ffffff;
       word-break: break-word;
     }
 
-    .result {
+    .result-box {
       white-space: pre-wrap;
-      min-height: 180px;
+      min-height: 380px;
+      color: var(--text);
+      line-height: 1.45;
+      font-size: 14px;
     }
 
-    .hint {
+    .helper {
       margin-top: 10px;
-      font-size: 13px;
-      color: #9cc7d1;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
     }
 
-    @media (max-width: 700px) {
-      .row {
+    .footer-note {
+      margin-top: 14px;
+      color: #6daab5;
+      font-size: 11px;
+      text-align: center;
+      letter-spacing: 0.4px;
+    }
+
+    @media (max-width: 900px) {
+      .body-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .input-row {
         flex-direction: column;
       }
 
@@ -150,76 +270,106 @@
       .vehicle-grid {
         grid-template-columns: 1fr;
       }
+
+      .brand-title {
+        font-size: 24px;
+      }
+
+      .result-box {
+        min-height: 260px;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="card">
-      <div class="logo">ALLIE-KAT ASSISTANT</div>
-      <div class="tagline">Intelligent diagnostics for the modern technician</div>
-
-      <div class="row">
-        <input id="vin" placeholder="VIN" />
-        <input id="code" placeholder="Fault Code" />
-      </div>
-
-      <input id="symptom" placeholder="Symptom (no start, derate, no throttle, etc.)" />
-
-      <div class="section-title">DIAGNOSTIC NOTES / TEST RESULTS</div>
-      <textarea id="notes" placeholder="Enter known info and test results..."></textarea>
-
-      <div class="row">
-        <input id="newResult" placeholder="Add new test result..." />
-        <button class="secondary" id="addBtn">Add</button>
-      </div>
-
-      <button class="primary" id="diagBtn">RUN DIAGNOSTIC</button>
-
-      <div class="section-title">VEHICLE DETAILS</div>
-      <div class="vehicle-box">
-        <div class="vehicle-grid">
-          <div class="vehicle-item">
-            <div class="vehicle-label">VIN</div>
-            <div class="vehicle-value" id="vehVin">Awaiting decode...</div>
+  <div class="shell">
+    <div class="hero">
+      <div class="hero-top">
+        <div class="brand-row">
+          <div class="brand-badge">⚡</div>
+          <div class="brand-text">
+            <h1 class="brand-title">ALLIE-<span>KAT</span> ASSISTANT</h1>
+            <div class="brand-sub">
+              Revolutionizing your automotive experience with intelligent technology to transport your machine into the future....
+            </div>
           </div>
-          <div class="vehicle-item">
-            <div class="vehicle-label">Year</div>
-            <div class="vehicle-value" id="vehYear">-</div>
-          </div>
-          <div class="vehicle-item">
-            <div class="vehicle-label">Make</div>
-            <div class="vehicle-value" id="vehMake">-</div>
-          </div>
-          <div class="vehicle-item">
-            <div class="vehicle-label">Model</div>
-            <div class="vehicle-value" id="vehModel">-</div>
-          </div>
-          <div class="vehicle-item">
-            <div class="vehicle-label">Engine</div>
-            <div class="vehicle-value" id="vehEngine">-</div>
-          </div>
-          <div class="vehicle-item">
-            <div class="vehicle-label">Trim</div>
-            <div class="vehicle-value" id="vehTrim">-</div>
-          </div>
-          <div class="vehicle-item">
-            <div class="vehicle-label">Drive Type</div>
-            <div class="vehicle-value" id="vehDriveType">-</div>
-          </div>
-          <div class="vehicle-item">
-            <div class="vehicle-label">Fuel Type</div>
-            <div class="vehicle-value" id="vehFuelType">-</div>
-          </div>
+          <div class="status-pill">ALPHA • LIVE DIAGNOSTICS</div>
         </div>
       </div>
 
-      <div class="section-title">DIAGNOSTIC RESULT</div>
-      <div class="result" id="result">Awaiting input...</div>
+      <div class="body-grid">
+        <div class="panel">
+          <h2 class="panel-title">Diagnostic Input</h2>
 
-      <div class="hint">
-        Enter VIN first for best results. Vehicle details populate after you run the diagnostic.
+          <div class="input-row">
+            <input id="vin" placeholder="Enter VIN" />
+            <input id="code" placeholder="Fault Code" />
+          </div>
+
+          <input id="symptom" placeholder="Primary symptom (no start, derate, no throttle, low power, etc.)" />
+
+          <h2 class="panel-title" style="margin-top:16px;">Diagnostic Notes / Test Results</h2>
+          <textarea id="notes" placeholder="Enter known info and completed test results..."></textarea>
+
+          <div class="input-row">
+            <input id="newResult" placeholder="Add one new test result..." />
+            <button class="secondary" id="addBtn">Add Result</button>
+          </div>
+
+          <button class="primary" id="diagBtn">Run Allie-kat Diagnostic</button>
+
+          <div class="helper">
+            Best results come from entering the VIN, the active code, the primary symptom, and each completed test result as you go.
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2 class="panel-title">Vehicle Details</h2>
+          <div class="vehicle-box">
+            <div class="vehicle-grid">
+              <div class="vehicle-item">
+                <div class="vehicle-label">VIN</div>
+                <div class="vehicle-value" id="vehVin">Awaiting decode...</div>
+              </div>
+              <div class="vehicle-item">
+                <div class="vehicle-label">Year</div>
+                <div class="vehicle-value" id="vehYear">-</div>
+              </div>
+              <div class="vehicle-item">
+                <div class="vehicle-label">Make</div>
+                <div class="vehicle-value" id="vehMake">-</div>
+              </div>
+              <div class="vehicle-item">
+                <div class="vehicle-label">Model</div>
+                <div class="vehicle-value" id="vehModel">-</div>
+              </div>
+              <div class="vehicle-item">
+                <div class="vehicle-label">Engine</div>
+                <div class="vehicle-value" id="vehEngine">-</div>
+              </div>
+              <div class="vehicle-item">
+                <div class="vehicle-label">Trim</div>
+                <div class="vehicle-value" id="vehTrim">-</div>
+              </div>
+              <div class="vehicle-item">
+                <div class="vehicle-label">Drive Type</div>
+                <div class="vehicle-value" id="vehDriveType">-</div>
+              </div>
+              <div class="vehicle-item">
+                <div class="vehicle-label">Fuel Type</div>
+                <div class="vehicle-value" id="vehFuelType">-</div>
+              </div>
+            </div>
+          </div>
+
+          <h2 class="panel-title" style="margin-top:16px;">Diagnostic Result</h2>
+          <div class="result-box" id="result">Awaiting input...</div>
+        </div>
       </div>
+    </div>
+
+    <div class="footer-note">
+      ALLIE-KAT ASSISTANT ALPHA • INTELLIGENT DIAGNOSTICS FOR THE MODERN TECHNICIAN
     </div>
   </div>
 
