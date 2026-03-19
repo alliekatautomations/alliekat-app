@@ -3,7 +3,6 @@
 <head>
   <title>Allie-kat Assistant</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
   <style>
     body {
       margin: 0;
@@ -13,13 +12,13 @@
     }
 
     .container {
-      max-width: 720px;
+      max-width: 820px;
       margin: 30px auto;
       padding: 20px;
     }
 
     .card {
-      background: rgba(17, 24, 35, 0.9);
+      background: rgba(17, 24, 35, 0.92);
       border-radius: 14px;
       padding: 20px;
       box-shadow: 0 0 20px rgba(0, 234, 255, 0.15);
@@ -41,39 +40,38 @@
       margin-bottom: 20px;
     }
 
-    input, textarea {
-      width: 100%;
-      padding: 12px;
-      margin-top: 10px;
-      border-radius: 8px;
-      border: none;
-      background: #111823;
-      color: white;
-      font-size: 15px;
-    }
-
-    textarea {
-      min-height: 90px;
-    }
-
     .row {
       display: flex;
       gap: 10px;
     }
 
-    .row input {
+    .row > * {
       flex: 1;
     }
 
-    button {
+    input, textarea, button {
       width: 100%;
-      margin-top: 12px;
+      box-sizing: border-box;
       padding: 12px;
-      border-radius: 10px;
+      margin-top: 10px;
+      border-radius: 8px;
       border: none;
+      font-size: 15px;
+    }
+
+    input, textarea {
+      background: #111823;
+      color: white;
+    }
+
+    textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+
+    button {
       font-weight: bold;
       cursor: pointer;
-      font-size: 16px;
     }
 
     .primary {
@@ -85,35 +83,81 @@
       background: #1a2430;
       color: #00eaff;
       border: 1px solid #00eaff;
-    }
-
-    .result {
-      margin-top: 15px;
-      padding: 15px;
-      background: #0e1621;
-      border-radius: 10px;
-      white-space: pre-wrap;
-      min-height: 140px;
-      border: 1px solid rgba(0, 234, 255, 0.2);
+      max-width: 140px;
     }
 
     .section-title {
-      margin-top: 15px;
+      margin-top: 18px;
       font-size: 13px;
       color: #7ad6e3;
       font-weight: bold;
+      letter-spacing: 0.5px;
+    }
+
+    .vehicle-box, .result {
+      margin-top: 12px;
+      padding: 15px;
+      background: #0e1621;
+      border-radius: 10px;
+      border: 1px solid rgba(0, 234, 255, 0.2);
+    }
+
+    .vehicle-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .vehicle-item {
+      background: #111823;
+      border-radius: 8px;
+      padding: 10px;
+    }
+
+    .vehicle-label {
+      font-size: 11px;
+      color: #7ad6e3;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    .vehicle-value {
+      font-size: 15px;
+      color: #ffffff;
+      word-break: break-word;
+    }
+
+    .result {
+      white-space: pre-wrap;
+      min-height: 180px;
+    }
+
+    .hint {
+      margin-top: 10px;
+      font-size: 13px;
+      color: #9cc7d1;
+    }
+
+    @media (max-width: 700px) {
+      .row {
+        flex-direction: column;
+      }
+
+      .secondary {
+        max-width: none;
+      }
+
+      .vehicle-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
-
 <body>
   <div class="container">
     <div class="card">
-
       <div class="logo">ALLIE-KAT ASSISTANT</div>
-      <div class="tagline">
-        Intelligent diagnostics for the modern technician
-      </div>
+      <div class="tagline">Intelligent diagnostics for the modern technician</div>
 
       <div class="row">
         <input id="vin" placeholder="VIN" />
@@ -123,7 +167,7 @@
       <input id="symptom" placeholder="Symptom (no start, derate, no throttle, etc.)" />
 
       <div class="section-title">DIAGNOSTIC NOTES / TEST RESULTS</div>
-      <textarea id="notes" placeholder="Enter known info and results..."></textarea>
+      <textarea id="notes" placeholder="Enter known info and test results..."></textarea>
 
       <div class="row">
         <input id="newResult" placeholder="Add new test result..." />
@@ -132,31 +176,82 @@
 
       <button class="primary" id="diagBtn">RUN DIAGNOSTIC</button>
 
-      <div class="result" id="result">
-        Awaiting input...
+      <div class="section-title">VEHICLE DETAILS</div>
+      <div class="vehicle-box">
+        <div class="vehicle-grid">
+          <div class="vehicle-item">
+            <div class="vehicle-label">VIN</div>
+            <div class="vehicle-value" id="vehVin">Awaiting decode...</div>
+          </div>
+          <div class="vehicle-item">
+            <div class="vehicle-label">Year</div>
+            <div class="vehicle-value" id="vehYear">-</div>
+          </div>
+          <div class="vehicle-item">
+            <div class="vehicle-label">Make</div>
+            <div class="vehicle-value" id="vehMake">-</div>
+          </div>
+          <div class="vehicle-item">
+            <div class="vehicle-label">Model</div>
+            <div class="vehicle-value" id="vehModel">-</div>
+          </div>
+          <div class="vehicle-item">
+            <div class="vehicle-label">Engine</div>
+            <div class="vehicle-value" id="vehEngine">-</div>
+          </div>
+          <div class="vehicle-item">
+            <div class="vehicle-label">Trim</div>
+            <div class="vehicle-value" id="vehTrim">-</div>
+          </div>
+          <div class="vehicle-item">
+            <div class="vehicle-label">Drive Type</div>
+            <div class="vehicle-value" id="vehDriveType">-</div>
+          </div>
+          <div class="vehicle-item">
+            <div class="vehicle-label">Fuel Type</div>
+            <div class="vehicle-value" id="vehFuelType">-</div>
+          </div>
+        </div>
       </div>
 
+      <div class="section-title">DIAGNOSTIC RESULT</div>
+      <div class="result" id="result">Awaiting input...</div>
+
+      <div class="hint">
+        Enter VIN first for best results. Vehicle details populate after you run the diagnostic.
+      </div>
     </div>
   </div>
 
   <script>
     const backend = "https://alliekat-app-production.up.railway.app/diagnose";
 
+    function setVehicleDetails(vehicle) {
+      document.getElementById('vehVin').innerText = vehicle?.vin || document.getElementById('vin').value || '-';
+      document.getElementById('vehYear').innerText = vehicle?.year || '-';
+      document.getElementById('vehMake').innerText = vehicle?.make || '-';
+      document.getElementById('vehModel').innerText = vehicle?.model || '-';
+      document.getElementById('vehEngine').innerText = vehicle?.engine || '-';
+      document.getElementById('vehTrim').innerText = vehicle?.trim || '-';
+      document.getElementById('vehDriveType').innerText = vehicle?.driveType || '-';
+      document.getElementById('vehFuelType').innerText = vehicle?.fuelType || '-';
+    }
+
     document.getElementById('addBtn').onclick = () => {
       const newResult = document.getElementById('newResult');
       const notes = document.getElementById('notes');
 
       if (newResult.value.trim()) {
-        notes.value += (notes.value ? "\\n- " : "- ") + newResult.value;
+        notes.value += (notes.value ? "\\n- " : "- ") + newResult.value.trim();
         newResult.value = "";
       }
     };
 
     document.getElementById('diagBtn').onclick = async () => {
-      const vin = document.getElementById('vin').value;
-      const code = document.getElementById('code').value;
-      const symptom = document.getElementById('symptom').value;
-      const notes = document.getElementById('notes').value;
+      const vin = document.getElementById('vin').value.trim();
+      const code = document.getElementById('code').value.trim();
+      const symptom = document.getElementById('symptom').value.trim();
+      const notes = document.getElementById('notes').value.trim();
 
       const resultBox = document.getElementById('result');
       resultBox.innerText = "Analyzing...";
@@ -169,9 +264,10 @@
         });
 
         const data = await res.json();
-        resultBox.innerText = data.diagnosis;
+        setVehicleDetails(data.vehicle || {});
+        resultBox.innerText = data.diagnosis || "No diagnostic response returned.";
       } catch (e) {
-        resultBox.innerText = "Connection error";
+        resultBox.innerText = "Connection error: " + e.message;
       }
     };
   </script>
