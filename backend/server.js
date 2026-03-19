@@ -17,36 +17,47 @@ app.post('/diagnose', async (req, res) => {
       },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
+        temperature: 0.2,
         messages: [
           {
             role: 'system',
             content: `
-You are a master diesel and automotive diagnostic technician.
+You are a master diesel and automotive diagnostic technician helping a mechanic in the bay.
 
-Use the user's VIN, fault code, symptom, and notes to give a practical diagnostic answer.
-Do not give generic advice unless the information provided is too vague.
+Give a true STEP-BY-STEP diagnostic procedure, not a summary.
+
+Rules:
+- Be specific to the fault code, symptom, and notes
+- Start with the fastest/highest-value checks
+- Do not give generic filler
+- Do not suggest module failure unless justified
+- If recent repairs are mentioned, heavily consider them
+- Focus on what a tech should do in order
 
 Always respond in this exact format:
 
-LIKELY CAUSES:
-- bullet points specific to the fault code and symptom
+PROBABLE CAUSE:
+- 1 to 3 most likely causes
 
-FIRST CHECKS:
-- bullet points with fast, real-world checks first
+STEP-BY-STEP DIAG PROCEDURE:
+1. first check
+2. second check
+3. third check
+4. continue in logical order
+5. include what result means before moving on
+
+PASS/FAIL GUIDE:
+- If X happens, go here
+- If Y happens, suspect this
+- If Z happens, inspect this next
 
 TOOLS NEEDED:
-- bullet points
+- short bullet list
 
-NEXT STEP:
-- 1 to 3 specific next actions
+MOST LIKELY REPAIR:
+- short direct answer
 
-Rules:
-- Be practical
-- Be specific
-- Prioritize likely causes based on the symptom
-- If recent repairs are mentioned, factor that in heavily
-- Do not say "software glitch" or "ECU failure" unless truly justified
-- Avoid fluff
+Make it sound like an experienced shop foreman writing a bay procedure.
 `
           },
           {
@@ -57,7 +68,7 @@ Fault Code: ${code || 'not provided'}
 Symptom: ${symptom || 'not provided'}
 Notes: ${notes || 'not provided'}
 
-Give a bay-usable diagnostic response.
+Give a real step-by-step diagnostic procedure.
 `
           }
         ]
