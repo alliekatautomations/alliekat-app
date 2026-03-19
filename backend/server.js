@@ -6,26 +6,26 @@ app.use(cors());
 app.use(express.json());
 
 app.post('/diagnose', (req, res) => {
-    const {vin, code } = req.body;
+    const { vin, code } = req.body;
 
-    res.json){
-        diagnosis: Allie Analysis:
+    res.json({
+        diagnosis: `Allie Analysis:
 Vehicle: ${vin}
-code: ${code}
+Code: ${code}
 
 Likely Causes:
--Sensor Failure
--Wiring Failure
--Connector Problem
+- Sensor failure
+- Wiring issue
+- Connector problem
 
 Next Step:
-Check Power/ground and inspect harness.'
-  });
+Check power/ground and inspect harness.`
+    });
 });
 
 app.get('/', (req, res) => {
-  res.send("Allie-kat backend running");
+    res.send("Allie-kat backend running");
 });
 
-const PORT = process.env.PORT | | 3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Server running on " + PORT));
