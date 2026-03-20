@@ -1,533 +1,248 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Allie-Kat Diagnostics v2.0</title>
-  <style>
-    * {
-      box-sizing: border-box;
-    }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Allie-Kat Diagnostics v2.0</title>
 
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      color: #eaf8ff;
-      background:
-        radial-gradient(circle at top, rgba(0, 208, 255, 0.10), transparent 28%),
-        linear-gradient(180deg, #02070d 0%, #07111a 45%, #03070b 100%);
-      min-height: 100vh;
-    }
+<style>
+* { box-sizing: border-box; }
 
-    .app-shell {
-      max-width: 1180px;
-      margin: 0 auto;
-      padding: 22px;
-    }
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: linear-gradient(180deg, #02070d, #07111a);
+  color: #eaf8ff;
+}
 
-    .hero {
-      position: relative;
-      border: 1px solid rgba(76, 229, 255, 0.28);
-      border-radius: 26px;
-      padding: 24px;
-      margin-bottom: 18px;
-      background:
-        linear-gradient(180deg, rgba(4, 15, 25, 0.96), rgba(7, 18, 30, 0.96)),
-        linear-gradient(90deg, rgba(0,255,255,0.06), rgba(0,0,0,0));
-      box-shadow:
-        0 0 30px rgba(0, 183, 255, 0.12),
-        inset 0 0 20px rgba(38, 180, 255, 0.05);
-      overflow: hidden;
-    }
+.wrap {
+  max-width: 1100px;
+  margin: auto;
+  padding: 20px;
+}
 
-    .hero::before,
-    .panel::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      background-image:
-        linear-gradient(rgba(69, 232, 255, 0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(69, 232, 255, 0.05) 1px, transparent 1px);
-      background-size: 24px 24px;
-      opacity: 0.14;
-    }
+.header {
+  border: 1px solid rgba(0,255,255,0.2);
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 20px;
+  background: rgba(5,15,25,0.95);
+  box-shadow: 0 0 20px rgba(0,200,255,0.1);
+}
 
-    .hero-row {
-      position: relative;
-      z-index: 2;
-      display: flex;
-      justify-content: space-between;
-      gap: 18px;
-      align-items: flex-start;
-      flex-wrap: wrap;
-    }
+.title {
+  font-size: 34px;
+  color: #4ce5ff;
+}
 
-    .brand-block {
-      max-width: 760px;
-    }
+.subtitle {
+  font-size: 14px;
+  color: #8bbfd0;
+}
 
-    .brand-top {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 10px;
-      color: #6adfff;
-      font-size: 14px;
-      letter-spacing: 1.4px;
-      text-transform: uppercase;
-    }
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
 
-    .brand-top .dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: #28e4ff;
-      box-shadow: 0 0 12px #28e4ff;
-    }
+.panel {
+  border-radius: 20px;
+  padding: 18px;
+  border: 1px solid rgba(0,255,255,0.15);
+  background: rgba(6,18,28,0.95);
+}
 
-    .title {
-      margin: 0;
-      font-size: 38px;
-      line-height: 1.05;
-      color: #d9f8ff;
-      text-shadow: 0 0 12px rgba(66, 232, 255, 0.18);
-    }
+.panel h2 {
+  margin-top: 0;
+  color: #4ce5ff;
+}
 
-    .title span {
-      color: #43e9ff;
-    }
+label {
+  font-size: 12px;
+  color: #7fb8cd;
+  display: block;
+  margin-top: 12px;
+}
 
-    .subtitle {
-      margin-top: 10px;
-      color: #8bbfd0;
-      font-size: 15px;
-      line-height: 1.5;
-      max-width: 880px;
-    }
+input, textarea {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(0,255,255,0.2);
+  background: #0b1d2a;
+  color: white;
+  margin-top: 6px;
+}
 
-    .version-card {
-      min-width: 230px;
-      border: 1px solid rgba(66, 232, 255, 0.28);
-      border-radius: 20px;
-      padding: 16px;
-      background: rgba(6, 16, 24, 0.82);
-      box-shadow: inset 0 0 18px rgba(64, 208, 255, 0.07);
-    }
+textarea {
+  min-height: 120px;
+}
 
-    .version-label {
-      font-size: 12px;
-      color: #7eb4c4;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 6px;
-    }
+button {
+  margin-top: 15px;
+  padding: 12px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+}
 
-    .version-value {
-      font-size: 28px;
-      font-weight: 700;
-      color: #42e8ff;
-      margin-bottom: 10px;
-    }
+.primary {
+  background: linear-gradient(90deg,#00d9ff,#0099ff);
+  color: black;
+}
 
-    .live-chip {
-      display: inline-block;
-      padding: 8px 12px;
-      border-radius: 999px;
-      background: rgba(21, 44, 57, 0.95);
-      border: 1px solid rgba(66, 232, 255, 0.26);
-      color: #b8faff;
-      font-size: 13px;
-    }
+.secondary {
+  background: #112a3b;
+  color: #9ef3ff;
+}
 
-    .dashboard {
-      display: grid;
-      grid-template-columns: 1.05fr 1fr;
-      gap: 18px;
-    }
+.vehicle, .output {
+  margin-top: 12px;
+  border: 1px solid rgba(0,255,255,0.15);
+  padding: 12px;
+  border-radius: 14px;
+}
 
-    .panel {
-      position: relative;
-      border: 1px solid rgba(76, 229, 255, 0.20);
-      border-radius: 24px;
-      padding: 20px;
-      background:
-        linear-gradient(180deg, rgba(5, 15, 24, 0.96), rgba(8, 21, 33, 0.96));
-      box-shadow:
-        0 0 24px rgba(0, 153, 255, 0.08),
-        inset 0 0 20px rgba(0, 170, 255, 0.04);
-      overflow: hidden;
-    }
+.output {
+  min-height: 300px;
+  white-space: pre-wrap;
+}
 
-    .panel > * {
-      position: relative;
-      z-index: 2;
-    }
-
-    .panel-title {
-      margin: 0 0 18px;
-      font-size: 22px;
-      color: #d7f7ff;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    .panel-title small {
-      color: #42e8ff;
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-
-    label {
-      display: block;
-      margin: 12px 0 6px;
-      color: #86b9c9;
-      font-size: 12px;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-    }
-
-    input, textarea {
-      width: 100%;
-      padding: 14px 14px;
-      border-radius: 14px;
-      border: 1px solid rgba(66, 232, 255, 0.16);
-      background: rgba(10, 24, 36, 0.98);
-      color: #f3fcff;
-      font-size: 15px;
-      outline: none;
-      box-shadow: inset 0 0 12px rgba(66, 232, 255, 0.03);
-    }
-
-    input::placeholder,
-    textarea::placeholder {
-      color: #6f93a2;
-    }
-
-    input:focus,
-    textarea:focus {
-      border-color: rgba(66, 232, 255, 0.48);
-      box-shadow: 0 0 0 3px rgba(66, 232, 255, 0.10);
-    }
-
-    textarea {
-      min-height: 170px;
-      resize: vertical;
-    }
-
-    .button-row {
-      display: flex;
-      gap: 12px;
-      margin-top: 18px;
-      flex-wrap: wrap;
-    }
-
-    button {
-      appearance: none;
-      border: none;
-      border-radius: 14px;
-      padding: 14px 18px;
-      font-size: 15px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: 0.2s ease;
-    }
-
-    .primary-btn {
-      background: linear-gradient(90deg, #12dfff 0%, #00aefe 100%);
-      color: #031018;
-      min-width: 200px;
-      box-shadow: 0 0 18px rgba(18, 223, 255, 0.18);
-    }
-
-    .secondary-btn {
-      background: #122635;
-      color: #b4f7ff;
-      border: 1px solid rgba(66, 232, 255, 0.22);
-      min-width: 140px;
-    }
-
-    button:hover {
-      transform: translateY(-1px);
-      opacity: 0.97;
-    }
-
-    .status-bar {
-      margin-top: 16px;
-      padding: 12px 14px;
-      border-radius: 14px;
-      background: rgba(11, 28, 39, 0.98);
-      border: 1px solid rgba(66, 232, 255, 0.14);
-      color: #9defff;
-      font-size: 14px;
-    }
-
-    .vehicle-card,
-    .output-card {
-      margin-top: 12px;
-      padding: 16px;
-      border-radius: 16px;
-      border: 1px solid rgba(66, 232, 255, 0.14);
-      background: rgba(10, 23, 35, 0.94);
-    }
-
-    .vehicle-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-
-    .meta-label {
-      color: #75a9bd;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 4px;
-    }
-
-    .meta-value {
-      color: #f3fcff;
-      font-size: 15px;
-      word-break: break-word;
-    }
-
-    .output-card {
-      min-height: 360px;
-    }
-
-    .output-text {
-      white-space: pre-wrap;
-      line-height: 1.55;
-      font-size: 15px;
-      color: #eefcff;
-    }
-
-    .footer {
-      text-align: center;
-      color: #6f95a8;
-      font-size: 12px;
-      letter-spacing: 0.8px;
-      text-transform: uppercase;
-      margin-top: 18px;
-      padding-bottom: 10px;
-    }
-
-    @media (max-width: 980px) {
-      .dashboard {
-        grid-template-columns: 1fr;
-      }
-
-      .vehicle-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .title {
-        font-size: 30px;
-      }
-    }
-  </style>
+.footer {
+  text-align: center;
+  margin-top: 20px;
+  color: #6f95a8;
+  font-size: 12px;
+}
+</style>
 </head>
+
 <body>
-  <div class="app-shell">
-    <section class="hero">
-      <div class="hero-row">
-        <div class="brand-block">
-          <div class="brand-top">
-            <span class="dot"></span>
-            Allie-Kat Fleet Services
-          </div>
-          <h1 class="title">Allie-Kat Diagnostics <span>v2.0</span></h1>
-          <div class="subtitle">
-            Revolutionizing your automotive experience with intelligent technology to transport your machine into the future....
-          </div>
-        </div>
 
-        <div class="version-card">
-          <div class="version-label">Build</div>
-          <div class="version-value">MOTO // v2.0</div>
-          <div class="live-chip" id="saveStatus">System Status: Ready</div>
-        </div>
-      </div>
-    </section>
+<div class="wrap">
 
-    <section class="dashboard">
-      <div class="panel">
-        <h2 class="panel-title">
-          Start Diagnosis
-          <small>Live Intake</small>
-        </h2>
-
-        <label for="code">Enter DTC Code</label>
-        <input id="code" placeholder="Example: P2135" />
-
-        <label for="vin">Enter VIN</label>
-        <input id="vin" placeholder="Enter full VIN" />
-
-        <label for="symptom">Enter Symptom</label>
-        <input id="symptom" placeholder="Describe the complaint" />
-
-        <label for="notes">Completed Tests / Tech Notes</label>
-        <textarea id="notes" placeholder="Add test results, voltage checks, observations, and anything already performed"></textarea>
-
-        <div class="button-row">
-          <button class="primary-btn" onclick="runDiagnosis()">Start Diagnosis</button>
-          <button class="secondary-btn" onclick="clearForm()">Clear</button>
-        </div>
-
-        <div class="status-bar" id="localStatus">
-          Waiting for technician input
-        </div>
-      </div>
-
-      <div class="panel">
-        <h2 class="panel-title">
-          Preliminary Results
-          <small>Auto-save active</small>
-        </h2>
-
-        <div class="vehicle-card">
-          <div class="vehicle-grid">
-            <div>
-              <div class="meta-label">VIN</div>
-              <div class="meta-value" id="vehicleVin">-</div>
-            </div>
-            <div>
-              <div class="meta-label">Year</div>
-              <div class="meta-value" id="vehicleYear">-</div>
-            </div>
-            <div>
-              <div class="meta-label">Make</div>
-              <div class="meta-value" id="vehicleMake">-</div>
-            </div>
-            <div>
-              <div class="meta-label">Model</div>
-              <div class="meta-value" id="vehicleModel">-</div>
-            </div>
-            <div>
-              <div class="meta-label">Engine</div>
-              <div class="meta-value" id="vehicleEngine">-</div>
-            </div>
-            <div>
-              <div class="meta-label">Mode</div>
-              <div class="meta-value">MOTO v2.0</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="output-card">
-          <div class="output-text" id="output">Waiting for diagnosis...</div>
-        </div>
-      </div>
-    </section>
-
-    <div class="footer">
-      Allie-Kat Automations
+  <div class="header">
+    <div class="title">ALLIE-KAT DIAGNOSTICS v2.0</div>
+    <div class="subtitle">
+      Revolutionizing your automotive experience with intelligent technology to transport your machine into the future....
     </div>
   </div>
 
-  <script>
-    const backend = "https://alliekat-app.onrender.com";
+  <div class="grid">
 
-    let lastDiagnosis = "";
-    let lastVehicle = {};
+    <div class="panel">
+      <h2>Start Diagnosis</h2>
 
-    function setStatus(text) {
-      document.getElementById("saveStatus").innerText = text;
-      document.getElementById("localStatus").innerText = text;
-    }
+      <label>DTC Code</label>
+      <input id="code" placeholder="P2135">
 
-    function setVehicle(vehicle, vinInput) {
-      document.getElementById("vehicleVin").innerText = vehicle.vin || vinInput || "-";
-      document.getElementById("vehicleYear").innerText = vehicle.year || "-";
-      document.getElementById("vehicleMake").innerText = vehicle.make || "-";
-      document.getElementById("vehicleModel").innerText = vehicle.model || "-";
-      document.getElementById("vehicleEngine").innerText = vehicle.engine || "-";
-    }
+      <label>VIN</label>
+      <input id="vin">
 
-    async function autoSaveRepair() {
-      const vin = document.getElementById("vin").value;
-      const code = document.getElementById("code").value;
-      const symptom = document.getElementById("symptom").value;
-      const notes = document.getElementById("notes").value;
+      <label>Symptom</label>
+      <input id="symptom">
 
-      setStatus("System Status: Auto-saving...");
+      <label>Notes</label>
+      <textarea id="notes"></textarea>
 
-      const res = await fetch(`${backend}/save-repair`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          vin: lastVehicle.vin || vin,
-          year: lastVehicle.year || "",
-          make: lastVehicle.make || "",
-          model: lastVehicle.model || "",
-          engine: lastVehicle.engine || "",
-          fault_code: code,
-          complaint: symptom,
-          ai_diagnosis: lastDiagnosis,
-          recommended_tests: "",
-          final_fix: "",
-          tech_name: "",
-          status: "open",
-          notes: notes
-        })
-      });
+      <button class="primary" onclick="runDiagnosis()">Start Diagnosis</button>
+      <button class="secondary" onclick="clearForm()">Clear</button>
+    </div>
 
-      const data = await res.json();
+    <div class="panel">
+      <h2>Results</h2>
 
-      if (data.success && data.duplicate) {
-        setStatus("System Status: Existing case recognized");
-      } else if (data.success) {
-        setStatus("System Status: Case auto-saved");
-      } else {
-        setStatus("System Status: Save failed");
-      }
-    }
+      <div class="vehicle" id="vehicle">Vehicle data will appear here</div>
 
-    async function runDiagnosis() {
-      const vin = document.getElementById("vin").value;
-      const code = document.getElementById("code").value;
-      const symptom = document.getElementById("symptom").value;
-      const notes = document.getElementById("notes").value;
+      <div class="output" id="output">
+        Waiting for diagnosis...
+      </div>
+    </div>
 
-      setStatus("System Status: Running diagnosis...");
-      document.getElementById("output").innerText = "Running diagnosis...";
+  </div>
 
-      try {
-        const res = await fetch(`${backend}/diagnose`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ vin, code, symptom, notes })
-        });
+  <div class="footer">
+    Allie-Kat Automations
+  </div>
 
-        const data = await res.json();
+</div>
 
-        lastDiagnosis = data.diagnosis || "";
-        lastVehicle = data.vehicle || {};
+<script>
+const backend = "https://alliekat-app.onrender.com";
 
-        setVehicle(lastVehicle, vin);
-        document.getElementById("output").innerText = data.diagnosis || "No diagnosis returned.";
+let lastDiagnosis = "";
+let lastVehicle = {};
 
-        await autoSaveRepair();
-      } catch (err) {
-        document.getElementById("output").innerText = "Error: " + err.message;
-        setStatus("System Status: Error");
-      }
-    }
+function setVehicle(v, vinInput){
+  document.getElementById("vehicle").innerText =
+`VIN: ${v.vin || vinInput}
+Year: ${v.year || ""}
+Make: ${v.make || ""}
+Model: ${v.model || ""}
+Engine: ${v.engine || ""}`;
+}
 
-    function clearForm() {
-      document.getElementById("vin").value = "";
-      document.getElementById("code").value = "";
-      document.getElementById("symptom").value = "";
-      document.getElementById("notes").value = "";
-      document.getElementById("output").innerText = "Waiting for diagnosis...";
-      setVehicle({}, "");
-      setStatus("System Status: Ready");
-      lastDiagnosis = "";
-      lastVehicle = {};
-    }
-  </script>
+async function autoSave(){
+  const vin = document.getElementById("vin").value;
+  const code = document.getElementById("code").value;
+  const symptom = document.getElementById("symptom").value;
+  const notes = document.getElementById("notes").value;
+
+  await fetch(`${backend}/save-repair`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      vin:lastVehicle.vin || vin,
+      year:lastVehicle.year || "",
+      make:lastVehicle.make || "",
+      model:lastVehicle.model || "",
+      engine:lastVehicle.engine || "",
+      fault_code:code,
+      complaint:symptom,
+      ai_diagnosis:lastDiagnosis,
+      status:'open',
+      notes:notes
+    })
+  });
+}
+
+async function runDiagnosis(){
+  const vin = document.getElementById("vin").value;
+  const code = document.getElementById("code").value;
+  const symptom = document.getElementById("symptom").value;
+  const notes = document.getElementById("notes").value;
+
+  document.getElementById("output").innerText = "Running diagnosis...";
+
+  const res = await fetch(`${backend}/diagnose`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({vin,code,symptom,notes})
+  });
+
+  const data = await res.json();
+
+  lastDiagnosis = data.diagnosis;
+  lastVehicle = data.vehicle;
+
+  setVehicle(lastVehicle,vin);
+
+  document.getElementById("output").innerText = data.diagnosis;
+
+  await autoSave();
+}
+
+function clearForm(){
+  document.getElementById("vin").value="";
+  document.getElementById("code").value="";
+  document.getElementById("symptom").value="";
+  document.getElementById("notes").value="";
+  document.getElementById("output").innerText="Waiting for diagnosis...";
+  document.getElementById("vehicle").innerText="Vehicle data will appear here";
+}
+</script>
+
 </body>
 </html>
