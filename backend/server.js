@@ -6,7 +6,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ===== SUPABASE CONNECTION =====
+// ===== SUPABASE =====
 const supabaseUrl = 'https://julpheuumolnwkthazdj.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1bHBoZXV1bW9sbndrdGhhemRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMzc5ODYsImV4cCI6MjA4OTYxMzk4Nn0.i3jI-PjdAUPnbgVn_EXctr0-F158Gbp-r6icrEdvOGM';
 
@@ -21,23 +21,18 @@ async function decodeVIN(vin) {
     const res = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/${cleanVin}?format=json`);
     const data = await res.json();
 
-    if (!data || !data.Results || !data.Results[0]) {
-      return null;
-    }
-
-    return data.Results[0];
-  } catch (e) {
+    return data?.Results?.[0] || null;
+  } catch {
     return null;
   }
 }
 
-// ===== AI DIAGNOSIS =====
+// ===== DIAGNOSE =====
 app.post('/diagnose', async (req, res) => {
   const { vin, code, symptom, notes } = req.body;
 
   let vehicleInfo = null;
-
-  if (vin && String(vin).trim().length >= 11) {
+  if (vin && vin.length >= 11) {
     vehicleInfo = await decodeVIN(vin);
   }
 
@@ -54,21 +49,19 @@ app.post('/diagnose', async (req, res) => {
         messages: [
           {
             role: 'system',
-            content: 'You are a master diagnostic technician. Respond in a structured troubleshooting tree with specs and clear next steps.'
+            content: 'Respond as a structured diagnostic trouble tree with specs and clear next steps.'
           },
           {
             role: 'user',
             content: `
-VIN: ${vin || 'not provided'}
+VIN: ${vin || 'N/A'}
 Make: ${vehicleInfo?.Make || 'unknown'}
 Model: ${vehicleInfo?.Model || 'unknown'}
 Year: ${vehicleInfo?.ModelYear || 'unknown'}
 
 Code: ${code || 'none'}
 Symptom: ${symptom || 'none'}
-
-Notes:
-${notes || 'none'}
+Notes: ${notes || 'none'}
 `
           }
         ]
@@ -91,23 +84,35 @@ ${notes || 'none'}
   }
 });
 
-// ===== SAVE REPAIR CASE =====
+// ===== SAVE =====
 app.post('/save-repair', async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('repair_cases')
-      .insert([req.body])
-      .select();
+  const { data, error } = await supabase
+    .from('repair_cases')
+    .insert([req.body])
+    .select();
 
-    if (error) {
-      return res.status(500).json({ success: false, error: error.message });
-    }
-
-    res.json({ success: true, data });
-
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+  if (error) {
+    return res.status(500).json({ error: error.message });
   }
+
+  res.json({ success: true, data });
+});
+
+// ===== SEARCH BY CODE =====
+app.get('/search-by-code/:code', async (req, res) => {
+  const code = req.params.code;
+
+  const { data, error } = await supabase
+    .from('repair_cases')
+    .select('*')
+    .ilike('fault_code', `%${code}%`)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    return res.status(500).json({ error: error.message });
+  }
+
+  res.json({ success: true, data });
 });
 
 // ===== TEST DB =====
@@ -126,7 +131,7 @@ app.get('/test-db', async (req, res) => {
 
 // ===== ROOT =====
 app.get('/', (req, res) => {
-  res.send('Allie-kat backend live with DB');
+  res.send('Allie-kat backend live');
 });
 
 const PORT = process.env.PORT || 3001;
