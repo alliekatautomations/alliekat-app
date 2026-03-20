@@ -19,9 +19,9 @@
     Run Diagnosis
   </button>
 
-  <button onclick="saveRepair()" style="width:100%; padding:12px; margin-bottom:10px;">
-    Save Repair Case
-  </button>
+  <div id="saveStatus" style="border:1px solid #ccc; padding:10px; margin-bottom:10px;">
+    Save status: waiting
+  </div>
 
   <div id="vehicle" style="border:1px solid #ccc; padding:10px; margin-bottom:10px;"></div>
 
@@ -33,38 +33,13 @@
     let lastDiagnosis = "";
     let lastVehicle = {};
 
-    async function runDiagnosis() {
+    async function autoSaveRepair() {
       const vin = document.getElementById('vin').value;
       const code = document.getElementById('code').value;
       const symptom = document.getElementById('symptom').value;
       const notes = document.getElementById('notes').value;
 
-      const res = await fetch(`${backend}/diagnose`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vin, code, symptom, notes })
-      });
-
-      const data = await res.json();
-
-      lastDiagnosis = data.diagnosis;
-      lastVehicle = data.vehicle;
-
-      document.getElementById('output').innerText = data.diagnosis;
-
-      document.getElementById('vehicle').innerText =
-        `VIN: ${lastVehicle.vin || vin}
-Year: ${lastVehicle.year || ''}
-Make: ${lastVehicle.make || ''}
-Model: ${lastVehicle.model || ''}
-Engine: ${lastVehicle.engine || ''}`;
-    }
-
-    async function saveRepair() {
-      const vin = document.getElementById('vin').value;
-      const code = document.getElementById('code').value;
-      const symptom = document.getElementById('symptom').value;
-      const notes = document.getElementById('notes').value;
+      document.getElementById('saveStatus').innerText = 'Save status: saving...';
 
       const res = await fetch(`${backend}/save-repair`, {
         method: 'POST',
@@ -89,10 +64,42 @@ Engine: ${lastVehicle.engine || ''}`;
       const data = await res.json();
 
       if (data.success) {
-        alert("Saved successfully");
+        document.getElementById('saveStatus').innerText = 'Save status: auto-saved';
       } else {
-        alert("Save failed");
+        document.getElementById('saveStatus').innerText = 'Save status: save failed';
       }
+    }
+
+    async function runDiagnosis() {
+      const vin = document.getElementById('vin').value;
+      const code = document.getElementById('code').value;
+      const symptom = document.getElementById('symptom').value;
+      const notes = document.getElementById('notes').value;
+
+      document.getElementById('saveStatus').innerText = 'Save status: waiting on diagnosis...';
+      document.getElementById('output').innerText = 'Running diagnosis...';
+
+      const res = await fetch(`${backend}/diagnose`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vin, code, symptom, notes })
+      });
+
+      const data = await res.json();
+
+      lastDiagnosis = data.diagnosis || '';
+      lastVehicle = data.vehicle || {};
+
+      document.getElementById('output').innerText = data.diagnosis || '';
+
+      document.getElementById('vehicle').innerText =
+        `VIN: ${lastVehicle.vin || vin}
+Year: ${lastVehicle.year || ''}
+Make: ${lastVehicle.make || ''}
+Model: ${lastVehicle.model || ''}
+Engine: ${lastVehicle.engine || ''}`;
+
+      await autoSaveRepair();
     }
   </script>
 
