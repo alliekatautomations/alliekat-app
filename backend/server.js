@@ -1,9 +1,15 @@
 const express = require('express');
 const cors = require('cors');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+const supabaseUrl = 'https://julpheuumolnwkthazdj.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1bHBoZXV1bW9sbndrdGhhemRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMzc5ODYsImV4cCI6MjA4OTYxMzk4Nn0.i3jI-PjdAUPnbgVn_EXctr0-F158Gbp-r6icrEdvOGM';
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 async function decodeVIN(vin) {
   try {
@@ -172,11 +178,37 @@ Give the next correct diagnostic branch based on the information already entered
   }
 });
 
-app.get('/', (req, res) => {
-  res.send('Allie-kat backend running with AI + VIN decode');
+app.get('/test-db', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('repair_cases')
+      .select('*')
+      .limit(5);
+
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+
+    res.json({
+      success: true,
+      data
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
 });
 
-const PORT = process.env.PORT;
+app.get('/', (req, res) => {
+  res.send('Allie-kat backend running with AI + VIN decode + Supabase');
+});
+
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, '0.0.0.0', () => {
   console.log('Server running on ' + PORT);
 });
