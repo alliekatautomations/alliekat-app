@@ -8,7 +8,7 @@ app.use(express.json());
 
 // ===== SUPABASE =====
 const supabaseUrl = 'https://julpheuumolnwkthazdj.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1bHBoZXV1bW9sbndrdGhhemRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMzc5ODYsImV4cCI6MjA4OTYxMzk4Nn0.i3jI-PjdAUPnbgVn_EXctr0-F158Gbp-r6icrEdvOGM';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1bGBoZXV1bW9sbndrdGhhemRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMzc5ODYsImV4cCI6MjA4OTYxMzk4Nn0.i3jI-PjdAUPnbgVn_EXctr0-F158Gbp-r6icrEdvOGM';
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
@@ -174,18 +174,60 @@ ${notes || 'none'}
   }
 });
 
-// ===== SAVE =====
+// ===== SAVE WITH DUPLICATE PROTECTION =====
 app.post('/save-repair', async (req, res) => {
-  const { data, error } = await supabase
-    .from('repair_cases')
-    .insert([req.body])
-    .select();
+  try {
+    const record = {
+      vin: req.body.vin || '',
+      year: req.body.year || '',
+      make: req.body.make || '',
+      model: req.body.model || '',
+      engine: req.body.engine || '',
+      fault_code: req.body.fault_code || '',
+      complaint: req.body.complaint || '',
+      ai_diagnosis: req.body.ai_diagnosis || '',
+      recommended_tests: req.body.recommended_tests || '',
+      final_fix: req.body.final_fix || '',
+      tech_name: req.body.tech_name || '',
+      status: req.body.status || 'open',
+      notes: req.body.notes || ''
+    };
 
-  if (error) {
-    return res.status(500).json({ error: error.message });
+    const { data: existing, error: findError } = await supabase
+      .from('repair_cases')
+      .select('*')
+      .eq('vin', record.vin)
+      .eq('fault_code', record.fault_code)
+      .eq('complaint', record.complaint)
+      .eq('notes', record.notes)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (findError) {
+      return res.status(500).json({ success: false, error: findError.message });
+    }
+
+    if (existing && existing.length > 0) {
+      return res.json({
+        success: true,
+        duplicate: true,
+        data: existing
+      });
+    }
+
+    const { data, error } = await supabase
+      .from('repair_cases')
+      .insert([record])
+      .select();
+
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+
+    res.json({ success: true, duplicate: false, data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
-
-  res.json({ success: true, data });
 });
 
 // ===== SEARCH BY CODE =====
@@ -227,7 +269,7 @@ app.get('/test-db', async (req, res) => {
   const { data, error } = await supabase
     .from('repair_cases')
     .select('*')
-    .limit(5);
+    .limit(20);
 
   if (error) {
     return res.status(500).json({ error: error.message });
