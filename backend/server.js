@@ -1454,14 +1454,22 @@ app.post('/login', async (req, res) => {
     }
 
     if (supabaseAdmin) {
+      const existingProfile = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+
+      const currentRole = safeString(existingProfile?.data?.role) || 'tech';
+
       const { error: profileUpsertError } = await supabaseAdmin
         .from('user_profiles')
         .upsert([
           {
             id: data.user.id,
             email,
-            name: safeString(data.user.user_metadata?.name),
-            role: 'tech',
+            name: safeString(existingProfile?.data?.name || data.user.user_metadata?.name),
+            role: currentRole,
             last_seen: new Date().toISOString()
           }
         ], { onConflict: 'id' });
