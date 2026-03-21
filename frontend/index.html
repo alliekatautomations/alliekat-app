@@ -474,7 +474,32 @@
         <h2>User Access</h2>
 
         <div class="auth-card">
-          <div class="auth-title">Login Test</div>
+          <div class="auth-title">Sign Up</div>
+
+          <div class="field-group">
+            <label for="signupName">Name</label>
+            <input id="signupName" placeholder="Enter name" />
+          </div>
+
+          <div class="field-group">
+            <label for="signupEmail">Email</label>
+            <input id="signupEmail" placeholder="Enter email" />
+          </div>
+
+          <div class="field-group">
+            <label for="signupPassword">Password</label>
+            <input id="signupPassword" type="password" placeholder="Enter password" />
+          </div>
+
+          <div class="button-row">
+            <button class="secondary" onclick="signupUser()">Sign Up</button>
+          </div>
+
+          <div id="signupResult" class="auth-result">No signup attempt yet.</div>
+        </div>
+
+        <div class="auth-card">
+          <div class="auth-title">Login</div>
 
           <div class="field-group">
             <label for="loginEmail">Email</label>
@@ -856,6 +881,43 @@
       }).join("");
 
       box.scrollTop = box.scrollHeight;
+    }
+
+    async function signupUser() {
+      const name = (document.getElementById("signupName").value || "").trim();
+      const email = (document.getElementById("signupEmail").value || "").trim();
+      const password = document.getElementById("signupPassword").value || "";
+      const resultBox = document.getElementById("signupResult");
+
+      if (!email || !password) {
+        resultBox.innerText = "Email and password required.";
+        setStatus("System Status: Signup needs email and password");
+        return;
+      }
+
+      setStatus("System Status: Creating user...");
+
+      try {
+        const res = await fetch(`${backend}/signup`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, email, password })
+        });
+
+        const data = await res.json();
+        resultBox.innerText = JSON.stringify(data, null, 2);
+
+        if (data.success) {
+          document.getElementById("loginEmail").value = email;
+          document.getElementById("loginPassword").value = password;
+          setStatus("System Status: Signup complete");
+        } else {
+          setStatus("System Status: Signup failed");
+        }
+      } catch (err) {
+        resultBox.innerText = `Signup error: ${err.message}`;
+        setStatus("System Status: Signup error");
+      }
     }
 
     async function loginUser() {
