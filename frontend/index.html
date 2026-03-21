@@ -471,56 +471,58 @@
 
     <div class="layout">
       <div class="panel">
-        <h2>User Access</h2>
+        <div id="authWrap">
+          <h2>User Access</h2>
 
-        <div class="auth-card">
-          <div class="auth-title">Sign Up</div>
+          <div class="auth-card">
+            <div class="auth-title">Sign Up</div>
 
-          <div class="field-group">
-            <label for="signupName">Name</label>
-            <input id="signupName" placeholder="Enter name" />
+            <div class="field-group">
+              <label for="signupName">Name</label>
+              <input id="signupName" placeholder="Enter name" />
+            </div>
+
+            <div class="field-group">
+              <label for="signupEmail">Email</label>
+              <input id="signupEmail" placeholder="Enter email" />
+            </div>
+
+            <div class="field-group">
+              <label for="signupPassword">Password</label>
+              <input id="signupPassword" type="password" placeholder="Enter password" />
+            </div>
+
+            <div class="button-row">
+              <button class="secondary" onclick="signupUser()">Sign Up</button>
+            </div>
+
+            <div id="signupResult" class="auth-result">No signup attempt yet.</div>
           </div>
 
-          <div class="field-group">
-            <label for="signupEmail">Email</label>
-            <input id="signupEmail" placeholder="Enter email" />
+          <div class="auth-card">
+            <div class="auth-title">Login</div>
+
+            <div class="field-group">
+              <label for="loginEmail">Email</label>
+              <input id="loginEmail" placeholder="Enter email" />
+            </div>
+
+            <div class="field-group">
+              <label for="loginPassword">Password</label>
+              <input id="loginPassword" type="password" placeholder="Enter password" />
+            </div>
+
+            <div class="button-row">
+              <button class="primary" onclick="loginUser()">Login</button>
+            </div>
+
+            <div class="field-group" style="margin-top: 14px;">
+              <div class="field-label">Current User</div>
+              <div class="field-value" id="currentUserBox">Not logged in</div>
+            </div>
+
+            <div id="loginResult" class="auth-result">No login attempt yet.</div>
           </div>
-
-          <div class="field-group">
-            <label for="signupPassword">Password</label>
-            <input id="signupPassword" type="password" placeholder="Enter password" />
-          </div>
-
-          <div class="button-row">
-            <button class="secondary" onclick="signupUser()">Sign Up</button>
-          </div>
-
-          <div id="signupResult" class="auth-result">No signup attempt yet.</div>
-        </div>
-
-        <div class="auth-card">
-          <div class="auth-title">Login</div>
-
-          <div class="field-group">
-            <label for="loginEmail">Email</label>
-            <input id="loginEmail" placeholder="Enter email" />
-          </div>
-
-          <div class="field-group">
-            <label for="loginPassword">Password</label>
-            <input id="loginPassword" type="password" placeholder="Enter password" />
-          </div>
-
-          <div class="button-row">
-            <button class="primary" onclick="loginUser()">Login</button>
-          </div>
-
-          <div class="field-group" style="margin-top: 14px;">
-            <div class="field-label">Current User</div>
-            <div class="field-value" id="currentUserBox">Not logged in</div>
-          </div>
-
-          <div id="loginResult" class="auth-result">No login attempt yet.</div>
         </div>
 
         <div id="diagLockedCard" class="locked-card">
@@ -647,7 +649,8 @@
     function updateAuthView() {
       const loggedIn = !!currentUser;
 
-      document.getElementById("diagLockedCard").classList.toggle("hidden", loggedIn);
+      document.getElementById("authWrap").style.display = loggedIn ? "none" : "block";
+      document.getElementById("diagLockedCard").style.display = loggedIn ? "none" : "block";
       document.getElementById("diagPanelContent").classList.toggle("hidden", !loggedIn);
       document.getElementById("flowPanel").classList.toggle("hidden", !loggedIn);
       document.getElementById("chatPanel").classList.toggle("hidden", !loggedIn);
