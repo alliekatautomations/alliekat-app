@@ -35,33 +35,47 @@ async function decodeVIN(vin) {
   }
 }
 
-function defaultTree(payload) {
-  const code = safeString(payload.code);
+function buildQuickTree(payload) {
+  const vin = safeString(payload.vin);
+  const code = safeString(payload.code).toUpperCase();
   const symptom = safeString(payload.symptom);
   const notes = safeString(payload.notes);
 
+  const issueSummary = code
+    ? `Rapid-start diagnostic path for DTC ${code}${symptom ? ` with complaint: ${symptom}` : ''}`
+    : `Rapid-start diagnostic path${symptom ? ` for complaint: ${symptom}` : ''}`;
+
+  const currentPosition = notes
+    ? `Starting from technician notes already provided: ${notes}`
+    : code
+      ? `Starting rapid flow using entered DTC ${code}`
+      : 'Starting rapid flow with no DTC-specific information entered.';
+
+  const dtcLabel = code || 'entered fault';
+  const complaintLabel = symptom || 'reported complaint';
+
   return {
-    issue_summary: code
-      ? `Diagnostic path for fault code ${code}${symptom ? ` with symptom: ${symptom}` : ''}`
-      : `Diagnostic path${symptom ? ` for symptom: ${symptom}` : ''}`,
-    current_position: notes
-      ? `Tech notes already entered: ${notes}`
-      : 'Starting at the first decision point with no completed test notes entered.',
+    issue_summary: issueSummary,
+    current_position: currentPosition,
     current_step_id: 'step_1',
     steps: [
       {
         id: 'step_1',
-        title: 'Verify complaint and active code condition',
-        instruction: 'Confirm the complaint, verify the DTC is active or current, and identify whether the fault is present now or intermittent.',
+        title: code ? `Verify DTC ${code} and complaint` : 'Verify complaint and active fault',
+        instruction: code
+          ? `Confirm DTC ${code} is active/current and verify the reported complaint: ${complaintLabel}.`
+          : `Confirm the complaint is present now and verify whether a current fault is active.`,
         where_to_test: 'Scan tool, key on / engine off and key on / engine running as applicable.',
         expected_specs: {
           voltage: 'Verify exact OEM spec/pinout for this platform',
           ohms: 'Verify exact OEM spec/pinout for this platform',
           pressure: 'Verify exact OEM spec/pinout for this platform',
-          signal: 'Fault status should match actual complaint condition',
+          signal: code ? `Fault state and live data should support DTC ${code}` : 'Fault state should match complaint condition',
           voltage_drop: 'Verify exact OEM spec/pinout for this platform'
         },
-        how_to_test: 'Record whether the code is active, inactive, history-only, or resets immediately after clearing.',
+        how_to_test: code
+          ? `Record whether DTC ${code} is active, inactive, history-only, or resets immediately after clearing.`
+          : 'Record whether the fault is active, inactive, history-only, or resets immediately after clearing.',
         result_buttons: [
           { label: 'PASS', next_step_id: 'step_2' },
           { label: 'FAIL', next_step_id: 'step_fail_1' },
@@ -70,17 +84,19 @@ function defaultTree(payload) {
       },
       {
         id: 'step_2',
-        title: 'Check power, ground, and reference circuits before replacing parts',
-        instruction: 'Verify power feeds, grounds, and reference circuits at the affected component or control circuit.',
-        where_to_test: 'At the suspected sensor, actuator, or module connector.',
+        title: code ? `Check primary circuits tied to ${code}` : 'Check primary power, ground, and reference circuits',
+        instruction: code
+          ? `Check the main power, ground, reference, and signal circuits related to DTC ${code} before replacing parts.`
+          : 'Check the main power, ground, reference, and signal circuits before replacing parts.',
+        where_to_test: 'At the suspected sensor, actuator, or control circuit connector.',
         expected_specs: {
           voltage: 'Typical 5V reference or battery voltage depending on circuit; verify exact OEM spec/pinout for this platform',
-          ohms: 'Low resistance to ground on ground circuits; verify exact OEM spec/pinout for this platform',
+          ohms: 'Low resistance on good ground path; verify exact OEM spec/pinout for this platform',
           pressure: 'N/A unless pressure-based fault',
-          signal: 'Signal should change logically with component movement or operating condition',
-          voltage_drop: 'Typically low on good power and ground circuits; verify exact OEM spec/pinout for this platform'
+          signal: code ? `Signal should behave normally for the circuit tied to DTC ${code}` : 'Signal should change logically with operating condition',
+          voltage_drop: 'Typically low on good circuits; verify exact OEM spec/pinout for this platform'
         },
-        how_to_test: 'Backprobe the connector, check power feed, ground integrity, and signal behavior under load.',
+        how_to_test: 'Backprobe connector, verify feed, verify ground integrity, and verify signal behavior under load.',
         result_buttons: [
           { label: 'PASS', next_step_id: 'step_3' },
           { label: 'FAIL', next_step_id: 'step_fail_2' },
@@ -89,17 +105,19 @@ function defaultTree(payload) {
       },
       {
         id: 'step_3',
-        title: 'Inspect harness, connector fit, and known failure points',
-        instruction: 'Inspect for rub-through, poor pin drag, water intrusion, spread terminals, corrosion, and repair history.',
-        where_to_test: 'Harness routing, connector bodies, bends near engine brackets, frame rails, and component entry points.',
+        title: code ? `Inspect wiring and connector issues related to ${code}` : 'Inspect harness, connector fit, and known failure points',
+        instruction: code
+          ? `Inspect for rub-through, spread pins, corrosion, water intrusion, and prior repair issues on the circuits related to DTC ${code}.`
+          : 'Inspect for rub-through, spread pins, corrosion, water intrusion, and prior repair issues.',
+        where_to_test: 'Harness routing, connector bodies, bends near brackets, frame rails, and entry points.',
         expected_specs: {
-          voltage: 'No abnormal drop from movement or wiggle test',
-          ohms: 'No opens or unstable readings during harness movement',
+          voltage: 'No abnormal voltage change during movement test',
+          ohms: 'No opens or unstable readings during movement test',
           pressure: 'N/A unless pressure-based fault',
           signal: 'Signal should remain stable during wiggle test',
           voltage_drop: 'No excessive change during movement test'
         },
-        how_to_test: 'Wiggle test the circuit while monitoring live data or meter readings.',
+        how_to_test: 'Wiggle test the harness while monitoring live data or meter readings.',
         result_buttons: [
           { label: 'PASS', next_step_id: 'step_4' },
           { label: 'FAIL', next_step_id: 'step_fail_3' },
@@ -108,8 +126,10 @@ function defaultTree(payload) {
       },
       {
         id: 'step_4',
-        title: 'Component functional verification',
-        instruction: 'Verify whether the affected component responds correctly once circuit integrity is confirmed.',
+        title: code ? `Verify component operation for ${code}` : 'Verify component operation',
+        instruction: code
+          ? `Once circuit integrity checks pass, verify whether the component or subsystem tied to DTC ${code} is responding correctly.`
+          : 'Once circuit integrity checks pass, verify whether the affected component is responding correctly.',
         where_to_test: 'At the component and with scan data if available.',
         expected_specs: {
           voltage: 'Per OEM spec for the affected component',
@@ -118,7 +138,7 @@ function defaultTree(payload) {
           signal: 'Signal should track input or command smoothly with no dropouts',
           voltage_drop: 'Minimal on good circuits'
         },
-        how_to_test: 'Compare commanded value versus actual value, or manually stimulate the component where applicable.',
+        how_to_test: 'Compare commanded values versus actual values, or manually stimulate the component where applicable.',
         result_buttons: [
           { label: 'PASS', next_step_id: 'step_pass_final' },
           { label: 'FAIL', next_step_id: 'step_fail_final' },
@@ -127,8 +147,10 @@ function defaultTree(payload) {
       },
       {
         id: 'step_fail_1',
-        title: 'Code / complaint did not verify normally',
-        instruction: 'Treat as intermittent or event-based fault. Check freeze-frame, duplication conditions, and recent repairs.',
+        title: code ? `${code} did not verify normally` : 'Code / complaint did not verify normally',
+        instruction: code
+          ? `Treat DTC ${code} as intermittent or event-based. Check freeze-frame, duplication conditions, and recent repairs.`
+          : 'Treat fault as intermittent or event-based. Check freeze-frame, duplication conditions, and recent repairs.',
         where_to_test: 'Scan tool history, freeze-frame, and operating conditions.',
         expected_specs: {
           voltage: 'Verify exact OEM spec/pinout for this platform',
@@ -137,15 +159,17 @@ function defaultTree(payload) {
           signal: 'Complaint should be reproducible before part replacement',
           voltage_drop: 'Verify exact OEM spec/pinout for this platform'
         },
-        how_to_test: 'Road test or duplicate condition, then restart tree once fault is active.',
+        how_to_test: 'Road test or duplicate condition, then restart tree once the fault is active.',
         result_buttons: [
           { label: 'CONTINUE', next_step_id: 'step_2' }
         ]
       },
       {
         id: 'step_fail_2',
-        title: 'Circuit failure found',
-        instruction: 'Repair power, ground, reference, or return circuit issue before condemning component.',
+        title: 'Primary circuit failure found',
+        instruction: code
+          ? `Repair the feed, ground, reference, or signal issue associated with DTC ${code} before condemning a component.`
+          : 'Repair the feed, ground, reference, or signal issue before condemning a component.',
         where_to_test: 'Affected circuit path between source, component, and module.',
         expected_specs: {
           voltage: 'Restore proper supply/reference',
@@ -179,7 +203,9 @@ function defaultTree(payload) {
       {
         id: 'step_pass_final',
         title: 'Circuit and component both tested good',
-        instruction: 'Suspect intermittent wiring issue, environmental trigger, mechanical issue, or calibration/software issue.',
+        instruction: code
+          ? `If DTC ${code} still returns, suspect intermittent wiring, environmental trigger, related system issue, or software/calibration concern.`
+          : 'Suspect intermittent wiring, environmental trigger, related system issue, or software/calibration concern.',
         where_to_test: 'System-level review, freeze-frame, and related systems.',
         expected_specs: {
           voltage: 'Verify exact OEM spec/pinout for this platform',
@@ -194,7 +220,9 @@ function defaultTree(payload) {
       {
         id: 'step_fail_final',
         title: 'Component likely failed after circuit verification',
-        instruction: 'If all feeds, grounds, references, and harness integrity are verified, component fault path is likely.',
+        instruction: code
+          ? `If all feeds, grounds, references, signal paths, and harness integrity tied to DTC ${code} are verified good, the component/subsystem fault path is likely.`
+          : 'If all feeds, grounds, references, and harness integrity are verified good, component fault path is likely.',
         where_to_test: 'Affected sensor / actuator / module.',
         expected_specs: {
           voltage: 'Verify exact OEM spec/pinout for this platform',
@@ -207,9 +235,13 @@ function defaultTree(payload) {
         result_buttons: []
       }
     ],
-    likely_fault_path: 'Most likely path is circuit, connector, or harness issue first. Confirm circuit integrity before replacing components.',
-    final_recommendation: 'Use button flow to walk through each step. Save confirmed final fix after repair.',
-    source: 'fallback'
+    likely_fault_path: code
+      ? `Most likely rapid-start path for DTC ${code} is circuit, connector, or harness fault first. Confirm circuit integrity before replacing components.`
+      : 'Most likely path is circuit, connector, or harness issue first. Confirm circuit integrity before replacing components.',
+    final_recommendation: code
+      ? `Walk the rapid-start tree for DTC ${code}, then save the confirmed final fix after repair.`
+      : 'Walk the rapid-start tree, then save the confirmed final fix after repair.',
+    source: 'fast-code-aware'
   };
 }
 
@@ -236,7 +268,7 @@ function cleanModelJson(raw) {
 }
 
 function normalizeTree(modelTree, payload, vehicleInfo) {
-  const fallback = defaultTree(payload);
+  const fallback = buildQuickTree(payload);
 
   if (!modelTree || typeof modelTree !== 'object') {
     return fallback;
@@ -288,7 +320,7 @@ async function createStructuredTroubleTree({ vin, code, symptom, notes, vehicleI
   const openAiKey = process.env.OPENAI_API_KEY;
 
   if (!openAiKey) {
-    return defaultTree({ vin, code, symptom, notes });
+    return buildQuickTree({ vin, code, symptom, notes });
   }
 
   const systemPrompt = `
@@ -307,6 +339,7 @@ Rules:
 - Each step must have button choices that map to next_step_id values.
 - Prefer button labels like PASS, FAIL, NOT TESTED, CONTINUE, RETEST.
 - Use the notes already provided so you do not restart from the beginning if previous checks were already completed.
+- Use the actual DTC and complaint throughout the tree when available.
 - If exact OEM specs are not certain, say: "Verify exact OEM spec/pinout for this platform"
 - Never invent exact pin numbers if uncertain.
 - Keep wording practical and bay-friendly.
@@ -389,7 +422,7 @@ Build the diagnostic tree now.
 
     return normalizeTree(parsed, { vin, code, symptom, notes }, vehicleInfo);
   } catch {
-    return defaultTree({ vin, code, symptom, notes });
+    return buildQuickTree({ vin, code, symptom, notes });
   }
 }
 
@@ -570,7 +603,7 @@ app.post('/save-repair', async (req, res) => {
   }
 });
 
-// FAST DIAGNOSE ROUTE
+// FAST + DTC-AWARE DIAGNOSE ROUTE
 app.post('/diagnose', async (req, res) => {
   try {
     const vin = safeString(req.body.vin);
@@ -578,7 +611,7 @@ app.post('/diagnose', async (req, res) => {
     const symptom = safeString(req.body.symptom);
     const notes = safeString(req.body.notes);
 
-    const quickTree = defaultTree({ vin, code, symptom, notes });
+    const quickTree = buildQuickTree({ vin, code, symptom, notes });
 
     res.json({
       success: true,
