@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Allie-Kat Diagnostics v2.0.3</title>
+  <title>Allie-Kat Diagnostics v2.0.4</title>
 
   <style>
     * { box-sizing: border-box; }
@@ -258,7 +258,8 @@
     .locked-card,
     .admin-card,
     .request-card,
-    .stats-card {
+    .stats-card,
+    .user-card {
       border: 1px solid rgba(76, 229, 255, 0.14);
       border-radius: 16px;
       padding: 14px;
@@ -470,14 +471,17 @@
       margin-bottom: 12px;
     }
 
-    .request-email {
+    .request-email,
+    .user-email {
       color: #ffffff;
       font-size: 16px;
       font-weight: 700;
       margin-bottom: 8px;
+      word-break: break-word;
     }
 
-    .request-meta {
+    .request-meta,
+    .user-meta {
       color: #cfefff;
       font-size: 13px;
       line-height: 1.5;
@@ -501,6 +505,20 @@
       font-size: 13px;
       margin-top: 8px;
       line-height: 1.4;
+    }
+
+    .user-role-badge {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      border: 1px solid rgba(76, 229, 255, 0.18);
+      background: rgba(17, 42, 59, 0.96);
+      color: #9ef3ff;
     }
 
     .hidden {
@@ -555,7 +573,7 @@
 
         <div class="brand-copy">
           <div class="eyebrow">Allie-Kat Fleet Services</div>
-          <h1 class="title">Allie-Kat Diagnostics <span>v2.0.3</span></h1>
+          <h1 class="title">Allie-Kat Diagnostics <span>v2.0.4</span></h1>
           <div class="motto">
             Revolutionizing your automotive experience with intelligent technology to transport your machine into the future....
           </div>
@@ -741,6 +759,7 @@
           <button class="admin-back-btn" onclick="closeAdminDashboard()">Back to App</button>
           <button class="secondary" onclick="loadAdminDashboardData()">Refresh Dashboard</button>
           <button class="secondary" onclick="loadAccessRequests()">Refresh Requests</button>
+          <button class="secondary" onclick="loadAdminUsers()">Refresh Users</button>
         </div>
 
         <h2>Admin Dashboard</h2>
@@ -763,6 +782,12 @@
           </div>
 
           <div id="adminUserStatsResult" class="admin-result">User stats not loaded yet.</div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-title">Registered Users</div>
+          <div id="adminUsersResult" class="admin-result">User list not loaded yet.</div>
+          <div id="adminUsersList"></div>
         </div>
 
         <div class="admin-card">
@@ -909,9 +934,61 @@
       }
     }
 
+    function renderAdminUsers(users) {
+      const container = document.getElementById("adminUsersList");
+
+      if (!users || !users.length) {
+        container.innerHTML = `
+          <div class="user-card">
+            <div class="field-value">No registered users found.</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = users.map(user => `
+        <div class="user-card">
+          <div class="user-email">${user.email || "-"}</div>
+          <div class="user-meta">
+Name: ${user.name || "-"}
+Role: ${user.role || "-"}
+Created: ${user.created_at || "-"}
+Last Seen: ${user.last_seen || "-"}
+          </div>
+          <div class="user-role-badge">${user.role || "tech"}</div>
+        </div>
+      `).join("");
+    }
+
+    async function loadAdminUsers() {
+      const resultBox = document.getElementById("adminUsersResult");
+
+      if ((currentProfile?.role || "") !== "admin") return;
+
+      resultBox.innerText = "Loading registered users...";
+
+      try {
+        const res = await fetch(`${backend}/admin-users`);
+        const data = await res.json();
+
+        if (data.success) {
+          renderAdminUsers(data.users || []);
+          resultBox.innerText = `Loaded ${(data.users || []).length} registered user(s).`;
+          return;
+        }
+
+        renderAdminUsers([]);
+        resultBox.innerText = data.error || "Failed to load registered users.";
+      } catch (err) {
+        renderAdminUsers([]);
+        resultBox.innerText = `User list error: ${err.message}`;
+      }
+    }
+
     async function loadAdminDashboardData() {
       if ((currentProfile?.role || "") !== "admin") return;
       await loadAdminUserStats();
+      await loadAdminUsers();
       await loadAccessRequests();
     }
 
@@ -1173,7 +1250,7 @@ Reason: ${request.reason || "-"}
         const data = await res.json();
 
         if (data.success) {
-          resultBox.innerText = "Request approved. You still need to create the actual login in Supabase Authentication → Users.";
+          resultBox.innerText = "Request approved.";
           await loadAdminDashboardData();
           return;
         }
@@ -1404,7 +1481,9 @@ Reason: ${request.reason || "-"}
       showLogin();
       closeAdminDashboard();
       document.getElementById("accessRequestsList").innerHTML = "";
+      document.getElementById("adminUsersList").innerHTML = "";
       document.getElementById("adminResult").innerText = "No admin actions yet.";
+      document.getElementById("adminUsersResult").innerText = "User list not loaded yet.";
       document.getElementById("adminUserStatsResult").innerText = "User stats not loaded yet.";
       document.getElementById("totalRegisteredUsers").innerText = "0";
       document.getElementById("onlineRegisteredUsers").innerText = "0";
