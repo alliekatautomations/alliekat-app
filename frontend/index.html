@@ -371,246 +371,177 @@
     <div class="footer">Allie-Kat Automations</div>
   </div>
 
-  <script>
-    const backend = "https://alliekat-app.onrender.com";
+ <script>
+const backend = "https://alliekat-app.onrender.com";
 
-    let tree = null;
-    let currentStep = null;
-    let historyLog = [];
-    let vehicleData = {};
+let tree = null;
+let currentStep = null;
+let historyLog = [];
+let stepStack = []; // 👈 THIS TRACKS BACK NAV
+let vehicleData = {};
 
-    function setStatus(text) {
-      document.getElementById("status").innerText = text;
-    }
+function setStatus(text) {
+  document.getElementById("status").innerText = text;
+}
 
-    function setVehicle(vehicle, currentPositionText) {
-      vehicleData = vehicle || {};
+function setVehicle(vehicle, currentPositionText) {
+  vehicleData = vehicle || {};
 
-      document.getElementById("vehicleVin").innerText = vehicleData.vin || document.getElementById("vin").value || "-";
-      document.getElementById("vehicleYear").innerText = vehicleData.year || "-";
-      document.getElementById("vehicleMake").innerText = vehicleData.make || "-";
-      document.getElementById("vehicleModel").innerText = vehicleData.model || "-";
-      document.getElementById("vehicleEngine").innerText = vehicleData.engine || "-";
-      document.getElementById("currentPosition").innerText = currentPositionText || "Diagnosis loaded";
-    }
+  vehicleVin.innerText = vehicleData.vin || vin.value || "-";
+  vehicleYear.innerText = vehicleData.year || "-";
+  vehicleMake.innerText = vehicleData.make || "-";
+  vehicleModel.innerText = vehicleData.model || "-";
+  vehicleEngine.innerText = vehicleData.engine || "-";
+  currentPosition.innerText = currentPositionText || "Diagnosis loaded";
+}
 
-    function renderHistory() {
-      const historyBox = document.getElementById("historyBox");
+function renderHistory() {
+  if (!historyLog.length) {
+    historyBox.innerText = "No steps taken yet.";
+    return;
+  }
 
-      if (!historyLog.length) {
-        historyBox.innerText = "No steps taken yet.";
-        return;
-      }
+  historyBox.innerHTML = historyLog
+    .map(item => `<div class="history-line">${item}</div>`)
+    .join("");
+}
 
-      historyBox.innerHTML = historyLog
-        .map(item => `<div class="history-line">${item}</div>`)
-        .join("");
-    }
+function renderStep() {
+  if (!currentStep) {
+    stepContainer.innerHTML = `
+      <div class="step-card">
+        <h3>Complete</h3>
+        <p>${tree?.likely_fault_path || ""}</p>
+        <p>${tree?.final_recommendation || ""}</p>
+      </div>
+    `;
+    return;
+  }
 
-    function renderStep() {
-      const stepContainer = document.getElementById("stepContainer");
+  let buttons = (currentStep.result_buttons || []).map(btn => {
+    let cls = "skip";
+    if (btn.label === "PASS") cls = "pass";
+    if (btn.label === "FAIL") cls = "fail";
 
-      if (!currentStep) {
-        stepContainer.innerHTML = `
-          <div class="step-card">
-            <h3 class="step-title">Diagnostic Path Complete</h3>
+    return `<button class="${cls}" onclick="nextStep('${btn.next_step_id}','${btn.label}')">${btn.label}</button>`;
+  }).join("");
 
-            <div class="step-section">
-              <div class="step-section-title">Likely Fault Path</div>
-              <div class="step-section-body">${tree?.likely_fault_path || "No likely fault path returned."}</div>
-            </div>
+  // 👇 BACK BUTTON ONLY SHOWS IF STACK HAS HISTORY
+  let backBtn = stepStack.length > 0
+    ? `<button class="secondary" onclick="goBack()">⬅ Back</button>`
+    : "";
 
-            <div class="step-section">
-              <div class="step-section-title">Final Recommendation</div>
-              <div class="step-section-body">${tree?.final_recommendation || "No final recommendation returned."}</div>
-            </div>
-          </div>
-        `;
-        return;
-      }
+  stepContainer.innerHTML = `
+    <div class="step-card">
+      <h3>${currentStep.title}</h3>
 
-      const buttonsHtml = (currentStep.result_buttons || [])
-        .map(btn => {
-          let cls = "skip";
+      <p><b>Instruction:</b> ${currentStep.instruction || "-"}</p>
+      <p><b>Where:</b> ${currentStep.where_to_test || "-"}</p>
 
-          if (btn.label === "PASS") cls = "pass";
-          if (btn.label === "FAIL") cls = "fail";
+      <p><b>Voltage:</b> ${currentStep.expected_specs?.voltage || "-"}</p>
+      <p><b>Ohms:</b> ${currentStep.expected_specs?.ohms || "-"}</p>
+      <p><b>Pressure:</b> ${currentStep.expected_specs?.pressure || "-"}</p>
+      <p><b>Signal:</b> ${currentStep.expected_specs?.signal || "-"}</p>
+      <p><b>Voltage Drop:</b> ${currentStep.expected_specs?.voltage_drop || "-"}</p>
 
-          return `<button class="${cls}" onclick="nextStep('${btn.next_step_id}', '${btn.label.replace(/'/g, "\\'")}')">${btn.label}</button>`;
-        })
-        .join("");
+      <p><b>How:</b> ${currentStep.how_to_test || "-"}</p>
 
-      stepContainer.innerHTML = `
-        <div class="step-card">
-          <h3 class="step-title">${currentStep.title || "Diagnostic Step"}</h3>
+      <div class="result-buttons">
+        ${buttons}
+      </div>
 
-          <div class="step-section">
-            <div class="step-section-title">Instruction</div>
-            <div class="step-section-body">${currentStep.instruction || "-"}</div>
-          </div>
+      <div style="margin-top:10px;">
+        ${backBtn}
+      </div>
+    </div>
+  `;
+}
 
-          <div class="step-section">
-            <div class="step-section-title">Where To Test</div>
-            <div class="step-section-body">${currentStep.where_to_test || "-"}</div>
-          </div>
+async function startDiag() {
+  setStatus("Loading...");
 
-          <div class="step-section">
-            <div class="step-section-title">Expected Specs</div>
-            <div class="spec-grid">
-              <div>
-                <div class="field-label">Expected Voltage</div>
-                <div class="field-value">${currentStep.expected_specs?.voltage || "-"}</div>
-              </div>
-              <div>
-                <div class="field-label">Expected Ohms</div>
-                <div class="field-value">${currentStep.expected_specs?.ohms || "-"}</div>
-              </div>
-              <div>
-                <div class="field-label">Expected Pressure</div>
-                <div class="field-value">${currentStep.expected_specs?.pressure || "-"}</div>
-              </div>
-              <div>
-                <div class="field-label">Expected Signal</div>
-                <div class="field-value">${currentStep.expected_specs?.signal || "-"}</div>
-              </div>
-              <div>
-                <div class="field-label">Expected Voltage Drop</div>
-                <div class="field-value">${currentStep.expected_specs?.voltage_drop || "-"}</div>
-              </div>
-            </div>
-          </div>
+  historyLog = [];
+  stepStack = [];
 
-          <div class="step-section">
-            <div class="step-section-title">How To Test</div>
-            <div class="step-section-body">${currentStep.how_to_test || "-"}</div>
-          </div>
+  const res = await fetch(`${backend}/diagnose`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      vin: vin.value,
+      code: code.value,
+      symptom: symptom.value,
+      notes: notes.value
+    })
+  });
 
-          <div class="result-buttons">
-            ${buttonsHtml}
-          </div>
-        </div>
-      `;
-    }
+  const data = await res.json();
 
-    async function startDiag() {
-      setStatus("System Status: Loading diagnosis...");
+  tree = data.tree;
 
-      historyLog = [];
-      renderHistory();
+  currentStep = tree.steps.find(s => s.id === tree.current_step_id);
 
-      try {
-        const res = await fetch(`${backend}/diagnose`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            vin: document.getElementById("vin").value,
-            code: document.getElementById("code").value,
-            symptom: document.getElementById("symptom").value,
-            notes: document.getElementById("notes").value
-          })
-        });
+  setVehicle(data.vehicle, tree.current_position);
 
-        const data = await res.json();
+  historyLog.push("Started diagnosis");
+  renderHistory();
 
-        if (!data.success || !data.tree || !Array.isArray(data.tree.steps)) {
-          setStatus("System Status: Diagnosis failed");
-          document.getElementById("stepContainer").innerHTML = `
-            <div class="step-card">
-              <div class="field-value">No valid step tree returned.</div>
-            </div>
-          `;
-          return;
-        }
+  renderStep();
+  setStatus("Ready");
+}
 
-        tree = data.tree;
-        currentStep = tree.steps.find(step => step.id === tree.current_step_id) || tree.steps[0] || null;
+function nextStep(nextId, result) {
 
-        setVehicle(data.vehicle || {}, tree.current_position || "Diagnosis loaded");
-        setStatus("System Status: Diagnosis ready");
+  // 👇 SAVE CURRENT STEP BEFORE MOVING
+  stepStack.push(currentStep);
 
-        historyLog.push(`Started tree: ${tree.issue_summary || "Diagnostic flow started"}`);
-        renderHistory();
-        renderStep();
-      } catch (err) {
-        setStatus("System Status: Error loading diagnosis");
-        document.getElementById("stepContainer").innerHTML = `
-          <div class="step-card">
-            <div class="field-value">Error: ${err.message}</div>
-          </div>
-        `;
-      }
-    }
+  historyLog.push(`${currentStep.title} → ${result}`);
+  renderHistory();
 
-    async function nextStep(nextId, resultLabel) {
-      if (!currentStep) return;
+  currentStep = tree.steps.find(s => s.id === nextId);
 
-      historyLog.push(`${currentStep.title} → ${resultLabel}`);
-      renderHistory();
+  renderStep();
 
-      try {
-        await fetch(`${backend}/record-step-result`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            vin: document.getElementById("vin").value || "",
-            year: vehicleData.year || "",
-            make: vehicleData.make || "",
-            model: vehicleData.model || "",
-            engine: vehicleData.engine || "",
-            fault_code: document.getElementById("code").value || "",
-            complaint: document.getElementById("symptom").value || "",
-            notes: document.getElementById("notes").value || "",
-            step_title: currentStep.title || "",
-            step_id: currentStep.id || "",
-            button_result: resultLabel || "",
-            next_step_id: nextId || "",
-            ai_diagnosis: tree?.issue_summary || "",
-            status: "in_progress"
-          })
-        });
-      } catch (err) {
-        console.log("record-step-result failed:", err.message);
-      }
+  // optional save (non-blocking)
+  fetch(`${backend}/record-step-result`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      vin: vin.value,
+      fault_code: code.value,
+      step_id: currentStep?.id || "",
+      button_result: result
+    })
+  });
+}
 
-      if (!nextId) {
-        currentStep = null;
-        setStatus("System Status: Flow complete");
-        renderStep();
-        return;
-      }
+function goBack() {
 
-      currentStep = (tree.steps || []).find(step => step.id === nextId) || null;
-      setStatus("System Status: Step advanced");
-      renderStep();
-    }
+  if (stepStack.length === 0) return;
 
-    function clearAll() {
-      document.getElementById("vin").value = "";
-      document.getElementById("code").value = "";
-      document.getElementById("symptom").value = "";
-      document.getElementById("notes").value = "";
+  currentStep = stepStack.pop();
 
-      tree = null;
-      currentStep = null;
-      historyLog = [];
-      vehicleData = {};
+  historyLog.push("⬅ Went back");
+  renderHistory();
 
-      document.getElementById("vehicleVin").innerText = "-";
-      document.getElementById("vehicleYear").innerText = "-";
-      document.getElementById("vehicleMake").innerText = "-";
-      document.getElementById("vehicleModel").innerText = "-";
-      document.getElementById("vehicleEngine").innerText = "-";
-      document.getElementById("currentPosition").innerText = "Waiting for diagnosis...";
+  renderStep();
+}
 
-      document.getElementById("stepContainer").innerHTML = `
-        <div class="step-card">
-          <div class="field-value">No diagnostic step loaded yet.</div>
-        </div>
-      `;
+function clearAll() {
+  vin.value = "";
+  code.value = "";
+  symptom.value = "";
+  notes.value = "";
 
-      renderHistory();
-      setStatus("System Status: Ready");
-    }
-  </script>
+  tree = null;
+  currentStep = null;
+  historyLog = [];
+  stepStack = [];
+
+  stepContainer.innerHTML = `<div>No data</div>`;
+  historyBox.innerHTML = "";
+
+  setStatus("Ready");
+}
+</script>
 </body>
 </html>
