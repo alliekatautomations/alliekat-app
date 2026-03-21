@@ -7,7 +7,6 @@
 
   <style>
     * { box-sizing: border-box; }
-
     body {
       margin: 0;
       font-family: Arial, sans-serif;
@@ -17,181 +16,41 @@
         linear-gradient(180deg, #02060b 0%, #07111b 45%, #03070d 100%);
       min-height: 100vh;
     }
-
-    .wrap {
-      max-width: 1150px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-
+    .wrap { max-width: 1150px; margin: 0 auto; padding: 20px; }
     .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 18px;
-      flex-wrap: wrap;
-      border: 1px solid rgba(76, 229, 255, 0.20);
-      border-radius: 24px;
-      padding: 18px 20px;
-      margin-bottom: 18px;
+      display: flex; justify-content: space-between; align-items: center; gap: 18px; flex-wrap: wrap;
+      border: 1px solid rgba(76, 229, 255, 0.20); border-radius: 24px; padding: 18px 20px; margin-bottom: 18px;
       background: rgba(5, 15, 25, 0.96);
-      box-shadow:
-        0 0 24px rgba(0, 170, 255, 0.10),
-        inset 0 0 16px rgba(76, 229, 255, 0.03);
     }
-
-    .brand-block {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      flex-wrap: wrap;
-      min-width: 280px;
-      flex: 1;
-    }
-
+    .brand-block { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; min-width: 280px; flex: 1; }
     .logo-box {
-      width: 88px;
-      height: 88px;
-      border-radius: 18px;
-      border: 1px solid rgba(76, 229, 255, 0.18);
-      background: rgba(9, 22, 33, 0.96);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      padding: 8px;
-      flex: 0 0 88px;
+      width: 88px; height: 88px; border-radius: 18px; border: 1px solid rgba(76, 229, 255, 0.18);
+      background: rgba(9, 22, 33, 0.96); display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 8px;
     }
-
-    .logo-box img {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-      display: block;
-    }
-
-    .brand-copy {
-      flex: 1;
-      min-width: 220px;
-    }
-
-    .eyebrow {
-      color: #79dff0;
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      margin-bottom: 6px;
-    }
-
-    .title {
-      margin: 0;
-      color: #4ce5ff;
-      font-size: 32px;
-      line-height: 1.05;
-      font-weight: 700;
-    }
-
-    .title span {
-      color: #dff9ff;
-    }
-
-    .motto {
-      margin-top: 8px;
-      color: #8ebacc;
-      font-size: 14px;
-      line-height: 1.45;
-      max-width: 760px;
-    }
-
+    .logo-box img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+    .eyebrow { color: #79dff0; font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px; }
+    .title { margin: 0; color: #4ce5ff; font-size: 32px; line-height: 1.05; font-weight: 700; }
+    .title span { color: #dff9ff; }
+    .motto { margin-top: 8px; color: #8ebacc; font-size: 14px; line-height: 1.45; max-width: 760px; }
     .status {
-      padding: 10px 14px;
-      border-radius: 999px;
-      border: 1px solid rgba(76, 229, 255, 0.22);
-      background: rgba(11, 28, 39, 0.96);
-      color: #aef7ff;
-      font-size: 13px;
-      min-width: 190px;
-      text-align: center;
+      padding: 10px 14px; border-radius: 999px; border: 1px solid rgba(76, 229, 255, 0.22);
+      background: rgba(11, 28, 39, 0.96); color: #aef7ff; font-size: 13px; min-width: 190px; text-align: center;
     }
-
-    .grid {
-      display: grid;
-      grid-template-columns: minmax(320px, 0.95fr) minmax(360px, 1.05fr);
-      gap: 18px;
-    }
-
+    .grid { display: grid; grid-template-columns: minmax(320px, 0.95fr) minmax(360px, 1.05fr); gap: 18px; }
     .panel {
-      border: 1px solid rgba(76, 229, 255, 0.18);
-      border-radius: 24px;
-      padding: 18px;
+      border: 1px solid rgba(76, 229, 255, 0.18); border-radius: 24px; padding: 18px;
       background: rgba(6, 18, 28, 0.96);
-      box-shadow:
-        0 0 18px rgba(0, 140, 255, 0.06),
-        inset 0 0 14px rgba(76, 229, 255, 0.03);
     }
-
-    .panel h2 {
-      margin: 0 0 14px;
-      color: #4ce5ff;
-      font-size: 24px;
+    .panel h2 { margin: 0 0 14px; color: #4ce5ff; font-size: 24px; }
+    .field-group { width: 100%; margin-bottom: 10px; }
+    label { display: block; margin: 0 0 6px; font-size: 12px; color: #7fb8cd; text-transform: uppercase; letter-spacing: 1px; }
+    input, textarea {
+      display: block; width: 100%; margin: 0; padding: 12px 14px; border-radius: 12px;
+      border: 1px solid rgba(76, 229, 255, 0.18); background: #0b1d2a; color: #ffffff; font-size: 15px; outline: none;
     }
-
-    .field-group {
-      width: 100%;
-      margin-bottom: 10px;
-    }
-
-    label {
-      display: block;
-      margin: 0 0 6px;
-      font-size: 12px;
-      color: #7fb8cd;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-
-    input,
-    textarea {
-      display: block;
-      width: 100%;
-      margin: 0;
-      padding: 12px 14px;
-      border-radius: 12px;
-      border: 1px solid rgba(76, 229, 255, 0.18);
-      background: #0b1d2a;
-      color: #ffffff;
-      font-size: 15px;
-      outline: none;
-    }
-
-    input::placeholder,
-    textarea::placeholder {
-      color: #6f93a3;
-    }
-
-    textarea {
-      min-height: 130px;
-      resize: vertical;
-    }
-
-    .button-row,
-    .result-buttons,
-    .final-row {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-top: 14px;
-    }
-
-    button {
-      padding: 12px 16px;
-      border-radius: 12px;
-      border: none;
-      font-weight: 700;
-      cursor: pointer;
-      font-size: 14px;
-    }
-
+    textarea { min-height: 130px; resize: vertical; }
+    .button-row, .result-buttons, .final-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+    button { padding: 12px 16px; border-radius: 12px; border: none; font-weight: 700; cursor: pointer; font-size: 14px; }
     .primary { background: linear-gradient(90deg, #00d9ff, #0099ff); color: #021018; }
     .secondary { background: #112a3b; color: #9ef3ff; border: 1px solid rgba(76, 229, 255, 0.18); }
     .pass { background: #00d878; color: #04130c; }
@@ -199,91 +58,21 @@
     .skip { background: #ffaa00; color: #2a1a00; }
     .back { background: #33485a; color: #ffffff; }
     .complete { background: linear-gradient(90deg, #27e0ff, #00bfff); color: #021018; }
-
-    .vehicle-card,
-    .step-card,
-    .summary-card,
-    .final-card {
-      border: 1px solid rgba(76, 229, 255, 0.14);
-      border-radius: 16px;
-      padding: 14px;
-      background: rgba(10, 22, 34, 0.94);
-      margin-top: 12px;
+    .vehicle-card, .step-card, .summary-card, .final-card {
+      border: 1px solid rgba(76, 229, 255, 0.14); border-radius: 16px; padding: 14px;
+      background: rgba(10, 22, 34, 0.94); margin-top: 12px;
     }
-
-    .vehicle-grid,
-    .spec-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-
-    .field-label {
-      font-size: 11px;
-      text-transform: uppercase;
-      color: #73a8bc;
-      margin-bottom: 4px;
-      letter-spacing: 1px;
-    }
-
-    .field-value {
-      font-size: 15px;
-      color: #f4fbff;
-      word-break: break-word;
-      white-space: pre-wrap;
-      line-height: 1.45;
-    }
-
-    .step-title {
-      margin: 0 0 12px;
-      color: #4ce5ff;
-      font-size: 22px;
-    }
-
-    .step-section {
-      margin-bottom: 12px;
-    }
-
-    .step-section-title {
-      color: #7fb8cd;
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 4px;
-    }
-
-    .step-section-body {
-      color: #eefcff;
-      font-size: 15px;
-      line-height: 1.5;
-      white-space: pre-wrap;
-    }
-
-    .history-line {
-      padding: 8px 0;
-      border-bottom: 1px solid rgba(76, 229, 255, 0.10);
-      color: #dff7ff;
-      font-size: 14px;
-      line-height: 1.4;
-    }
-
-    .history-line:last-child {
-      border-bottom: none;
-    }
-
-    .footer {
-      text-align: center;
-      margin-top: 18px;
-      color: #6f95a8;
-      font-size: 12px;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-    }
-
+    .vehicle-grid, .spec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .field-label { font-size: 11px; text-transform: uppercase; color: #73a8bc; margin-bottom: 4px; letter-spacing: 1px; }
+    .field-value { font-size: 15px; color: #f4fbff; word-break: break-word; white-space: pre-wrap; line-height: 1.45; }
+    .step-title { margin: 0 0 12px; color: #4ce5ff; font-size: 22px; }
+    .step-section { margin-bottom: 12px; }
+    .step-section-title { color: #7fb8cd; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+    .step-section-body { color: #eefcff; font-size: 15px; line-height: 1.5; white-space: pre-wrap; }
+    .history-line { padding: 8px 0; border-bottom: 1px solid rgba(76, 229, 255, 0.10); color: #dff7ff; font-size: 14px; line-height: 1.4; }
+    .footer { text-align: center; margin-top: 18px; color: #6f95a8; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; }
     @media (max-width: 980px) {
-      .grid, .vehicle-grid, .spec-grid {
-        grid-template-columns: 1fr;
-      }
+      .grid, .vehicle-grid, .spec-grid { grid-template-columns: 1fr; }
       .title { font-size: 27px; }
       .status { width: 100%; }
     }
@@ -291,13 +80,11 @@
 </head>
 <body>
   <div class="wrap">
-
     <div class="header">
       <div class="brand-block">
         <div class="logo-box">
           <img src="./logo.png" alt="Allie-Kat Logo" onerror="this.style.display='none';" />
         </div>
-
         <div class="brand-copy">
           <div class="eyebrow">Allie-Kat Fleet Services</div>
           <h1 class="title">Allie-Kat Diagnostics <span>v2.0</span></h1>
@@ -306,12 +93,11 @@
           </div>
         </div>
       </div>
-
       <div id="status" class="status">System Status: Ready</div>
     </div>
 
     <div class="grid">
-      <div class="panel" id="inputPanel">
+      <div class="panel">
         <h2>Start Diagnosis</h2>
 
         <div class="field-group">
@@ -345,30 +131,12 @@
 
         <div class="vehicle-card">
           <div class="vehicle-grid">
-            <div>
-              <div class="field-label">VIN</div>
-              <div class="field-value" id="vehicleVin">-</div>
-            </div>
-            <div>
-              <div class="field-label">Year</div>
-              <div class="field-value" id="vehicleYear">-</div>
-            </div>
-            <div>
-              <div class="field-label">Make</div>
-              <div class="field-value" id="vehicleMake">-</div>
-            </div>
-            <div>
-              <div class="field-label">Model</div>
-              <div class="field-value" id="vehicleModel">-</div>
-            </div>
-            <div>
-              <div class="field-label">Engine</div>
-              <div class="field-value" id="vehicleEngine">-</div>
-            </div>
-            <div>
-              <div class="field-label">Current Position</div>
-              <div class="field-value" id="currentPosition">Waiting for diagnosis...</div>
-            </div>
+            <div><div class="field-label">VIN</div><div class="field-value" id="vehicleVin">-</div></div>
+            <div><div class="field-label">Year</div><div class="field-value" id="vehicleYear">-</div></div>
+            <div><div class="field-label">Make</div><div class="field-value" id="vehicleMake">-</div></div>
+            <div><div class="field-label">Model</div><div class="field-value" id="vehicleModel">-</div></div>
+            <div><div class="field-label">Engine</div><div class="field-value" id="vehicleEngine">-</div></div>
+            <div><div class="field-label">Current Position</div><div class="field-value" id="currentPosition">Waiting for diagnosis...</div></div>
           </div>
         </div>
 
@@ -403,10 +171,7 @@
 
     function setVehicle(vehicle, currentPositionText) {
       vehicleData = vehicle || {};
-
-      const enteredVin = document.getElementById("vin").value || "-";
-
-      document.getElementById("vehicleVin").innerText = vehicleData.vin || enteredVin;
+      document.getElementById("vehicleVin").innerText = vehicleData.vin || document.getElementById("vin").value || "-";
       document.getElementById("vehicleYear").innerText = vehicleData.year || "-";
       document.getElementById("vehicleMake").innerText = vehicleData.make || "-";
       document.getElementById("vehicleModel").innerText = vehicleData.model || "-";
@@ -416,15 +181,11 @@
 
     function renderHistory() {
       const historyBox = document.getElementById("historyBox");
-
       if (!historyLog.length) {
         historyBox.innerText = "No steps taken yet.";
         return;
       }
-
-      historyBox.innerHTML = historyLog
-        .map(item => `<div class="history-line">${item}</div>`)
-        .join("");
+      historyBox.innerHTML = historyLog.map(item => `<div class="history-line">${item}</div>`).join("");
     }
 
     function renderCompleteCard() {
@@ -461,15 +222,12 @@
         return;
       }
 
-      const buttonsHtml = (currentStep.result_buttons || [])
-        .map(btn => {
-          let cls = "skip";
-          if (btn.label === "PASS") cls = "pass";
-          if (btn.label === "FAIL") cls = "fail";
-
-          return `<button class="${cls}" onclick="nextStep('${btn.next_step_id}', '${btn.label.replace(/'/g, "\\'")}')">${btn.label}</button>`;
-        })
-        .join("");
+      const buttonsHtml = (currentStep.result_buttons || []).map(btn => {
+        let cls = "skip";
+        if (btn.label === "PASS") cls = "pass";
+        if (btn.label === "FAIL") cls = "fail";
+        return `<button class="${cls}" onclick="nextStep('${btn.next_step_id}', '${btn.label.replace(/'/g, "\\'")}')">${btn.label}</button>`;
+      }).join("");
 
       const backButtonHtml = stepStack.length > 0
         ? `<button class="back" onclick="goBack()">⬅ Back</button>`
@@ -492,26 +250,11 @@
           <div class="step-section">
             <div class="step-section-title">Expected Specs</div>
             <div class="spec-grid">
-              <div>
-                <div class="field-label">Expected Voltage</div>
-                <div class="field-value">${currentStep.expected_specs?.voltage || "-"}</div>
-              </div>
-              <div>
-                <div class="field-label">Expected Ohms</div>
-                <div class="field-value">${currentStep.expected_specs?.ohms || "-"}</div>
-              </div>
-              <div>
-                <div class="field-label">Expected Pressure</div>
-                <div class="field-value">${currentStep.expected_specs?.pressure || "-"}</div>
-              </div>
-              <div>
-                <div class="field-label">Expected Signal</div>
-                <div class="field-value">${currentStep.expected_specs?.signal || "-"}</div>
-              </div>
-              <div>
-                <div class="field-label">Expected Voltage Drop</div>
-                <div class="field-value">${currentStep.expected_specs?.voltage_drop || "-"}</div>
-              </div>
+              <div><div class="field-label">Expected Voltage</div><div class="field-value">${currentStep.expected_specs?.voltage || "-"}</div></div>
+              <div><div class="field-label">Expected Ohms</div><div class="field-value">${currentStep.expected_specs?.ohms || "-"}</div></div>
+              <div><div class="field-label">Expected Pressure</div><div class="field-value">${currentStep.expected_specs?.pressure || "-"}</div></div>
+              <div><div class="field-label">Expected Signal</div><div class="field-value">${currentStep.expected_specs?.signal || "-"}</div></div>
+              <div><div class="field-label">Expected Voltage Drop</div><div class="field-value">${currentStep.expected_specs?.voltage_drop || "-"}</div></div>
             </div>
           </div>
 
@@ -529,20 +272,34 @@
     }
 
     async function startDiag() {
-      setStatus("System Status: Loading diagnosis...");
+      setStatus("System Status: Decoding VIN...");
       historyLog = [];
       stepStack = [];
       renderHistory();
 
-      // show VIN immediately even before backend returns
-      setVehicle({ vin: document.getElementById("vin").value }, "Loading diagnosis...");
+      const enteredVin = document.getElementById("vin").value || "";
+      setVehicle({ vin: enteredVin }, "Decoding VIN...");
 
       try {
+        // decode VIN first
+        const vinRes = await fetch(`${backend}/decode-vin`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ vin: enteredVin })
+        });
+
+        const vinData = await vinRes.json();
+        if (vinData.success) {
+          setVehicle(vinData.vehicle || { vin: enteredVin }, "VIN decoded");
+        }
+
+        setStatus("System Status: Loading diagnosis...");
+
         const res = await fetch(`${backend}/diagnose`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            vin: document.getElementById("vin").value,
+            vin: enteredVin,
             code: document.getElementById("code").value,
             symptom: document.getElementById("symptom").value,
             notes: document.getElementById("notes").value
@@ -564,7 +321,6 @@
         tree = data.tree;
         currentStep = tree.steps.find(step => step.id === tree.current_step_id) || tree.steps[0] || null;
 
-        setVehicle(data.vehicle || { vin: document.getElementById("vin").value }, tree.current_position || "Diagnosis loaded");
         historyLog.push(`Started tree: ${tree.issue_summary || "Diagnostic flow started"}`);
         renderHistory();
         renderStep();
@@ -625,7 +381,6 @@
 
     function goBack() {
       if (stepStack.length === 0) return;
-
       currentStep = stepStack.pop();
       historyLog.push("Went back one step");
       renderHistory();
@@ -635,7 +390,6 @@
 
     async function saveFinal() {
       const finalFix = document.getElementById("finalFix")?.value?.trim() || "";
-
       if (!finalFix) {
         setStatus("System Status: Enter final fix first");
         return;
@@ -670,17 +424,12 @@
           historyLog.push(`Final fix saved: ${finalFix}`);
           renderHistory();
           setStatus("System Status: Final fix saved");
-
-          setTimeout(() => {
-            clearAll();
-          }, 1200);
+          setTimeout(() => clearAll(), 1200);
         } else {
           setStatus("System Status: Save failed");
-          console.log(data);
         }
       } catch (err) {
         setStatus("System Status: Save error");
-        console.log(err);
       }
     }
 
