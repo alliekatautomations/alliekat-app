@@ -1001,6 +1001,38 @@ app.post('/record-step-result', async (req, res) => {
   }
 });
 
+// STEP 1 USER ACCOUNTS: SIGNUP
+app.post('/signup', async (req, res) => {
+  try {
+    const email = safeString(req.body.email);
+    const password = safeString(req.body.password);
+    const name = safeString(req.body.name);
+
+    if (!email || !password) {
+      return res.json({ success: false, error: 'Email and password required' });
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { name }
+      }
+    });
+
+    if (error) {
+      return res.json({ success: false, error: error.message });
+    }
+
+    res.json({
+      success: true,
+      user: data.user
+    });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, '0.0.0.0', () => {
   console.log('Server running on port ' + PORT);
