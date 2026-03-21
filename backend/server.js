@@ -8,6 +8,7 @@ app.use(express.json({ limit: '4mb' }));
 
 const supabaseUrl = 'https://julpheuumolnwkthazdj.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1bHBoZXV1bW9sbndrdGhhemRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMzc5ODYsImV4cCI6MjA4OTYxMzk4Nn0.i3jI-PjdAUPnbgVn_EXctr0-F158Gbp-r6icrEdvOGM';
+
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -36,12 +37,6 @@ function getOnlineCutoffIso(minutes = 15) {
   return new Date(Date.now() - minutes * 60 * 1000).toISOString();
 }
 
-function generateTempPassword() {
-  const partA = Math.random().toString(36).slice(2, 8);
-  const partB = Math.random().toString(36).slice(2, 8).toUpperCase();
-  return `AllieKat!${partA}${partB}9`;
-}
-
 async function touchUserLastSeen(userId) {
   const cleanUserId = safeString(userId);
   if (!cleanUserId) return;
@@ -54,6 +49,57 @@ async function touchUserLastSeen(userId) {
   } catch (err) {
     console.log('touchUserLastSeen failed:', err.message);
   }
+}
+
+async function getLatestAccessRequestByEmail(email) {
+  const cleanEmail = safeString(email).toLowerCase();
+  if (!cleanEmail) return null;
+
+  const { data, error } = await supabase
+    .from('access_requests')
+    .select('*')
+    .eq('email', cleanEmail)
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data && data.length ? data[0] : null;
+}
+
+async function findAuthUserByEmail(email) {
+  if (!supabaseAdmin) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is missing in Render environment variables.');
+  }
+
+  const cleanEmail = safeString(email).toLowerCase();
+
+  let page = 1;
+  let foundUser = null;
+
+  while (!foundUser) {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({
+      page,
+      perPage: 1000
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const users = data?.users || [];
+    foundUser = users.find(user => safeString(user.email).toLowerCase() === cleanEmail) || null;
+
+    if (foundUser || users.length < 1000) {
+      break;
+    }
+
+    page += 1;
+  }
+
+  return foundUser;
 }
 
 async function decodeVIN(vin) {
@@ -483,7 +529,7 @@ Build the ${mode === 'expert' ? 'expert' : 'detailed'} diagnostic tree now.
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${openAiKey}`,
+        'Authorization': `Bearer ${openAiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -585,7 +631,7 @@ Answer the technician now.
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${openAiKey}`,
+        'Authorization': `Bearer ${openAiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -687,7 +733,7 @@ ${context.knownFixesText || 'No known fixes shown.'}
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${openAiKey}`,
+        'Authorization': `Bearer ${openAiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -886,13 +932,6 @@ app.get('/access-requests', async (req, res) => {
 
 app.post('/approve-request', async (req, res) => {
   try {
-    if (!supabaseAdmin) {
-      return res.json({
-        success: false,
-        error: 'SUPABASE_SERVICE_ROLE_KEY is missing in Render environment variables.'
-      });
-    }
-
     const requestId = safeString(req.body.request_id);
 
     if (!requestId) {
@@ -902,111 +941,22 @@ app.post('/approve-request', async (req, res) => {
       });
     }
 
-    const { data: requestRow, error: requestError } = await supabase
+    const { data, error } = await supabase
       .from('access_requests')
-      .select('*')
-      .eq('id', requestId)
-      .single();
-
-    if (requestError || !requestRow) {
-      return res.json({
-        success: false,
-        error: requestError?.message || 'Access request not found'
-      });
-    }
-
-    const email = safeString(requestRow.email).toLowerCase();
-    const name = safeString(requestRow.name);
-
-    if (!email) {
-      return res.json({
-        success: false,
-        error: 'Approved request has no email address'
-      });
-    }
-
-    const { data: existingUsersData, error: listUsersError } = await supabaseAdmin.auth.admin.listUsers();
-    if (listUsersError) {
-      return res.json({
-        success: false,
-        error: listUsersError.message
-      });
-    }
-
-    const existingAuthUser = (existingUsersData?.users || []).find(
-      (user) => safeString(user.email).toLowerCase() === email
-    );
-
-    let authUser = existingAuthUser || null;
-    let tempPassword = '';
-
-    if (!authUser) {
-      tempPassword = generateTempPassword();
-
-      const { data: createdUserData, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
-        email,
-        password: tempPassword,
-        email_confirm: true,
-        user_metadata: {
-          name
-        }
-      });
-
-      if (createUserError || !createdUserData?.user) {
-        return res.json({
-          success: false,
-          error: createUserError?.message || 'Failed to create auth user'
-        });
-      }
-
-      authUser = createdUserData.user;
-    }
-
-    const profilePayload = {
-      id: authUser.id,
-      email,
-      name,
-      role: 'tech',
-      last_seen: new Date().toISOString()
-    };
-
-    const { error: profileError } = await supabaseAdmin
-      .from('user_profiles')
-      .upsert([profilePayload], { onConflict: 'id' });
-
-    if (profileError) {
-      return res.json({
-        success: false,
-        error: profileError.message
-      });
-    }
-
-    const { data: approvedRows, error: approveError } = await supabase
-      .from('access_requests')
-      .update({
-        status: 'approved',
-        approved_at: new Date().toISOString()
-      })
+      .update({ status: 'approved' })
       .eq('id', requestId)
       .select();
 
-    if (approveError) {
+    if (error) {
       return res.json({
         success: false,
-        error: approveError.message
+        error: error.message
       });
     }
 
     return res.json({
       success: true,
-      data: approvedRows,
-      login_created: true,
-      email,
-      user_id: authUser.id,
-      temporary_password: tempPassword || '',
-      password_note: tempPassword
-        ? 'Temporary password created for this new user. Save it now and give it to the user.'
-        : 'Auth user already existed. Use a password reset if the user does not know their password.'
+      data
     });
   } catch (err) {
     return res.json({
@@ -1350,6 +1300,13 @@ app.post('/record-step-result', async (req, res) => {
 
 app.post('/signup', async (req, res) => {
   try {
+    if (!supabaseAdmin) {
+      return res.json({
+        success: false,
+        error: 'SUPABASE_SERVICE_ROLE_KEY is missing in Render environment variables.'
+      });
+    }
+
     const name = safeString(req.body.name);
     const email = safeString(req.body.email).toLowerCase();
     const password = safeString(req.body.password);
@@ -1361,25 +1318,62 @@ app.post('/signup', async (req, res) => {
       });
     }
 
-    const { data: existingRequest } = await supabase
-      .from('access_requests')
-      .select('*')
-      .eq('email', email)
-      .order('created_at', { ascending: false })
-      .limit(1);
+    const latestRequest = await getLatestAccessRequestByEmail(email);
 
-    if (existingRequest && existingRequest.length > 0) {
-      const lastRequest = existingRequest[0];
-
-      if (safeString(lastRequest.status).toLowerCase() === 'pending') {
-        return res.json({
-          success: false,
-          error: 'An access request for this email is already pending approval.'
-        });
-      }
+    if (latestRequest && lower(latestRequest.status) === 'pending') {
+      return res.json({
+        success: false,
+        error: 'An access request for this email is already pending approval.'
+      });
     }
 
-    const { data, error } = await supabase
+    const existingAuthUser = await findAuthUserByEmail(email);
+
+    if (existingAuthUser) {
+      return res.json({
+        success: false,
+        error: 'This email already exists in the login system. Use the original password or reset the password instead of signing up again.'
+      });
+    }
+
+    const { data: createdUserData, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        name
+      }
+    });
+
+    if (createUserError || !createdUserData?.user) {
+      return res.json({
+        success: false,
+        error: createUserError?.message || 'Failed to create auth user'
+      });
+    }
+
+    const authUser = createdUserData.user;
+
+    const { error: profileError } = await supabaseAdmin
+      .from('user_profiles')
+      .upsert([
+        {
+          id: authUser.id,
+          email,
+          name,
+          role: 'tech',
+          last_seen: null
+        }
+      ], { onConflict: 'id' });
+
+    if (profileError) {
+      return res.json({
+        success: false,
+        error: profileError.message
+      });
+    }
+
+    const { data: requestRows, error: requestError } = await supabase
       .from('access_requests')
       .insert([
         {
@@ -1392,17 +1386,18 @@ app.post('/signup', async (req, res) => {
       ])
       .select();
 
-    if (error) {
+    if (requestError) {
       return res.json({
         success: false,
-        error: error.message
+        error: requestError.message
       });
     }
 
     return res.json({
       success: true,
-      message: 'Access request submitted. An administrator must approve your account before login is available.',
-      request: data?.[0] || null
+      message: 'Account created and access request submitted. An administrator must approve your account before login is allowed.',
+      request: requestRows?.[0] || null,
+      user_id: authUser.id
     });
   } catch (err) {
     return res.json({
@@ -1421,6 +1416,22 @@ app.post('/login', async (req, res) => {
       return res.json({
         success: false,
         error: 'Email and password required'
+      });
+    }
+
+    const latestRequest = await getLatestAccessRequestByEmail(email);
+
+    if (!latestRequest) {
+      return res.json({
+        success: false,
+        error: 'No access request found for this email. Create an account first.'
+      });
+    }
+
+    if (lower(latestRequest.status) !== 'approved') {
+      return res.json({
+        success: false,
+        error: 'Your account is not approved yet.'
       });
     }
 
@@ -1445,6 +1456,22 @@ app.post('/login', async (req, res) => {
         user: data?.user || null,
         session: data?.session || null
       });
+    }
+
+    const { error: profileUpsertError } = await supabaseAdmin
+      .from('user_profiles')
+      .upsert([
+        {
+          id: data.user.id,
+          email,
+          name: safeString(data.user.user_metadata?.name),
+          role: 'tech',
+          last_seen: new Date().toISOString()
+        }
+      ], { onConflict: 'id' });
+
+    if (profileUpsertError) {
+      console.log('profile upsert during login failed:', profileUpsertError.message);
     }
 
     await touchUserLastSeen(data.user.id);
