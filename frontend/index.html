@@ -18,7 +18,7 @@
     }
 
     .wrap {
-      max-width: 1150px;
+      max-width: 1320px;
       margin: 0 auto;
       padding: 20px;
     }
@@ -113,10 +113,11 @@
       text-align: center;
     }
 
-    .grid {
+    .layout {
       display: grid;
-      grid-template-columns: minmax(320px, 0.95fr) minmax(360px, 1.05fr);
+      grid-template-columns: minmax(320px, 0.85fr) minmax(420px, 1.1fr) minmax(300px, 0.8fr);
       gap: 18px;
+      align-items: start;
     }
 
     .panel {
@@ -175,7 +176,8 @@
 
     .button-row,
     .result-buttons,
-    .final-row {
+    .final-row,
+    .chat-input-row {
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
@@ -205,12 +207,14 @@
     .skip { background: #ffaa00; color: #2a1a00; }
     .back { background: #33485a; color: #ffffff; }
     .complete { background: linear-gradient(90deg, #27e0ff, #00bfff); color: #021018; }
+    .chat-send { background: linear-gradient(90deg, #00d9ff, #0099ff); color: #021018; }
 
     .vehicle-card,
     .step-card,
     .summary-card,
     .final-card,
-    .learning-card {
+    .learning-card,
+    .chat-card {
       border: 1px solid rgba(76, 229, 255, 0.14);
       border-radius: 16px;
       padding: 14px;
@@ -242,7 +246,8 @@
     }
 
     .step-title,
-    .learning-title {
+    .learning-title,
+    .chat-title {
       margin: 0 0 12px;
       color: #4ce5ff;
       font-size: 22px;
@@ -328,6 +333,49 @@
       margin-top: 4px;
     }
 
+    .chat-messages {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 340px;
+      max-height: 560px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .chat-msg {
+      border-radius: 14px;
+      padding: 12px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      font-size: 14px;
+    }
+
+    .chat-user {
+      background: rgba(0, 153, 255, 0.18);
+      border: 1px solid rgba(0, 153, 255, 0.25);
+      color: #eefcff;
+    }
+
+    .chat-assistant {
+      background: rgba(76, 229, 255, 0.08);
+      border: 1px solid rgba(76, 229, 255, 0.18);
+      color: #dff7ff;
+    }
+
+    .chat-role {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+      color: #7fb8cd;
+    }
+
+    #chatInput {
+      min-height: 90px;
+    }
+
     .footer {
       text-align: center;
       margin-top: 18px;
@@ -337,8 +385,13 @@
       text-transform: uppercase;
     }
 
+    @media (max-width: 1180px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
     @media (max-width: 980px) {
-      .grid,
       .vehicle-grid,
       .spec-grid {
         grid-template-columns: 1fr;
@@ -375,7 +428,7 @@
       <div id="status" class="status">System Status: Ready</div>
     </div>
 
-    <div class="grid">
+    <div class="layout">
       <div class="panel">
         <h2>Start Diagnosis</h2>
 
@@ -451,6 +504,32 @@
           <div id="historyBox" class="field-value">No steps taken yet.</div>
         </div>
       </div>
+
+      <div class="panel">
+        <h2>Chat Assist</h2>
+
+        <div class="chat-card">
+          <div class="chat-title">Job Chat</div>
+          <div id="chatMessages" class="chat-messages">
+            <div class="chat-msg chat-assistant">
+              <span class="chat-role">Assistant</span>
+              Start a diagnosis, then ask things like:
+              - What should I check next?
+              - What does this voltage mean?
+              - Can I skip this step?
+              - Why am I checking this wire?
+            </div>
+          </div>
+
+          <div class="chat-input-row">
+            <textarea id="chatInput" placeholder="Ask about the current job..."></textarea>
+          </div>
+
+          <div class="chat-input-row">
+            <button class="chat-send" onclick="sendChat()">Send</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="footer">Allie-Kat Automations</div>
@@ -466,6 +545,7 @@
     let vehicleData = {};
     let runToken = 0;
     let currentMode = "standard";
+    let chatHistory = [];
 
     function setStatus(text) {
       document.getElementById("status").innerText = text;
@@ -616,6 +696,33 @@
       `;
     }
 
+    function renderChat() {
+      const box = document.getElementById("chatMessages");
+
+      if (!chatHistory.length) {
+        box.innerHTML = `
+          <div class="chat-msg chat-assistant">
+            <span class="chat-role">Assistant</span>
+            Start a diagnosis, then ask things like:
+            - What should I check next?
+            - What does this voltage mean?
+            - Can I skip this step?
+            - Why am I checking this wire?
+          </div>
+        `;
+        return;
+      }
+
+      box.innerHTML = chatHistory.map(msg => `
+        <div class="chat-msg ${msg.role === 'user' ? 'chat-user' : 'chat-assistant'}">
+          <span class="chat-role">${msg.role === 'user' ? 'You' : 'Assistant'}</span>
+          ${msg.content}
+        </div>
+      `).join("");
+
+      box.scrollTop = box.scrollHeight;
+    }
+
     async function startDiag(mode) {
       currentMode = mode || "standard";
       runToken += 1;
@@ -625,7 +732,9 @@
       stepStack = [];
       tree = null;
       currentStep = null;
+      chatHistory = [];
       renderHistory();
+      renderChat();
       document.getElementById("learningContainer").innerHTML = "";
 
       const enteredVin = document.getElementById("vin").value || "";
@@ -762,6 +871,51 @@
       renderStep();
     }
 
+    async function sendChat() {
+      const input = document.getElementById("chatInput");
+      const question = (input.value || "").trim();
+
+      if (!question) return;
+
+      chatHistory.push({ role: "user", content: question });
+      renderChat();
+      input.value = "";
+      setStatus("System Status: Thinking...");
+
+      try {
+        const res = await fetch(`${backend}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            vin: document.getElementById("vin").value || "",
+            code: document.getElementById("code").value || "",
+            symptom: document.getElementById("symptom").value || "",
+            notes: document.getElementById("notes").value || "",
+            vehicle: vehicleData || {},
+            current_mode: currentMode,
+            current_step: currentStep || null,
+            tree_issue_summary: tree?.issue_summary || "",
+            tree_likely_fault_path: tree?.likely_fault_path || "",
+            tree_final_recommendation: tree?.final_recommendation || "",
+            step_history: historyLog || [],
+            chat_history: chatHistory || [],
+            known_fixes_text: document.getElementById("learningContainer").innerText || ""
+          })
+        });
+
+        const data = await res.json();
+        const answer = data.reply || "No reply returned.";
+
+        chatHistory.push({ role: "assistant", content: answer });
+        renderChat();
+        setStatus("System Status: Ready");
+      } catch (err) {
+        chatHistory.push({ role: "assistant", content: `Chat error: ${err.message}` });
+        renderChat();
+        setStatus("System Status: Chat error");
+      }
+    }
+
     async function saveFinal() {
       const finalFix = document.getElementById("finalFix")?.value?.trim() || "";
 
@@ -815,6 +969,7 @@
       document.getElementById("code").value = "";
       document.getElementById("symptom").value = "";
       document.getElementById("notes").value = "";
+      document.getElementById("chatInput").value = "";
 
       tree = null;
       currentStep = null;
@@ -822,6 +977,7 @@
       stepStack = [];
       vehicleData = {};
       currentMode = "standard";
+      chatHistory = [];
 
       document.getElementById("vehicleVin").innerText = "-";
       document.getElementById("vehicleYear").innerText = "-";
@@ -838,8 +994,11 @@
       `;
 
       renderHistory();
+      renderChat();
       setStatus("System Status: Ready");
     }
+
+    renderChat();
   </script>
 </body>
 </html>
