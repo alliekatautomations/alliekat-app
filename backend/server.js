@@ -1419,22 +1419,6 @@ app.post('/login', async (req, res) => {
       });
     }
 
-    const latestRequest = await getLatestAccessRequestByEmail(email);
-
-    if (!latestRequest) {
-      return res.json({
-        success: false,
-        error: 'No access request found for this email. Create an account first.'
-      });
-    }
-
-    if (lower(latestRequest.status) !== 'approved') {
-      return res.json({
-        success: false,
-        error: 'Your account is not approved yet.'
-      });
-    }
-
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password
@@ -1458,20 +1442,33 @@ app.post('/login', async (req, res) => {
       });
     }
 
-    const { error: profileUpsertError } = await supabaseAdmin
-      .from('user_profiles')
-      .upsert([
-        {
-          id: data.user.id,
-          email,
-          name: safeString(data.user.user_metadata?.name),
-          role: 'tech',
-          last_seen: new Date().toISOString()
-        }
-      ], { onConflict: 'id' });
+    const latestRequest = await getLatestAccessRequestByEmail(email);
 
-    if (profileUpsertError) {
-      console.log('profile upsert during login failed:', profileUpsertError.message);
+    if (latestRequest && lower(latestRequest.status) !== 'approved') {
+      return res.json({
+        success: false,
+        error: 'Your account is not approved yet.',
+        user: null,
+        session: null
+      });
+    }
+
+    if (supabaseAdmin) {
+      const { error: profileUpsertError } = await supabaseAdmin
+        .from('user_profiles')
+        .upsert([
+          {
+            id: data.user.id,
+            email,
+            name: safeString(data.user.user_metadata?.name),
+            role: 'tech',
+            last_seen: new Date().toISOString()
+          }
+        ], { onConflict: 'id' });
+
+      if (profileUpsertError) {
+        console.log('profile upsert during login failed:', profileUpsertError.message);
+      }
     }
 
     await touchUserLastSeen(data.user.id);
