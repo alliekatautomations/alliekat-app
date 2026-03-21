@@ -705,6 +705,45 @@ app.get('/', (req, res) => {
   res.send('Allie-kat backend live');
 });
 
+app.get('/user-profile/:id', async (req, res) => {
+  try {
+    const userId = safeString(req.params.id);
+
+    if (!userId) {
+      return res.json({
+        success: false,
+        error: 'User id required',
+        profile: null
+      });
+    }
+
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      return res.json({
+        success: false,
+        error: error.message,
+        profile: null
+      });
+    }
+
+    return res.json({
+      success: true,
+      profile: data
+    });
+  } catch (err) {
+    return res.json({
+      success: false,
+      error: err.message,
+      profile: null
+    });
+  }
+});
+
 app.post('/decode-vin', async (req, res) => {
   try {
     const vin = safeString(req.body.vin);
@@ -1001,7 +1040,6 @@ app.post('/record-step-result', async (req, res) => {
   }
 });
 
-// ACCESS REQUEST INSTEAD OF LIVE SIGNUP
 app.post('/signup', async (req, res) => {
   try {
     const name = safeString(req.body.name);
@@ -1066,7 +1104,6 @@ app.post('/signup', async (req, res) => {
   }
 });
 
-// LOGIN FOR APPROVED USERS ONLY
 app.post('/login', async (req, res) => {
   try {
     const email = safeString(req.body.email).toLowerCase();
