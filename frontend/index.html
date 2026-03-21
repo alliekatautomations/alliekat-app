@@ -100,69 +100,94 @@ let currentStep = null;
 async function startDiag() {
   document.getElementById("status").innerText = "Loading...";
 
-  const res = await fetch(`${backend}/diagnose`, {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      vin:vin.value,
-      code:code.value,
-      symptom:symptom.value,
-      notes:notes.value
-    })
-  });
+  try {
+    const res = await fetch(`${backend}/diagnose`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        vin:vin.value,
+        code:code.value,
+        symptom:symptom.value,
+        notes:notes.value
+      })
+    });
 
-  const data = await res.json();
+    const data = await res.json();
 
-  tree = data.tree;
+    if (!data.tree || !data.tree.steps) {
+      document.getElementById("status").innerText = "Error: no tree returned";
+      console.log(data);
+      return;
+    }
 
-  currentStep = tree.steps.find(s => s.id === tree.current_step_id);
+    tree = data.tree;
 
-  document.getElementById("inputPanel").style.display = "none";
-  document.getElementById("stepPanel").style.display = "block";
+    currentStep = tree.steps.find(s => s.id === tree.current_step_id);
 
-  renderStep();
+    document.getElementById("inputPanel").style.display = "none";
+    document.getElementById("stepPanel").style.display = "block";
+
+    document.getElementById("status").innerText = "Diagnosis active";
+
+    renderStep();
+
+  } catch (err) {
+    document.getElementById("status").innerText = "Error loading diagnosis";
+    console.error(err);
+  }
 }
 
 function renderStep() {
 
   if(!currentStep){
     document.getElementById("stepContent").innerHTML =
-      `<h3>Complete</h3><p>${tree.likely_fault_path}</p>`;
+      `<h3>Complete</h3><p>${tree.likely_fault_path || "Done"}</p>`;
     return;
   }
 
   let buttons = currentStep.result_buttons.map(btn =>
-    `<button onclick="nextStep('${btn.next_step_id}','${btn.label}')" class="${btn.label==='PASS'?'pass':btn.label==='FAIL'?'fail':'skip'}">${btn.label}</button>`
+    `<button onclick="nextStep('${btn.next_step_id}','${btn.label}')" 
+    class="${btn.label==='PASS'?'pass':btn.label==='FAIL'?'fail':'skip'}">
+    ${btn.label}</button>`
   ).join("");
 
   document.getElementById("stepContent").innerHTML = `
     <div class="step-box">
       <h3>${currentStep.title}</h3>
-      <p><b>Test:</b> ${currentStep.instruction}</p>
-      <p><b>Where:</b> ${currentStep.where_to_test}</p>
-      <p><b>Voltage:</b> ${currentStep.expected_specs.voltage}</p>
-      <p><b>How:</b> ${currentStep.how_to_test}</p>
+
+      <p><b>Test:</b> ${currentStep.instruction || ""}</p>
+      <p><b>Where:</b> ${currentStep.where_to_test || ""}</p>
+
+      <p><b>Voltage:</b> ${currentStep.expected_specs?.voltage || ""}</p>
+      <p><b>Ohms:</b> ${currentStep.expected_specs?.ohms || ""}</p>
+
+      <p><b>How:</b> ${currentStep.how_to_test || ""}</p>
+
       ${buttons}
     </div>
   `;
 }
 
-function nextStep(nextId, result){
+async function nextStep(nextId, result){
 
-  fetch(`${backend}/record-step-result`,{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      vin:vin.value,
-      fault_code:code.value,
-      complaint:symptom.value,
-      notes:notes.value,
-      step_title:currentStep.title,
-      step_id:currentStep.id,
-      button_result:result,
-      next_step_id:nextId
-    })
-  });
+  try {
+    await fetch(`${backend}/record-step-result`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        vin:vin.value || "",
+        fault_code:code.value || "",
+        complaint:symptom.value || "",
+        notes:notes.value || "",
+        step_title:currentStep.title || "",
+        step_id:currentStep.id || "",
+        button_result:result || "",
+        next_step_id:nextId || ""
+      })
+    });
+  } catch (err) {
+    console.log("Save step failed (non-blocking)", err);
+  }
 
   currentStep = tree.steps.find(s => s.id === nextId);
 
