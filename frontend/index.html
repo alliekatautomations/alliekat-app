@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Allie-Kat Diagnostics v2.0.4</title>
+  <title>Allie-Kat Diagnostics v2.0.5</title>
 
   <style>
     * { box-sizing: border-box; }
@@ -123,7 +123,8 @@
 
     .logout-btn,
     .admin-top-btn,
-    .admin-back-btn {
+    .admin-back-btn,
+    .users-page-btn {
       background: #33485a;
       color: #ffffff;
       border: none;
@@ -134,7 +135,8 @@
       display: none;
     }
 
-    .admin-top-btn {
+    .admin-top-btn,
+    .users-page-btn {
       background: linear-gradient(90deg, #7a5cff, #ae73ff);
       color: #ffffff;
     }
@@ -151,7 +153,8 @@
     }
 
     .panel,
-    .admin-dashboard-panel {
+    .admin-dashboard-panel,
+    .admin-users-panel {
       border: 1px solid rgba(76, 229, 255, 0.18);
       border-radius: 24px;
       padding: 18px;
@@ -162,7 +165,8 @@
     }
 
     .panel h2,
-    .admin-dashboard-panel h2 {
+    .admin-dashboard-panel h2,
+    .admin-users-panel h2 {
       margin: 0 0 14px;
       color: #4ce5ff;
       font-size: 24px;
@@ -269,7 +273,8 @@
 
     .vehicle-grid,
     .spec-grid,
-    .admin-stats-grid {
+    .admin-stats-grid,
+    .users-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 10px;
@@ -521,6 +526,13 @@
       color: #9ef3ff;
     }
 
+    .page-note {
+      color: #9fd9e6;
+      font-size: 14px;
+      margin-bottom: 6px;
+      line-height: 1.5;
+    }
+
     .hidden {
       display: none !important;
     }
@@ -535,7 +547,8 @@
     }
 
     @media (max-width: 1180px) {
-      .layout {
+      .layout,
+      .users-grid {
         grid-template-columns: 1fr;
       }
     }
@@ -543,7 +556,8 @@
     @media (max-width: 980px) {
       .vehicle-grid,
       .spec-grid,
-      .admin-stats-grid {
+      .admin-stats-grid,
+      .users-grid {
         grid-template-columns: 1fr;
       }
 
@@ -573,7 +587,7 @@
 
         <div class="brand-copy">
           <div class="eyebrow">Allie-Kat Fleet Services</div>
-          <h1 class="title">Allie-Kat Diagnostics <span>v2.0.4</span></h1>
+          <h1 class="title">Allie-Kat Diagnostics <span>v2.0.5</span></h1>
           <div class="motto">
             Revolutionizing your automotive experience with intelligent technology to transport your machine into the future....
           </div>
@@ -757,9 +771,9 @@
       <div class="admin-dashboard-panel">
         <div class="admin-action-row" style="margin-top: 0; margin-bottom: 14px;">
           <button class="admin-back-btn" onclick="closeAdminDashboard()">Back to App</button>
+          <button class="users-page-btn" style="display:inline-block;" onclick="openAdminUsersPage()">View Users</button>
           <button class="secondary" onclick="loadAdminDashboardData()">Refresh Dashboard</button>
           <button class="secondary" onclick="loadAccessRequests()">Refresh Requests</button>
-          <button class="secondary" onclick="loadAdminUsers()">Refresh Users</button>
         </div>
 
         <h2>Admin Dashboard</h2>
@@ -786,14 +800,31 @@
 
         <div class="admin-card">
           <div class="admin-title">Registered Users</div>
-          <div id="adminUsersResult" class="admin-result">User list not loaded yet.</div>
-          <div id="adminUsersList"></div>
+          <div class="page-note">Use the View Users button to open the dedicated user management page.</div>
+          <div id="adminUsersResult" class="admin-result">User page ready.</div>
         </div>
 
         <div class="admin-card">
           <div class="admin-title">Pending Access Requests</div>
           <div id="adminResult" class="admin-result">No admin actions yet.</div>
           <div id="accessRequestsList"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="adminUsersView" class="hidden">
+      <div class="admin-users-panel">
+        <div class="admin-action-row" style="margin-top: 0; margin-bottom: 14px;">
+          <button class="admin-back-btn" onclick="closeAdminUsersPage()">Back to Dashboard</button>
+          <button class="secondary" onclick="loadAdminUsers()">Refresh Users</button>
+        </div>
+
+        <h2>Registered Users</h2>
+        <div class="page-note">Detailed view of all users currently in the system.</div>
+
+        <div class="admin-card">
+          <div id="adminUsersPageResult" class="admin-result">User list not loaded yet.</div>
+          <div id="adminUsersList" class="users-grid"></div>
         </div>
       </div>
     </div>
@@ -961,11 +992,13 @@ Last Seen: ${user.last_seen || "-"}
     }
 
     async function loadAdminUsers() {
-      const resultBox = document.getElementById("adminUsersResult");
+      const dashboardBox = document.getElementById("adminUsersResult");
+      const pageBox = document.getElementById("adminUsersPageResult");
 
       if ((currentProfile?.role || "") !== "admin") return;
 
-      resultBox.innerText = "Loading registered users...";
+      dashboardBox.innerText = "Loading registered users...";
+      pageBox.innerText = "Loading registered users...";
 
       try {
         const res = await fetch(`${backend}/admin-users`);
@@ -973,28 +1006,31 @@ Last Seen: ${user.last_seen || "-"}
 
         if (data.success) {
           renderAdminUsers(data.users || []);
-          resultBox.innerText = `Loaded ${(data.users || []).length} registered user(s).`;
+          dashboardBox.innerText = `Loaded ${(data.users || []).length} registered user(s). Open the dedicated user page to view them.`;
+          pageBox.innerText = `Loaded ${(data.users || []).length} registered user(s).`;
           return;
         }
 
         renderAdminUsers([]);
-        resultBox.innerText = data.error || "Failed to load registered users.";
+        dashboardBox.innerText = data.error || "Failed to load registered users.";
+        pageBox.innerText = data.error || "Failed to load registered users.";
       } catch (err) {
         renderAdminUsers([]);
-        resultBox.innerText = `User list error: ${err.message}`;
+        dashboardBox.innerText = `User list error: ${err.message}`;
+        pageBox.innerText = `User list error: ${err.message}`;
       }
     }
 
     async function loadAdminDashboardData() {
       if ((currentProfile?.role || "") !== "admin") return;
       await loadAdminUserStats();
-      await loadAdminUsers();
       await loadAccessRequests();
     }
 
     function openAdminDashboard() {
       if ((currentProfile?.role || "") !== "admin") return;
       document.getElementById("mainAppView").classList.add("hidden");
+      document.getElementById("adminUsersView").classList.add("hidden");
       document.getElementById("adminDashboardView").classList.remove("hidden");
       setStatus("System Status: Admin dashboard open");
       loadAdminDashboardData();
@@ -1002,9 +1038,25 @@ Last Seen: ${user.last_seen || "-"}
 
     function closeAdminDashboard() {
       document.getElementById("adminDashboardView").classList.add("hidden");
+      document.getElementById("adminUsersView").classList.add("hidden");
       document.getElementById("mainAppView").classList.remove("hidden");
       const role = currentProfile?.role || "tech";
       setStatus(`System Status: Ready (${role})`);
+    }
+
+    function openAdminUsersPage() {
+      if ((currentProfile?.role || "") !== "admin") return;
+      document.getElementById("adminDashboardView").classList.add("hidden");
+      document.getElementById("adminUsersView").classList.remove("hidden");
+      setStatus("System Status: User page open");
+      loadAdminUsers();
+    }
+
+    function closeAdminUsersPage() {
+      if ((currentProfile?.role || "") !== "admin") return;
+      document.getElementById("adminUsersView").classList.add("hidden");
+      document.getElementById("adminDashboardView").classList.remove("hidden");
+      setStatus("System Status: Admin dashboard open");
     }
 
     function updateAuthView() {
@@ -1022,6 +1074,7 @@ Last Seen: ${user.last_seen || "-"}
 
       if (!loggedIn) {
         document.getElementById("adminDashboardView").classList.add("hidden");
+        document.getElementById("adminUsersView").classList.add("hidden");
         document.getElementById("mainAppView").classList.remove("hidden");
       }
     }
@@ -1483,7 +1536,8 @@ Reason: ${request.reason || "-"}
       document.getElementById("accessRequestsList").innerHTML = "";
       document.getElementById("adminUsersList").innerHTML = "";
       document.getElementById("adminResult").innerText = "No admin actions yet.";
-      document.getElementById("adminUsersResult").innerText = "User list not loaded yet.";
+      document.getElementById("adminUsersResult").innerText = "User page ready.";
+      document.getElementById("adminUsersPageResult").innerText = "User list not loaded yet.";
       document.getElementById("adminUserStatsResult").innerText = "User stats not loaded yet.";
       document.getElementById("totalRegisteredUsers").innerText = "0";
       document.getElementById("onlineRegisteredUsers").innerText = "0";
