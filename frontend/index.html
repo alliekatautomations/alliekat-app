@@ -1,466 +1,574 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Allie-Kat Diagnostics v2.0</title>
+const express = require('express');
+const cors = require('cors');
+const { createClient } = require('@supabase/supabase-js');
 
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      color: #eefcff;
-      background:
-        radial-gradient(circle at top, rgba(0, 217, 255, 0.10), transparent 24%),
-        linear-gradient(180deg, #02060b 0%, #07111b 45%, #03070d 100%);
-      min-height: 100vh;
-    }
-    .wrap { max-width: 1150px; margin: 0 auto; padding: 20px; }
-    .header {
-      display: flex; justify-content: space-between; align-items: center; gap: 18px; flex-wrap: wrap;
-      border: 1px solid rgba(76, 229, 255, 0.20); border-radius: 24px; padding: 18px 20px; margin-bottom: 18px;
-      background: rgba(5, 15, 25, 0.96);
-    }
-    .brand-block { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; min-width: 280px; flex: 1; }
-    .logo-box {
-      width: 88px; height: 88px; border-radius: 18px; border: 1px solid rgba(76, 229, 255, 0.18);
-      background: rgba(9, 22, 33, 0.96); display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 8px;
-    }
-    .logo-box img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
-    .eyebrow { color: #79dff0; font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px; }
-    .title { margin: 0; color: #4ce5ff; font-size: 32px; line-height: 1.05; font-weight: 700; }
-    .title span { color: #dff9ff; }
-    .motto { margin-top: 8px; color: #8ebacc; font-size: 14px; line-height: 1.45; max-width: 760px; }
-    .status {
-      padding: 10px 14px; border-radius: 999px; border: 1px solid rgba(76, 229, 255, 0.22);
-      background: rgba(11, 28, 39, 0.96); color: #aef7ff; font-size: 13px; min-width: 190px; text-align: center;
-    }
-    .grid { display: grid; grid-template-columns: minmax(320px, 0.95fr) minmax(360px, 1.05fr); gap: 18px; }
-    .panel {
-      border: 1px solid rgba(76, 229, 255, 0.18); border-radius: 24px; padding: 18px;
-      background: rgba(6, 18, 28, 0.96);
-    }
-    .panel h2 { margin: 0 0 14px; color: #4ce5ff; font-size: 24px; }
-    .field-group { width: 100%; margin-bottom: 10px; }
-    label { display: block; margin: 0 0 6px; font-size: 12px; color: #7fb8cd; text-transform: uppercase; letter-spacing: 1px; }
-    input, textarea {
-      display: block; width: 100%; margin: 0; padding: 12px 14px; border-radius: 12px;
-      border: 1px solid rgba(76, 229, 255, 0.18); background: #0b1d2a; color: #ffffff; font-size: 15px; outline: none;
-    }
-    textarea { min-height: 130px; resize: vertical; }
-    .button-row, .result-buttons, .final-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
-    button { padding: 12px 16px; border-radius: 12px; border: none; font-weight: 700; cursor: pointer; font-size: 14px; }
-    .primary { background: linear-gradient(90deg, #00d9ff, #0099ff); color: #021018; }
-    .secondary { background: #112a3b; color: #9ef3ff; border: 1px solid rgba(76, 229, 255, 0.18); }
-    .pass { background: #00d878; color: #04130c; }
-    .fail { background: #ff4d4d; color: #ffffff; }
-    .skip { background: #ffaa00; color: #2a1a00; }
-    .back { background: #33485a; color: #ffffff; }
-    .complete { background: linear-gradient(90deg, #27e0ff, #00bfff); color: #021018; }
-    .vehicle-card, .step-card, .summary-card, .final-card {
-      border: 1px solid rgba(76, 229, 255, 0.14); border-radius: 16px; padding: 14px;
-      background: rgba(10, 22, 34, 0.94); margin-top: 12px;
-    }
-    .vehicle-grid, .spec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .field-label { font-size: 11px; text-transform: uppercase; color: #73a8bc; margin-bottom: 4px; letter-spacing: 1px; }
-    .field-value { font-size: 15px; color: #f4fbff; word-break: break-word; white-space: pre-wrap; line-height: 1.45; }
-    .step-title { margin: 0 0 12px; color: #4ce5ff; font-size: 22px; }
-    .step-section { margin-bottom: 12px; }
-    .step-section-title { color: #7fb8cd; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
-    .step-section-body { color: #eefcff; font-size: 15px; line-height: 1.5; white-space: pre-wrap; }
-    .history-line { padding: 8px 0; border-bottom: 1px solid rgba(76, 229, 255, 0.10); color: #dff7ff; font-size: 14px; line-height: 1.4; }
-    .footer { text-align: center; margin-top: 18px; color: #6f95a8; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; }
-    @media (max-width: 980px) {
-      .grid, .vehicle-grid, .spec-grid { grid-template-columns: 1fr; }
-      .title { font-size: 27px; }
-      .status { width: 100%; }
-    }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="header">
-      <div class="brand-block">
-        <div class="logo-box">
-          <img src="./logo.png" alt="Allie-Kat Logo" onerror="this.style.display='none';" />
-        </div>
-        <div class="brand-copy">
-          <div class="eyebrow">Allie-Kat Fleet Services</div>
-          <h1 class="title">Allie-Kat Diagnostics <span>v2.0</span></h1>
-          <div class="motto">
-            Revolutionizing your automotive experience with intelligent technology to transport your machine into the future....
-          </div>
-        </div>
-      </div>
-      <div id="status" class="status">System Status: Ready</div>
-    </div>
+const app = express();
+app.use(cors());
+app.use(express.json({ limit: '2mb' }));
 
-    <div class="grid">
-      <div class="panel">
-        <h2>Start Diagnosis</h2>
+const supabaseUrl = 'https://julpheuumolnwkthazdj.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1bHBoZXV1bW9sbndrdGhhemRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMzc5ODYsImV4cCI6MjA4OTYxMzk4Nn0.i3jI-PjdAUPnbgVn_EXctr0-F158Gbp-r6icrEdvOGM';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-        <div class="field-group">
-          <label for="vin">VIN</label>
-          <input id="vin" placeholder="Enter VIN" />
-        </div>
+function safeString(value) {
+  return String(value || '').trim();
+}
 
-        <div class="field-group">
-          <label for="code">DTC Code</label>
-          <input id="code" placeholder="Example: P2135" />
-        </div>
+async function decodeVIN(vin) {
+  try {
+    const cleanVin = safeString(vin);
+    if (cleanVin.length < 11) return null;
 
-        <div class="field-group">
-          <label for="symptom">Symptom / Complaint</label>
-          <input id="symptom" placeholder="Describe complaint" />
-        </div>
+    const res = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/${cleanVin}?format=json`);
+    const data = await res.json();
 
-        <div class="field-group">
-          <label for="notes">Completed Tests / Notes</label>
-          <textarea id="notes" placeholder="Enter voltage checks, ohm checks, visual findings, and technician notes"></textarea>
-        </div>
+    return data?.Results?.[0] || null;
+  } catch {
+    return null;
+  }
+}
 
-        <div class="button-row">
-          <button class="primary" onclick="startDiag()">Start Diagnosis</button>
-          <button class="secondary" onclick="clearAll()">Clear</button>
-        </div>
-      </div>
+function buildQuickTree(payload) {
+  const code = safeString(payload.code).toUpperCase();
+  const symptom = safeString(payload.symptom);
+  const notes = safeString(payload.notes);
 
-      <div class="panel">
-        <h2>Vehicle / Flow</h2>
-
-        <div class="vehicle-card">
-          <div class="vehicle-grid">
-            <div><div class="field-label">VIN</div><div class="field-value" id="vehicleVin">-</div></div>
-            <div><div class="field-label">Year</div><div class="field-value" id="vehicleYear">-</div></div>
-            <div><div class="field-label">Make</div><div class="field-value" id="vehicleMake">-</div></div>
-            <div><div class="field-label">Model</div><div class="field-value" id="vehicleModel">-</div></div>
-            <div><div class="field-label">Engine</div><div class="field-value" id="vehicleEngine">-</div></div>
-            <div><div class="field-label">Current Position</div><div class="field-value" id="currentPosition">Waiting for diagnosis...</div></div>
-          </div>
-        </div>
-
-        <div id="stepContainer">
-          <div class="step-card">
-            <div class="field-value">No diagnostic step loaded yet.</div>
-          </div>
-        </div>
-
-        <div class="summary-card">
-          <div class="field-label">Step History</div>
-          <div id="historyBox" class="field-value">No steps taken yet.</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="footer">Allie-Kat Automations</div>
-  </div>
-
-  <script>
-    const backend = "https://alliekat-app.onrender.com";
-
-    let tree = null;
-    let currentStep = null;
-    let historyLog = [];
-    let stepStack = [];
-    let vehicleData = {};
-
-    function setStatus(text) {
-      document.getElementById("status").innerText = text;
-    }
-
-    function setVehicle(vehicle, currentPositionText) {
-      vehicleData = vehicle || {};
-      document.getElementById("vehicleVin").innerText = vehicleData.vin || document.getElementById("vin").value || "-";
-      document.getElementById("vehicleYear").innerText = vehicleData.year || "-";
-      document.getElementById("vehicleMake").innerText = vehicleData.make || "-";
-      document.getElementById("vehicleModel").innerText = vehicleData.model || "-";
-      document.getElementById("vehicleEngine").innerText = vehicleData.engine || "-";
-      document.getElementById("currentPosition").innerText = currentPositionText || "Diagnosis loaded";
-    }
-
-    function renderHistory() {
-      const historyBox = document.getElementById("historyBox");
-      if (!historyLog.length) {
-        historyBox.innerText = "No steps taken yet.";
-        return;
+  return {
+    issue_summary: code
+      ? `Rapid-start diagnostic path for DTC ${code}${symptom ? ` with complaint: ${symptom}` : ''}`
+      : `Rapid-start diagnostic path${symptom ? ` for complaint: ${symptom}` : ''}`,
+    current_position: notes
+      ? `Technician notes already entered: ${notes}`
+      : code
+        ? `Starting rapid tree using entered DTC ${code}`
+        : 'Starting rapid tree with no DTC-specific information entered.',
+    current_step_id: 'step_1',
+    steps: [
+      {
+        id: 'step_1',
+        title: code ? `Verify DTC ${code} and complaint` : 'Verify complaint and active fault',
+        instruction: code
+          ? `Confirm DTC ${code} is active/current and verify complaint.`
+          : `Confirm the complaint is present now and determine whether the fault is active or intermittent.`,
+        where_to_test: 'Scan tool, key on / engine off and key on / engine running as applicable.',
+        expected_specs: {
+          voltage: 'Verify exact OEM spec/pinout for this platform',
+          ohms: 'Verify exact OEM spec/pinout for this platform',
+          pressure: 'Verify exact OEM spec/pinout for this platform',
+          signal: code ? `Live data and fault state should support DTC ${code}` : 'Fault state should match complaint condition',
+          voltage_drop: 'Verify exact OEM spec/pinout for this platform'
+        },
+        how_to_test: 'Record whether the fault is active, inactive, history-only, or resets immediately after clearing.',
+        result_buttons: [
+          { label: 'PASS', next_step_id: 'step_2' },
+          { label: 'FAIL', next_step_id: 'step_fail_1' },
+          { label: 'NOT TESTED', next_step_id: 'step_2' }
+        ]
+      },
+      {
+        id: 'step_2',
+        title: 'Check primary power, ground, and reference circuits',
+        instruction: 'Verify main power feed, ground path, reference circuit, and signal return at the affected circuit.',
+        where_to_test: 'At the affected sensor, actuator, or module connector.',
+        expected_specs: {
+          voltage: 'Typical 5V reference or battery voltage depending on circuit; verify exact OEM spec/pinout for this platform',
+          ohms: 'Low resistance on good ground path; verify exact OEM spec/pinout for this platform',
+          pressure: 'N/A unless pressure-based fault',
+          signal: 'Signal should change logically with operating condition',
+          voltage_drop: 'Typically low on good feeds and grounds; verify exact OEM spec/pinout for this platform'
+        },
+        how_to_test: 'Backprobe the connector. Check supply voltage, reference voltage, ground integrity, and signal return under load.',
+        result_buttons: [
+          { label: 'PASS', next_step_id: 'step_3' },
+          { label: 'FAIL', next_step_id: 'step_fail_2' },
+          { label: 'NOT TESTED', next_step_id: 'step_3' }
+        ]
+      },
+      {
+        id: 'step_3',
+        title: 'Inspect harness and connectors',
+        instruction: 'Inspect for rub-through, poor pin drag, corrosion, water intrusion, stretched wiring, and prior repair issues.',
+        where_to_test: 'Harness routing, connector bodies, bends near brackets, engine movement points, frame rails, and module entry points.',
+        expected_specs: {
+          voltage: 'No abnormal change during harness movement',
+          ohms: 'No opens or unstable resistance during harness movement',
+          pressure: 'N/A unless pressure-based fault',
+          signal: 'Signal should remain stable during wiggle test',
+          voltage_drop: 'No excessive voltage drop change during wiggle test'
+        },
+        how_to_test: 'Perform a wiggle harness test while monitoring live data or meter readings.',
+        result_buttons: [
+          { label: 'PASS', next_step_id: 'step_4' },
+          { label: 'FAIL', next_step_id: 'step_fail_3' },
+          { label: 'NOT TESTED', next_step_id: 'step_4' }
+        ]
+      },
+      {
+        id: 'step_4',
+        title: 'Verify component and module response',
+        instruction: 'After circuit and harness checks pass, verify component response and module-side input.',
+        where_to_test: 'Component connector, module input, scan data, and commanded vs actual values.',
+        expected_specs: {
+          voltage: 'Per OEM spec for the affected component',
+          ohms: 'Per OEM spec for the affected component',
+          pressure: 'Per OEM spec if pressure-related',
+          signal: 'Signal should track input or command smoothly with no dropouts',
+          voltage_drop: 'Minimal on good circuits'
+        },
+        how_to_test: 'Compare commanded vs actual values and compare component-side reading to module-side reading.',
+        result_buttons: [
+          { label: 'PASS', next_step_id: 'step_pass_final' },
+          { label: 'FAIL', next_step_id: 'step_fail_final' },
+          { label: 'NOT TESTED', next_step_id: 'step_fail_final' }
+        ]
+      },
+      {
+        id: 'step_fail_1',
+        title: 'Fault did not verify normally',
+        instruction: 'Treat as intermittent or event-based. Review freeze-frame, duplication conditions, and recent repairs.',
+        where_to_test: 'Scan tool history, freeze-frame, duplication conditions, and operator description.',
+        expected_specs: {
+          voltage: 'Verify exact OEM spec/pinout for this platform',
+          ohms: 'Verify exact OEM spec/pinout for this platform',
+          pressure: 'Verify exact OEM spec/pinout for this platform',
+          signal: 'Complaint should be reproducible before final part replacement',
+          voltage_drop: 'Verify exact OEM spec/pinout for this platform'
+        },
+        how_to_test: 'Road test or reproduce the event, then restart the tree once the fault becomes active.',
+        result_buttons: [
+          { label: 'CONTINUE', next_step_id: 'step_2' }
+        ]
+      },
+      {
+        id: 'step_fail_2',
+        title: 'Primary circuit failure found',
+        instruction: 'Repair the feed, ground, reference, or return issue before replacing the component.',
+        where_to_test: 'Affected circuit path between source, component, and module.',
+        expected_specs: {
+          voltage: 'Restore proper supply/reference',
+          ohms: 'Restore proper continuity / low resistance ground path',
+          pressure: 'N/A',
+          signal: 'Signal should normalize after circuit repair',
+          voltage_drop: 'Return to acceptable range'
+        },
+        how_to_test: 'Repair open, short, corrosion, high resistance, loose terminal, or pin drag issue.',
+        result_buttons: [
+          { label: 'RETEST', next_step_id: 'step_1' }
+        ]
+      },
+      {
+        id: 'step_fail_3',
+        title: 'Harness / connector defect found',
+        instruction: 'Repair the physical wiring or connector defect and verify the fault does not return.',
+        where_to_test: 'The exact damaged section or connector location.',
+        expected_specs: {
+          voltage: 'Stable after repair',
+          ohms: 'Stable after repair',
+          pressure: 'N/A',
+          signal: 'Stable after repair',
+          voltage_drop: 'Stable after repair'
+        },
+        how_to_test: 'Repair harness or connector, clear the code, duplicate the complaint, and repeat wiggle harness verification.',
+        result_buttons: [
+          { label: 'RETEST', next_step_id: 'step_1' }
+        ]
+      },
+      {
+        id: 'step_pass_final',
+        title: 'Circuit and component both tested good',
+        instruction: 'Suspect intermittent wiring, related subsystem fault, mechanical issue, or software/calibration problem.',
+        where_to_test: 'System-level review, related systems, freeze-frame, and update history.',
+        expected_specs: {
+          voltage: 'Verify exact OEM spec/pinout for this platform',
+          ohms: 'Verify exact OEM spec/pinout for this platform',
+          pressure: 'Verify exact OEM spec/pinout for this platform',
+          signal: 'No abnormal dropout under actual operating condition',
+          voltage_drop: 'Verify exact OEM spec/pinout for this platform'
+        },
+        how_to_test: 'Review related sensors/modules, software updates, and conditions required to duplicate the fault.',
+        result_buttons: []
+      },
+      {
+        id: 'step_fail_final',
+        title: 'Component or module fault path likely',
+        instruction: 'If all supporting circuits are verified good, component or receiving module fault path is likely.',
+        where_to_test: 'Affected sensor / actuator / receiving module.',
+        expected_specs: {
+          voltage: 'Verify exact OEM spec/pinout for this platform',
+          ohms: 'Verify exact OEM spec/pinout for this platform',
+          pressure: 'Verify exact OEM spec/pinout for this platform',
+          signal: 'Abnormal only after all supporting circuits are proven good',
+          voltage_drop: 'Verify exact OEM spec/pinout for this platform'
+        },
+        how_to_test: 'Use known-good substitution or OEM final verification before replacement.',
+        result_buttons: []
       }
-      historyBox.innerHTML = historyLog.map(item => `<div class="history-line">${item}</div>`).join("");
+    ],
+    likely_fault_path: code
+      ? `Most likely rapid-start path for DTC ${code} is circuit, connector, harness, or signal-path issue first.`
+      : 'Most likely path is circuit, connector, harness, or signal-path issue first.',
+    final_recommendation: code
+      ? `Walk the rapid-start tree for DTC ${code} and save the actual final repair once the unit is fixed.`
+      : 'Walk the rapid-start tree and save the actual final repair once the unit is fixed.',
+    source: 'fast-detailed-code-aware'
+  };
+}
+
+function cleanModelJson(raw) {
+  const text = String(raw || '').trim();
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text);
+  } catch {}
+
+  const firstBrace = text.indexOf('{');
+  const lastBrace = text.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    try {
+      return JSON.parse(text.slice(firstBrace, lastBrace + 1));
+    } catch {}
+  }
+
+  return null;
+}
+
+function normalizeTree(modelTree, payload, vehicleInfo) {
+  const fallback = buildQuickTree(payload);
+  if (!modelTree || typeof modelTree !== 'object') return fallback;
+
+  const steps = Array.isArray(modelTree.steps) ? modelTree.steps : fallback.steps;
+
+  return {
+    issue_summary: safeString(modelTree.issue_summary) || fallback.issue_summary,
+    current_position: safeString(modelTree.current_position) || fallback.current_position,
+    current_step_id: safeString(modelTree.current_step_id) || (steps[0]?.id || 'step_1'),
+    steps: steps.map((step, index) => ({
+      id: safeString(step.id) || `step_${index + 1}`,
+      title: safeString(step.title) || `Step ${index + 1}`,
+      instruction: safeString(step.instruction) || '',
+      where_to_test: safeString(step.where_to_test) || '',
+      expected_specs: {
+        voltage: safeString(step?.expected_specs?.voltage) || 'Verify exact OEM spec/pinout for this platform',
+        ohms: safeString(step?.expected_specs?.ohms) || 'Verify exact OEM spec/pinout for this platform',
+        pressure: safeString(step?.expected_specs?.pressure) || 'Verify exact OEM spec/pinout for this platform',
+        signal: safeString(step?.expected_specs?.signal) || 'Verify exact OEM spec/pinout for this platform',
+        voltage_drop: safeString(step?.expected_specs?.voltage_drop) || 'Verify exact OEM spec/pinout for this platform'
+      },
+      how_to_test: safeString(step.how_to_test) || '',
+      result_buttons: Array.isArray(step.result_buttons)
+        ? step.result_buttons.map((btn) => ({
+            label: safeString(btn.label) || 'NEXT',
+            next_step_id: safeString(btn.next_step_id) || ''
+          }))
+        : []
+    })),
+    likely_fault_path: safeString(modelTree.likely_fault_path) || fallback.likely_fault_path,
+    final_recommendation: safeString(modelTree.final_recommendation) || fallback.final_recommendation,
+    source: 'openai',
+    vehicle_snapshot: {
+      vin: safeString(payload.vin),
+      year: safeString(vehicleInfo?.ModelYear),
+      make: safeString(vehicleInfo?.Make),
+      model: safeString(vehicleInfo?.Model),
+      engine: safeString(vehicleInfo?.EngineModel || vehicleInfo?.DisplacementL),
+      trim: safeString(vehicleInfo?.Trim),
+      driveType: safeString(vehicleInfo?.DriveType),
+      fuelType: safeString(vehicleInfo?.FuelTypePrimary)
     }
+  };
+}
 
-    function renderCompleteCard() {
-      document.getElementById("stepContainer").innerHTML = `
-        <div class="final-card">
-          <h3 class="step-title">Diagnosis Complete</h3>
+async function createStructuredTroubleTree({ vin, code, symptom, notes, vehicleInfo }) {
+  const openAiKey = process.env.OPENAI_API_KEY;
+  if (!openAiKey) return buildQuickTree({ vin, code, symptom, notes });
 
-          <div class="step-section">
-            <div class="step-section-title">Likely Fault Path</div>
-            <div class="step-section-body">${tree?.likely_fault_path || "No likely fault path returned."}</div>
-          </div>
+  const systemPrompt = `
+You are a master diesel and automotive diagnostic technician.
 
-          <div class="step-section">
-            <div class="step-section-title">Final Recommendation</div>
-            <div class="step-section-body">${tree?.final_recommendation || "No final recommendation returned."}</div>
-          </div>
+You must return ONLY valid JSON.
+No markdown.
+No code fences.
+No extra commentary.
 
-          <div class="field-group">
-            <label for="finalFix">Final Fix Performed</label>
-            <textarea id="finalFix" placeholder="Enter actual repair performed"></textarea>
-          </div>
+Build a detailed button-driven diagnostic tree.
+Use the actual DTC and complaint throughout the tree when available.
+Include practical checks like feed, ground, reference, signal, wiggle harness testing, connector inspection, and module-side verification where relevant.
+If exact OEM specs are not certain, say: "Verify exact OEM spec/pinout for this platform"
 
-          <div class="final-row">
-            <button class="back" onclick="goBack()">⬅ Back</button>
-            <button class="complete" onclick="saveFinal()">Save Final Fix</button>
-          </div>
-        </div>
-      `;
+Return JSON:
+{
+  "issue_summary": "string",
+  "current_position": "string",
+  "current_step_id": "step_1",
+  "steps": [
+    {
+      "id": "step_1",
+      "title": "string",
+      "instruction": "string",
+      "where_to_test": "string",
+      "expected_specs": {
+        "voltage": "string",
+        "ohms": "string",
+        "pressure": "string",
+        "signal": "string",
+        "voltage_drop": "string"
+      },
+      "how_to_test": "string",
+      "result_buttons": [
+        { "label": "PASS", "next_step_id": "step_2" },
+        { "label": "FAIL", "next_step_id": "step_fail_1" }
+      ]
     }
+  ],
+  "likely_fault_path": "string",
+  "final_recommendation": "string"
+}
+`;
 
-    function renderStep() {
-      if (!currentStep) {
-        renderCompleteCard();
-        return;
+  const userPrompt = `
+VIN: ${vin || 'not provided'}
+Make: ${vehicleInfo?.Make || 'unknown'}
+Model: ${vehicleInfo?.Model || 'unknown'}
+Year: ${vehicleInfo?.ModelYear || 'unknown'}
+Engine: ${vehicleInfo?.EngineModel || vehicleInfo?.DisplacementL || 'unknown'}
+
+Fault Code: ${code || 'none provided'}
+Symptom: ${symptom || 'none provided'}
+Completed tests / notes: ${notes || 'none provided'}
+
+Build the diagnostic tree now.
+`;
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        temperature: 0.1,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ]
+      })
+    });
+
+    const data = await response.json();
+    const content = data?.choices?.[0]?.message?.content || '';
+    const parsed = cleanModelJson(content);
+
+    return normalizeTree(parsed, { vin, code, symptom, notes }, vehicleInfo);
+  } catch {
+    return buildQuickTree({ vin, code, symptom, notes });
+  }
+}
+
+app.get('/', (req, res) => {
+  res.send('Allie-kat backend live');
+});
+
+app.post('/decode-vin', async (req, res) => {
+  try {
+    const vin = safeString(req.body.vin);
+    const vehicleInfo = await decodeVIN(vin);
+
+    res.json({
+      success: true,
+      vehicle: {
+        vin,
+        year: safeString(vehicleInfo?.ModelYear),
+        make: safeString(vehicleInfo?.Make),
+        model: safeString(vehicleInfo?.Model),
+        engine: safeString(vehicleInfo?.EngineModel || vehicleInfo?.DisplacementL),
+        trim: safeString(vehicleInfo?.Trim),
+        driveType: safeString(vehicleInfo?.DriveType),
+        fuelType: safeString(vehicleInfo?.FuelTypePrimary)
       }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
-      const buttonsHtml = (currentStep.result_buttons || []).map(btn => {
-        let cls = "skip";
-        if (btn.label === "PASS") cls = "pass";
-        if (btn.label === "FAIL") cls = "fail";
-        return `<button class="${cls}" onclick="nextStep('${btn.next_step_id}', '${btn.label.replace(/'/g, "\\'")}')">${btn.label}</button>`;
-      }).join("");
+app.post('/diagnose', async (req, res) => {
+  try {
+    const vin = safeString(req.body.vin);
+    const code = safeString(req.body.code);
+    const symptom = safeString(req.body.symptom);
+    const notes = safeString(req.body.notes);
 
-      const backButtonHtml = stepStack.length > 0
-        ? `<button class="back" onclick="goBack()">⬅ Back</button>`
-        : "";
+    const quickTree = buildQuickTree({ vin, code, symptom, notes });
 
-      document.getElementById("stepContainer").innerHTML = `
-        <div class="step-card">
-          <h3 class="step-title">${currentStep.title || "Diagnostic Step"}</h3>
+    res.json({
+      success: true,
+      mode: 'step-tree',
+      tree: quickTree
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
-          <div class="step-section">
-            <div class="step-section-title">Instruction</div>
-            <div class="step-section-body">${currentStep.instruction || "-"}</div>
-          </div>
+app.post('/diagnose-detailed', async (req, res) => {
+  try {
+    const vin = safeString(req.body.vin);
+    const code = safeString(req.body.code);
+    const symptom = safeString(req.body.symptom);
+    const notes = safeString(req.body.notes);
 
-          <div class="step-section">
-            <div class="step-section-title">Where To Test</div>
-            <div class="step-section-body">${currentStep.where_to_test || "-"}</div>
-          </div>
-
-          <div class="step-section">
-            <div class="step-section-title">Expected Specs</div>
-            <div class="spec-grid">
-              <div><div class="field-label">Expected Voltage</div><div class="field-value">${currentStep.expected_specs?.voltage || "-"}</div></div>
-              <div><div class="field-label">Expected Ohms</div><div class="field-value">${currentStep.expected_specs?.ohms || "-"}</div></div>
-              <div><div class="field-label">Expected Pressure</div><div class="field-value">${currentStep.expected_specs?.pressure || "-"}</div></div>
-              <div><div class="field-label">Expected Signal</div><div class="field-value">${currentStep.expected_specs?.signal || "-"}</div></div>
-              <div><div class="field-label">Expected Voltage Drop</div><div class="field-value">${currentStep.expected_specs?.voltage_drop || "-"}</div></div>
-            </div>
-          </div>
-
-          <div class="step-section">
-            <div class="step-section-title">How To Test</div>
-            <div class="step-section-body">${currentStep.how_to_test || "-"}</div>
-          </div>
-
-          <div class="result-buttons">
-            ${buttonsHtml}
-            ${backButtonHtml}
-          </div>
-        </div>
-      `;
+    let vehicleInfo = null;
+    if (vin && vin.length >= 11) {
+      vehicleInfo = await decodeVIN(vin);
     }
 
-    async function startDiag() {
-      setStatus("System Status: Decoding VIN...");
-      historyLog = [];
-      stepStack = [];
-      renderHistory();
+    const detailedTree = await createStructuredTroubleTree({
+      vin,
+      code,
+      symptom,
+      notes,
+      vehicleInfo
+    });
 
-      const enteredVin = document.getElementById("vin").value || "";
-      setVehicle({ vin: enteredVin }, "Decoding VIN...");
+    res.json({
+      success: true,
+      tree: detailedTree,
+      vehicle: {
+        vin,
+        year: safeString(vehicleInfo?.ModelYear),
+        make: safeString(vehicleInfo?.Make),
+        model: safeString(vehicleInfo?.Model),
+        engine: safeString(vehicleInfo?.EngineModel || vehicleInfo?.DisplacementL),
+        trim: safeString(vehicleInfo?.Trim),
+        driveType: safeString(vehicleInfo?.DriveType),
+        fuelType: safeString(vehicleInfo?.FuelTypePrimary)
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
-      try {
-        // decode VIN first
-        const vinRes = await fetch(`${backend}/decode-vin`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ vin: enteredVin })
-        });
+app.get('/test-db', async (req, res) => {
+  const { data, error } = await supabase
+    .from('repair_cases')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(20);
 
-        const vinData = await vinRes.json();
-        if (vinData.success) {
-          setVehicle(vinData.vehicle || { vin: enteredVin }, "VIN decoded");
-        }
+  if (error) return res.status(500).json({ success: false, error: error.message });
+  res.json({ success: true, data });
+});
 
-        setStatus("System Status: Loading diagnosis...");
+app.post('/save-repair', async (req, res) => {
+  try {
+    const record = {
+      vin: safeString(req.body.vin),
+      year: safeString(req.body.year),
+      make: safeString(req.body.make),
+      model: safeString(req.body.model),
+      engine: safeString(req.body.engine),
+      fault_code: safeString(req.body.fault_code),
+      complaint: safeString(req.body.complaint),
+      ai_diagnosis: typeof req.body.ai_diagnosis === 'string' ? req.body.ai_diagnosis : JSON.stringify(req.body.ai_diagnosis || ''),
+      recommended_tests: typeof req.body.recommended_tests === 'string' ? req.body.recommended_tests : JSON.stringify(req.body.recommended_tests || ''),
+      final_fix: safeString(req.body.final_fix),
+      tech_name: safeString(req.body.tech_name),
+      status: safeString(req.body.status) || 'open',
+      notes: safeString(req.body.notes)
+    };
 
-        const res = await fetch(`${backend}/diagnose`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            vin: enteredVin,
-            code: document.getElementById("code").value,
-            symptom: document.getElementById("symptom").value,
-            notes: document.getElementById("notes").value
+    if (record.final_fix) {
+      const { data: existingRows } = await supabase
+        .from('repair_cases')
+        .select('*')
+        .eq('vin', record.vin)
+        .eq('fault_code', record.fault_code)
+        .eq('complaint', record.complaint)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (existingRows && existingRows.length > 0) {
+        const existing = existingRows[0];
+        const { data: updated, error: updateError } = await supabase
+          .from('repair_cases')
+          .update({
+            year: record.year || existing.year,
+            make: record.make || existing.make,
+            model: record.model || existing.model,
+            engine: record.engine || existing.engine,
+            ai_diagnosis: record.ai_diagnosis || existing.ai_diagnosis,
+            recommended_tests: record.recommended_tests || existing.recommended_tests,
+            final_fix: record.final_fix,
+            tech_name: record.tech_name || existing.tech_name,
+            status: record.status || 'fixed',
+            notes: record.notes || existing.notes
           })
-        });
+          .eq('id', existing.id)
+          .select();
 
-        const data = await res.json();
+        if (updateError) return res.status(500).json({ success: false, error: updateError.message });
+        return res.json({ success: true, updated: true, data: updated });
+      }
+    }
 
-        if (!data.success || !data.tree || !Array.isArray(data.tree.steps)) {
-          setStatus("System Status: Diagnosis failed");
-          document.getElementById("stepContainer").innerHTML = `
-            <div class="step-card">
-              <div class="field-value">No valid step tree returned.</div>
-            </div>
-          `;
-          return;
+    const { data, error } = await supabase
+      .from('repair_cases')
+      .insert([record])
+      .select();
+
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/record-step-result', async (req, res) => {
+  try {
+    const vin = safeString(req.body.vin);
+    const fault_code = safeString(req.body.fault_code);
+    const complaint = safeString(req.body.complaint);
+    const notes = safeString(req.body.notes);
+    const step_title = safeString(req.body.step_title);
+    const step_id = safeString(req.body.step_id);
+    const button_result = safeString(req.body.button_result);
+    const next_step_id = safeString(req.body.next_step_id);
+
+    const timelineLine = `[${new Date().toISOString()}] Step: ${step_title || step_id} | Result: ${button_result} | Next: ${next_step_id || 'end'}`;
+
+    const { data, error } = await supabase
+      .from('repair_cases')
+      .insert([
+        {
+          vin,
+          year: safeString(req.body.year),
+          make: safeString(req.body.make),
+          model: safeString(req.body.model),
+          engine: safeString(req.body.engine),
+          fault_code,
+          complaint,
+          ai_diagnosis: safeString(req.body.ai_diagnosis),
+          recommended_tests: step_title,
+          final_fix: safeString(req.body.final_fix),
+          tech_name: safeString(req.body.tech_name),
+          status: safeString(req.body.status) || 'in_progress',
+          notes: notes ? `${notes}\n${timelineLine}` : timelineLine
         }
+      ])
+      .select();
 
-        tree = data.tree;
-        currentStep = tree.steps.find(step => step.id === tree.current_step_id) || tree.steps[0] || null;
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
-        historyLog.push(`Started tree: ${tree.issue_summary || "Diagnostic flow started"}`);
-        renderHistory();
-        renderStep();
-        setStatus("System Status: Diagnosis ready");
-      } catch (err) {
-        setStatus("System Status: Error loading diagnosis");
-        document.getElementById("stepContainer").innerHTML = `
-          <div class="step-card">
-            <div class="field-value">Error: ${err.message}</div>
-          </div>
-        `;
-      }
-    }
-
-    async function nextStep(nextId, resultLabel) {
-      if (!currentStep) return;
-
-      stepStack.push(currentStep);
-      historyLog.push(`${currentStep.title} → ${resultLabel}`);
-      renderHistory();
-
-      try {
-        await fetch(`${backend}/record-step-result`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            vin: document.getElementById("vin").value || "",
-            year: vehicleData.year || "",
-            make: vehicleData.make || "",
-            model: vehicleData.model || "",
-            engine: vehicleData.engine || "",
-            fault_code: document.getElementById("code").value || "",
-            complaint: document.getElementById("symptom").value || "",
-            notes: document.getElementById("notes").value || "",
-            step_title: currentStep.title || "",
-            step_id: currentStep.id || "",
-            button_result: resultLabel || "",
-            next_step_id: nextId || "",
-            ai_diagnosis: tree?.issue_summary || "",
-            status: "in_progress"
-          })
-        });
-      } catch (err) {
-        console.log("record-step-result failed:", err.message);
-      }
-
-      if (!nextId) {
-        currentStep = null;
-        setStatus("System Status: Flow complete");
-        renderStep();
-        return;
-      }
-
-      currentStep = (tree.steps || []).find(step => step.id === nextId) || null;
-      setStatus("System Status: Step advanced");
-      renderStep();
-    }
-
-    function goBack() {
-      if (stepStack.length === 0) return;
-      currentStep = stepStack.pop();
-      historyLog.push("Went back one step");
-      renderHistory();
-      setStatus("System Status: Returned to previous step");
-      renderStep();
-    }
-
-    async function saveFinal() {
-      const finalFix = document.getElementById("finalFix")?.value?.trim() || "";
-      if (!finalFix) {
-        setStatus("System Status: Enter final fix first");
-        return;
-      }
-
-      setStatus("System Status: Saving final fix...");
-
-      try {
-        const res = await fetch(`${backend}/save-repair`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            vin: document.getElementById("vin").value || "",
-            year: vehicleData.year || "",
-            make: vehicleData.make || "",
-            model: vehicleData.model || "",
-            engine: vehicleData.engine || "",
-            fault_code: document.getElementById("code").value || "",
-            complaint: document.getElementById("symptom").value || "",
-            ai_diagnosis: tree?.issue_summary || "",
-            recommended_tests: tree?.final_recommendation || "",
-            final_fix: finalFix,
-            tech_name: "",
-            status: "fixed",
-            notes: document.getElementById("notes").value || ""
-          })
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-          historyLog.push(`Final fix saved: ${finalFix}`);
-          renderHistory();
-          setStatus("System Status: Final fix saved");
-          setTimeout(() => clearAll(), 1200);
-        } else {
-          setStatus("System Status: Save failed");
-        }
-      } catch (err) {
-        setStatus("System Status: Save error");
-      }
-    }
-
-    function clearAll() {
-      document.getElementById("vin").value = "";
-      document.getElementById("code").value = "";
-      document.getElementById("symptom").value = "";
-      document.getElementById("notes").value = "";
-
-      tree = null;
-      currentStep = null;
-      historyLog = [];
-      stepStack = [];
-      vehicleData = {};
-
-      document.getElementById("vehicleVin").innerText = "-";
-      document.getElementById("vehicleYear").innerText = "-";
-      document.getElementById("vehicleMake").innerText = "-";
-      document.getElementById("vehicleModel").innerText = "-";
-      document.getElementById("vehicleEngine").innerText = "-";
-      document.getElementById("currentPosition").innerText = "Waiting for diagnosis...";
-
-      document.getElementById("stepContainer").innerHTML = `
-        <div class="step-card">
-          <div class="field-value">No diagnostic step loaded yet.</div>
-        </div>
-      `;
-
-      renderHistory();
-      setStatus("System Status: Ready");
-    }
-  </script>
-</body>
-</html>
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log('Server running on port ' + PORT);
+});
