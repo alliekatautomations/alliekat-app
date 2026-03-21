@@ -102,6 +102,14 @@
       max-width: 760px;
     }
 
+    .status-area {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
     .status {
       padding: 10px 14px;
       border-radius: 999px;
@@ -111,6 +119,17 @@
       font-size: 13px;
       min-width: 240px;
       text-align: center;
+    }
+
+    .logout-btn {
+      background: #33485a;
+      color: #ffffff;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: none;
     }
 
     .layout {
@@ -457,6 +476,11 @@
       .status {
         width: 100%;
       }
+
+      .status-area {
+        width: 100%;
+        justify-content: stretch;
+      }
     }
   </style>
 </head>
@@ -478,7 +502,10 @@
         </div>
       </div>
 
-      <div id="status" class="status">System Status: Ready</div>
+      <div class="status-area">
+        <button id="logoutBtn" class="logout-btn" onclick="logoutUser()">Logout</button>
+        <div id="status" class="status">System Status: Ready</div>
+      </div>
     </div>
 
     <div class="layout">
@@ -676,6 +703,31 @@
       document.getElementById("loginView").classList.remove("hidden");
     }
 
+    function saveAuthToStorage() {
+      if (currentUser && currentSession) {
+        localStorage.setItem("alliekat_current_user", JSON.stringify(currentUser));
+        localStorage.setItem("alliekat_current_session", JSON.stringify(currentSession));
+      }
+    }
+
+    function loadAuthFromStorage() {
+      try {
+        const savedUser = localStorage.getItem("alliekat_current_user");
+        const savedSession = localStorage.getItem("alliekat_current_session");
+
+        currentUser = savedUser ? JSON.parse(savedUser) : null;
+        currentSession = savedSession ? JSON.parse(savedSession) : null;
+      } catch (err) {
+        currentUser = null;
+        currentSession = null;
+      }
+    }
+
+    function clearAuthFromStorage() {
+      localStorage.removeItem("alliekat_current_user");
+      localStorage.removeItem("alliekat_current_session");
+    }
+
     function updateAuthView() {
       const loggedIn = !!currentUser;
 
@@ -684,6 +736,7 @@
       document.getElementById("diagPanelContent").classList.toggle("hidden", !loggedIn);
       document.getElementById("flowPanel").classList.toggle("hidden", !loggedIn);
       document.getElementById("chatPanel").classList.toggle("hidden", !loggedIn);
+      document.getElementById("logoutBtn").style.display = loggedIn ? "inline-block" : "none";
     }
 
     function setVehicle(vehicle, currentPositionText) {
@@ -979,6 +1032,7 @@
         if (data.success) {
           currentUser = data.user || null;
           currentSession = data.session || null;
+          saveAuthToStorage();
           renderCurrentUser();
           updateAuthView();
           resultBox.innerText = JSON.stringify({
@@ -993,6 +1047,7 @@
 
         currentUser = null;
         currentSession = null;
+        clearAuthFromStorage();
         renderCurrentUser();
         updateAuthView();
         resultBox.innerText = JSON.stringify(data, null, 2);
@@ -1000,11 +1055,23 @@
       } catch (err) {
         currentUser = null;
         currentSession = null;
+        clearAuthFromStorage();
         renderCurrentUser();
         updateAuthView();
         resultBox.innerText = `Login error: ${err.message}`;
         setStatus("System Status: Login error");
       }
+    }
+
+    function logoutUser() {
+      currentUser = null;
+      currentSession = null;
+      clearAuthFromStorage();
+      renderCurrentUser();
+      updateAuthView();
+      clearAll();
+      showLogin();
+      setStatus("System Status: Logged out");
     }
 
     async function startDiag(mode) {
@@ -1384,13 +1451,20 @@
 
       renderHistory();
       renderChat();
-      setStatus("System Status: Ready");
+      if (currentUser) {
+        setStatus("System Status: Ready");
+      }
     }
 
+    loadAuthFromStorage();
     renderCurrentUser();
     renderChat();
     showLogin();
     updateAuthView();
+
+    if (currentUser) {
+      setStatus("System Status: Session restored");
+    }
   </script>
 </body>
 </html>
