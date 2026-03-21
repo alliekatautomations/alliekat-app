@@ -36,7 +36,6 @@ async function decodeVIN(vin) {
 }
 
 function defaultTree(payload) {
-  const vin = safeString(payload.vin);
   const code = safeString(payload.code);
   const symptom = safeString(payload.symptom);
   const notes = safeString(payload.notes);
@@ -208,10 +207,8 @@ function defaultTree(payload) {
         result_buttons: []
       }
     ],
-    likely_fault_path:
-      'Most likely path is circuit, connector, or harness issue first. Confirm circuit integrity before replacing components.',
-    final_recommendation:
-      'Use button flow to walk through each step. Save confirmed final fix after repair.',
+    likely_fault_path: 'Most likely path is circuit, connector, or harness issue first. Confirm circuit integrity before replacing components.',
+    final_recommendation: 'Use button flow to walk through each step. Save confirmed final fix after repair.',
     source: 'fallback'
   };
 }
@@ -449,7 +446,6 @@ app.get('/search-by-vin/:vin', async (req, res) => {
   res.json({ success: true, data });
 });
 
-// MAIN SAVE / UPDATE ROUTE
 app.post('/save-repair', async (req, res) => {
   try {
     const record = {
@@ -472,7 +468,6 @@ app.post('/save-repair', async (req, res) => {
       notes: safeString(req.body.notes)
     };
 
-    // FINAL FIX SAVE = UPDATE MOST RECENT MATCHING CASE
     if (record.final_fix) {
       const { data: existingRows, error: findError } = await supabase
         .from('repair_cases')
@@ -534,7 +529,6 @@ app.post('/save-repair', async (req, res) => {
       });
     }
 
-    // NORMAL AUTOSAVE WITH DUPLICATE PROTECTION
     const { data: existing, error: findError } = await supabase
       .from('repair_cases')
       .select('*')
@@ -576,6 +570,7 @@ app.post('/save-repair', async (req, res) => {
   }
 });
 
+// FAST DIAGNOSE ROUTE
 app.post('/diagnose', async (req, res) => {
   try {
     const vin = safeString(req.body.vin);
@@ -583,41 +578,52 @@ app.post('/diagnose', async (req, res) => {
     const symptom = safeString(req.body.symptom);
     const notes = safeString(req.body.notes);
 
-    let vehicleInfo = null;
-    if (vin && vin.length >= 11) {
-      vehicleInfo = await decodeVIN(vin);
-    }
-
-    const tree = await createStructuredTroubleTree({
-      vin,
-      code,
-      symptom,
-      notes,
-      vehicleInfo
-    });
-
-    const vehicle = {
-      vin: vin || '',
-      year: safeString(vehicleInfo?.ModelYear),
-      make: safeString(vehicleInfo?.Make),
-      model: safeString(vehicleInfo?.Model),
-      engine: safeString(vehicleInfo?.EngineModel || vehicleInfo?.DisplacementL),
-      trim: safeString(vehicleInfo?.Trim),
-      driveType: safeString(vehicleInfo?.DriveType),
-      fuelType: safeString(vehicleInfo?.FuelTypePrimary)
-    };
+    const quickTree = defaultTree({ vin, code, symptom, notes });
 
     res.json({
       success: true,
       mode: 'step-tree',
-      vehicle,
-      tree
+      vehicle: {
+        vin,
+        year: '',
+        make: '',
+        model: '',
+        engine: '',
+        trim: '',
+        driveType: '',
+        fuelType: ''
+      },
+      tree: quickTree
     });
+
+    (async () => {
+      try {
+        let vehicleInfo = null;
+
+        if (vin && vin.length >= 11) {
+          vehicleInfo = await decodeVIN(vin);
+        }
+
+        await createStructuredTroubleTree({
+          vin,
+          code,
+          symptom,
+          notes,
+          vehicleInfo
+        });
+
+        console.log('Enhanced tree built in background');
+      } catch (e) {
+        console.log('Background enhancement failed');
+      }
+    })();
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message
-    });
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        error: err.message
+      });
+    }
   }
 });
 
