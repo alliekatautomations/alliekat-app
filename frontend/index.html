@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Allie-Kat Diagnostics v2.0</title>
+  <title>Allie-Kat Diagnostics v2.8</title>
 
   <style>
     * { box-sizing: border-box; }
@@ -198,7 +198,8 @@
     .final-row,
     .chat-input-row,
     .chat-action-row,
-    .auth-action-row {
+    .auth-action-row,
+    .admin-action-row {
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
@@ -231,6 +232,8 @@
     .chat-send { background: linear-gradient(90deg, #00d9ff, #0099ff); color: #021018; }
     .chat-note-btn { background: #133549; color: #bcefff; border: 1px solid rgba(76, 229, 255, 0.18); }
     .chat-step-btn { background: linear-gradient(90deg, #7a5cff, #ae73ff); color: #ffffff; }
+    .approve-btn { background: #00d878; color: #04130c; }
+    .deny-btn { background: #ff4d4d; color: #ffffff; }
 
     .vehicle-card,
     .step-card,
@@ -239,7 +242,9 @@
     .learning-card,
     .chat-card,
     .auth-card,
-    .locked-card {
+    .locked-card,
+    .admin-card,
+    .request-card {
       border: 1px solid rgba(76, 229, 255, 0.14);
       border-radius: 16px;
       padding: 14px;
@@ -273,7 +278,8 @@
     .step-title,
     .learning-title,
     .chat-title,
-    .auth-title {
+    .auth-title,
+    .admin-title {
       margin: 0 0 12px;
       color: #4ce5ff;
       font-size: 22px;
@@ -402,7 +408,8 @@
       min-height: 90px;
     }
 
-    .auth-result {
+    .auth-result,
+    .admin-result {
       margin-top: 12px;
       padding: 10px 12px;
       border-radius: 12px;
@@ -442,6 +449,24 @@
       color: #cfefff;
       font-size: 15px;
       line-height: 1.5;
+    }
+
+    .request-card {
+      margin-bottom: 12px;
+    }
+
+    .request-email {
+      color: #ffffff;
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .request-meta {
+      color: #cfefff;
+      font-size: 13px;
+      line-height: 1.5;
+      white-space: pre-wrap;
     }
 
     .hidden {
@@ -611,6 +636,17 @@
       <div id="flowPanel" class="panel hidden">
         <h2>Vehicle / Flow</h2>
 
+        <div id="adminPanel" class="admin-card hidden">
+          <div class="admin-title">Admin Access Requests</div>
+
+          <div class="admin-action-row">
+            <button class="secondary" onclick="loadAccessRequests()">Refresh Requests</button>
+          </div>
+
+          <div id="adminResult" class="admin-result">No admin actions yet.</div>
+          <div id="accessRequestsList"></div>
+        </div>
+
         <div class="vehicle-card">
           <div class="vehicle-grid">
             <div>
@@ -747,6 +783,8 @@
 
     function updateAuthView() {
       const loggedIn = !!currentUser;
+      const role = currentProfile?.role || "tech";
+      const isAdmin = role === "admin";
 
       document.getElementById("authWrap").style.display = loggedIn ? "none" : "block";
       document.getElementById("diagLockedCard").style.display = loggedIn ? "none" : "block";
@@ -754,6 +792,7 @@
       document.getElementById("flowPanel").classList.toggle("hidden", !loggedIn);
       document.getElementById("chatPanel").classList.toggle("hidden", !loggedIn);
       document.getElementById("logoutBtn").style.display = loggedIn ? "inline-block" : "none";
+      document.getElementById("adminPanel").classList.toggle("hidden", !loggedIn || !isAdmin);
     }
 
     function setVehicle(vehicle, currentPositionText) {
@@ -914,6 +953,108 @@
       `;
     }
 
+    function renderAccessRequests(requests) {
+      const container = document.getElementById("accessRequestsList");
+
+      if (!requests || !requests.length) {
+        container.innerHTML = `
+          <div class="request-card">
+            <div class="field-value">No pending access requests.</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = requests.map(request => `
+        <div class="request-card">
+          <div class="request-email">${request.email || ""}</div>
+          <div class="request-meta">
+Name: ${request.name || "-"}
+Status: ${request.status || "-"}
+Created: ${request.created_at || "-"}
+Company: ${request.company || "-"}
+Reason: ${request.reason || "-"}
+          </div>
+          <div class="admin-action-row">
+            <button class="approve-btn" onclick="approveRequest('${request.id}')">Approve</button>
+            <button class="deny-btn" onclick="denyRequest('${request.id}')">Deny</button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    async function loadAccessRequests() {
+      if ((currentProfile?.role || "") !== "admin") return;
+
+      const resultBox = document.getElementById("adminResult");
+      resultBox.innerText = "Loading pending requests...";
+
+      try {
+        const res = await fetch(`${backend}/access-requests?status=pending`);
+        const data = await res.json();
+
+        if (data.success) {
+          renderAccessRequests(data.requests || []);
+          resultBox.innerText = `Loaded ${(data.requests || []).length} pending request(s).`;
+          return;
+        }
+
+        resultBox.innerText = data.error || "Failed to load requests.";
+      } catch (err) {
+        resultBox.innerText = `Request load error: ${err.message}`;
+      }
+    }
+
+    async function approveRequest(requestId) {
+      const resultBox = document.getElementById("adminResult");
+      resultBox.innerText = "Approving request...";
+
+      try {
+        const res = await fetch(`${backend}/approve-request`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ request_id: requestId })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          resultBox.innerText = "Request approved. You still need to create the actual login in Supabase Authentication → Users.";
+          await loadAccessRequests();
+          return;
+        }
+
+        resultBox.innerText = data.error || "Approve failed.";
+      } catch (err) {
+        resultBox.innerText = `Approve error: ${err.message}`;
+      }
+    }
+
+    async function denyRequest(requestId) {
+      const resultBox = document.getElementById("adminResult");
+      resultBox.innerText = "Denying request...";
+
+      try {
+        const res = await fetch(`${backend}/deny-request`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ request_id: requestId })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          resultBox.innerText = "Request denied.";
+          await loadAccessRequests();
+          return;
+        }
+
+        resultBox.innerText = data.error || "Deny failed.";
+      } catch (err) {
+        resultBox.innerText = `Deny error: ${err.message}`;
+      }
+    }
+
     function addToNotes(text) {
       const notesBox = document.getElementById("notes");
       const cleanText = (text || "").trim();
@@ -1066,6 +1207,10 @@
             access_token_found: !!data.session?.access_token
           }, null, 2);
 
+          if (role === "admin") {
+            await loadAccessRequests();
+          }
+
           setStatus(`System Status: Login successful (${role})`);
           return;
         }
@@ -1099,6 +1244,8 @@
       updateAuthView();
       clearAll();
       showLogin();
+      document.getElementById("accessRequestsList").innerHTML = "";
+      document.getElementById("adminResult").innerText = "No admin actions yet.";
       setStatus("System Status: Logged out");
     }
 
@@ -1479,6 +1626,7 @@
 
       renderHistory();
       renderChat();
+
       if (currentUser) {
         const role = currentProfile?.role || "tech";
         setStatus(`System Status: Ready (${role})`);
@@ -1498,21 +1646,12 @@
         renderCurrentUser();
         updateAuthView();
         const role = currentProfile?.role || "tech";
+        if (role === "admin") {
+          await loadAccessRequests();
+        }
         setStatus(`System Status: Session restored (${role})`);
       }
     }
-
-    logoutUser = function () {
-      currentUser = null;
-      currentSession = null;
-      currentProfile = null;
-      clearAuthFromStorage();
-      renderCurrentUser();
-      updateAuthView();
-      clearAll();
-      showLogin();
-      setStatus("System Status: Logged out");
-    };
 
     restoreSessionState();
   </script>
