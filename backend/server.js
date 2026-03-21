@@ -785,6 +785,34 @@ app.get('/', (req, res) => {
   res.send('Allie-kat backend live');
 });
 
+app.get('/admin-users', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return res.json({
+        success: false,
+        error: error.message,
+        users: []
+      });
+    }
+
+    return res.json({
+      success: true,
+      users: data || []
+    });
+  } catch (err) {
+    return res.json({
+      success: false,
+      error: err.message,
+      users: []
+    });
+  }
+});
+
 app.get('/user-profile/:id', async (req, res) => {
   try {
     const userId = safeString(req.params.id);
@@ -1454,13 +1482,15 @@ app.post('/login', async (req, res) => {
     }
 
     if (supabaseAdmin) {
-      const existingProfile = await supabase
+      const existingProfileResult = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', data.user.id)
         .single();
 
-      const currentRole = safeString(existingProfile?.data?.role) || 'tech';
+      const existingProfile = existingProfileResult?.data || null;
+      const currentRole = safeString(existingProfile?.role) || 'tech';
+      const currentName = safeString(existingProfile?.name || data.user.user_metadata?.name);
 
       const { error: profileUpsertError } = await supabaseAdmin
         .from('user_profiles')
@@ -1468,7 +1498,7 @@ app.post('/login', async (req, res) => {
           {
             id: data.user.id,
             email,
-            name: safeString(existingProfile?.data?.name || data.user.user_metadata?.name),
+            name: currentName,
             role: currentRole,
             last_seen: new Date().toISOString()
           }
