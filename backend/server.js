@@ -10,13 +10,17 @@ app.use(express.json({ limit: '2mb' }));
 // SUPABASE
 // =========================
 const supabaseUrl = 'https://julpheuumolnwkthazdj.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1bGBoZXV1bW9sbndrdGhhemRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMzc5ODYsImV4cCI6MjA4OTYxMzk4Nn0.i3jI-PjdAUPnbgVn_EXctr0-F158Gbp-r6icrEdvOGM';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1bHBoZXV1bW9sbndrdGhhemRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMzc5ODYsImV4cCI6MjA4OTYxMzk4Nn0.i3jI-PjdAUPnbgVn_EXctr0-F158Gbp-r6icrEdvOGM';
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // =========================
 // HELPERS
 // =========================
+function safeString(value) {
+  return String(value || '').trim();
+}
+
 async function decodeVIN(vin) {
   try {
     const cleanVin = String(vin || '').trim();
@@ -29,10 +33,6 @@ async function decodeVIN(vin) {
   } catch {
     return null;
   }
-}
-
-function safeString(value) {
-  return String(value || '').trim();
 }
 
 function defaultTree(payload) {
@@ -219,9 +219,7 @@ function defaultTree(payload) {
 function cleanModelJson(raw) {
   const text = String(raw || '').trim();
 
-  if (!text) {
-    return null;
-  }
+  if (!text) return null;
 
   try {
     return JSON.parse(text);
@@ -345,12 +343,6 @@ Return JSON in this exact shape:
   "likely_fault_path": "string",
   "final_recommendation": "string"
 }
-
-Requirements:
-- 4 to 8 total steps preferred
-- Include at least one final likely fault path
-- current_step_id must match one of the step ids
-- every next_step_id must point to another existing step id or be empty only on a final step
 `;
 
   const userPrompt = `
@@ -457,6 +449,7 @@ app.get('/search-by-vin/:vin', async (req, res) => {
   res.json({ success: true, data });
 });
 
+// MAIN SAVE / UPDATE ROUTE
 app.post('/save-repair', async (req, res) => {
   try {
     const record = {
@@ -479,6 +472,69 @@ app.post('/save-repair', async (req, res) => {
       notes: safeString(req.body.notes)
     };
 
+    // FINAL FIX SAVE = UPDATE MOST RECENT MATCHING CASE
+    if (record.final_fix) {
+      const { data: existingRows, error: findError } = await supabase
+        .from('repair_cases')
+        .select('*')
+        .eq('vin', record.vin)
+        .eq('fault_code', record.fault_code)
+        .eq('complaint', record.complaint)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (findError) {
+        return res.status(500).json({ success: false, error: findError.message });
+      }
+
+      if (existingRows && existingRows.length > 0) {
+        const existing = existingRows[0];
+
+        const { data: updated, error: updateError } = await supabase
+          .from('repair_cases')
+          .update({
+            year: record.year || existing.year,
+            make: record.make || existing.make,
+            model: record.model || existing.model,
+            engine: record.engine || existing.engine,
+            ai_diagnosis: record.ai_diagnosis || existing.ai_diagnosis,
+            recommended_tests: record.recommended_tests || existing.recommended_tests,
+            final_fix: record.final_fix,
+            tech_name: record.tech_name || existing.tech_name,
+            status: record.status || 'fixed',
+            notes: record.notes || existing.notes
+          })
+          .eq('id', existing.id)
+          .select();
+
+        if (updateError) {
+          return res.status(500).json({ success: false, error: updateError.message });
+        }
+
+        return res.json({
+          success: true,
+          updated: true,
+          data: updated
+        });
+      }
+
+      const { data: insertedFinal, error: insertFinalError } = await supabase
+        .from('repair_cases')
+        .insert([record])
+        .select();
+
+      if (insertFinalError) {
+        return res.status(500).json({ success: false, error: insertFinalError.message });
+      }
+
+      return res.json({
+        success: true,
+        updated: false,
+        data: insertedFinal
+      });
+    }
+
+    // NORMAL AUTOSAVE WITH DUPLICATE PROTECTION
     const { data: existing, error: findError } = await supabase
       .from('repair_cases')
       .select('*')
@@ -520,7 +576,6 @@ app.post('/save-repair', async (req, res) => {
   }
 });
 
-// MAIN ROUTE FOR BUTTON-DRIVEN TREE
 app.post('/diagnose', async (req, res) => {
   try {
     const vin = safeString(req.body.vin);
@@ -566,7 +621,6 @@ app.post('/diagnose', async (req, res) => {
   }
 });
 
-// OPTIONAL ROUTE FOR RECORDING A STEP BUTTON CLICK
 app.post('/record-step-result', async (req, res) => {
   try {
     const vin = safeString(req.body.vin);
