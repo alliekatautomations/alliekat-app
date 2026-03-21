@@ -411,6 +411,7 @@
     let stepStack = [];
     let vehicleData = {};
     let detailedTreeLoaded = false;
+    let runToken = 0;
 
     function setStatus(text) {
       document.getElementById("status").innerText = text;
@@ -518,7 +519,7 @@
       `;
     }
 
-    async function loadDetailedTree() {
+    async function loadDetailedTree(localRunToken) {
       try {
         setStatus("System Status: Loading richer tree...");
 
@@ -535,12 +536,16 @@
 
         const data = await res.json();
 
+        if (localRunToken !== runToken) return;
+
         if (!data.success || !data.tree || !Array.isArray(data.tree.steps)) {
           setStatus("System Status: Fast tree active");
           return;
         }
 
         tree = data.tree;
+        stepStack = [];
+        historyLog = [`Started detailed tree: ${tree.issue_summary || "Detailed diagnostic flow started"}`];
         currentStep = tree.steps.find(step => step.id === tree.current_step_id) || tree.steps[0] || null;
         detailedTreeLoaded = true;
 
@@ -550,16 +555,20 @@
           document.getElementById("currentPosition").innerText = tree.current_position || "Detailed diagnosis loaded";
         }
 
-        historyLog.push("Detailed tree loaded");
         renderHistory();
         renderStep();
-        setStatus("System Status: Detailed tree ready");
+        setStatus("System Status: Detailed tree active");
       } catch (err) {
-        setStatus("System Status: Fast tree active");
+        if (localRunToken === runToken) {
+          setStatus("System Status: Fast tree active");
+        }
       }
     }
 
     async function startDiag() {
+      runToken += 1;
+      const localRunToken = runToken;
+
       setStatus("System Status: Decoding VIN...");
       historyLog = [];
       stepStack = [];
@@ -577,6 +586,9 @@
         });
 
         const vinData = await vinRes.json();
+
+        if (localRunToken !== runToken) return;
+
         if (vinData.success) {
           setVehicle(vinData.vehicle || { vin: enteredVin }, "VIN decoded");
         }
@@ -596,6 +608,8 @@
 
         const data = await res.json();
 
+        if (localRunToken !== runToken) return;
+
         if (!data.success || !data.tree || !Array.isArray(data.tree.steps)) {
           setStatus("System Status: Diagnosis failed");
           document.getElementById("stepContainer").innerHTML = `
@@ -610,15 +624,15 @@
         currentStep = tree.steps.find(step => step.id === tree.current_step_id) || tree.steps[0] || null;
 
         document.getElementById("currentPosition").innerText = tree.current_position || "Fast diagnosis loaded";
-        historyLog.push(`Started fast tree: ${tree.issue_summary || "Diagnostic flow started"}`);
+        historyLog = [`Started fast tree: ${tree.issue_summary || "Diagnostic flow started"}`];
         renderHistory();
         renderStep();
         setStatus("System Status: Fast tree ready");
 
-        // Load richer tree after fast tree is already on screen
-        loadDetailedTree();
-
+        loadDetailedTree(localRunToken);
       } catch (err) {
+        if (localRunToken !== runToken) return;
+
         setStatus("System Status: Error loading diagnosis");
         document.getElementById("stepContainer").innerHTML = `
           <div class="step-card">
@@ -729,6 +743,8 @@
     }
 
     function clearAll() {
+      runToken += 1;
+
       document.getElementById("vin").value = "";
       document.getElementById("code").value = "";
       document.getElementById("symptom").value = "";
