@@ -110,7 +110,7 @@
       background: rgba(11, 28, 39, 0.96);
       color: #aef7ff;
       font-size: 13px;
-      min-width: 220px;
+      min-width: 240px;
       text-align: center;
     }
 
@@ -277,6 +277,23 @@
       border-bottom: none;
     }
 
+    .loading-card {
+      text-align: center;
+      padding: 28px 14px;
+    }
+
+    .loading-title {
+      color: #4ce5ff;
+      font-size: 22px;
+      margin-bottom: 10px;
+    }
+
+    .loading-text {
+      color: #cfefff;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
     .footer {
       text-align: center;
       margin-top: 18px;
@@ -410,7 +427,6 @@
     let historyLog = [];
     let stepStack = [];
     let vehicleData = {};
-    let detailedTreeLoaded = false;
     let runToken = 0;
 
     function setStatus(text) {
@@ -434,6 +450,17 @@
         return;
       }
       historyBox.innerHTML = historyLog.map(item => `<div class="history-line">${item}</div>`).join("");
+    }
+
+    function renderLoadingCard() {
+      document.getElementById("stepContainer").innerHTML = `
+        <div class="step-card loading-card">
+          <div class="loading-title">Building Detailed Tree...</div>
+          <div class="loading-text">
+            VIN is decoded and the system is building the richer troubleshooting path now.
+          </div>
+        </div>
+      `;
     }
 
     function renderCompleteCard() {
@@ -519,64 +546,20 @@
       `;
     }
 
-    async function loadDetailedTree(localRunToken) {
-      try {
-        setStatus("System Status: Loading richer tree...");
-
-        const res = await fetch(`${backend}/diagnose-detailed`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            vin: document.getElementById("vin").value || "",
-            code: document.getElementById("code").value || "",
-            symptom: document.getElementById("symptom").value || "",
-            notes: document.getElementById("notes").value || ""
-          })
-        });
-
-        const data = await res.json();
-
-        if (localRunToken !== runToken) return;
-
-        if (!data.success || !data.tree || !Array.isArray(data.tree.steps)) {
-          setStatus("System Status: Fast tree active");
-          return;
-        }
-
-        tree = data.tree;
-        stepStack = [];
-        historyLog = [`Started detailed tree: ${tree.issue_summary || "Detailed diagnostic flow started"}`];
-        currentStep = tree.steps.find(step => step.id === tree.current_step_id) || tree.steps[0] || null;
-        detailedTreeLoaded = true;
-
-        if (data.vehicle) {
-          setVehicle(data.vehicle, tree.current_position || "Detailed diagnosis loaded");
-        } else {
-          document.getElementById("currentPosition").innerText = tree.current_position || "Detailed diagnosis loaded";
-        }
-
-        renderHistory();
-        renderStep();
-        setStatus("System Status: Detailed tree active");
-      } catch (err) {
-        if (localRunToken === runToken) {
-          setStatus("System Status: Fast tree active");
-        }
-      }
-    }
-
     async function startDiag() {
       runToken += 1;
       const localRunToken = runToken;
 
-      setStatus("System Status: Decoding VIN...");
       historyLog = [];
       stepStack = [];
-      detailedTreeLoaded = false;
+      tree = null;
+      currentStep = null;
       renderHistory();
 
       const enteredVin = document.getElementById("vin").value || "";
       setVehicle({ vin: enteredVin }, "Decoding VIN...");
+      setStatus("System Status: Decoding VIN...");
+      renderLoadingCard();
 
       try {
         const vinRes = await fetch(`${backend}/decode-vin`, {
@@ -593,9 +576,10 @@
           setVehicle(vinData.vehicle || { vin: enteredVin }, "VIN decoded");
         }
 
-        setStatus("System Status: Loading fast tree...");
+        setStatus("System Status: Building detailed tree...");
+        document.getElementById("currentPosition").innerText = "Building detailed tree...";
 
-        const res = await fetch(`${backend}/diagnose`, {
+        const detailedRes = await fetch(`${backend}/diagnose-detailed`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -606,7 +590,7 @@
           })
         });
 
-        const data = await res.json();
+        const data = await detailedRes.json();
 
         if (localRunToken !== runToken) return;
 
@@ -614,7 +598,7 @@
           setStatus("System Status: Diagnosis failed");
           document.getElementById("stepContainer").innerHTML = `
             <div class="step-card">
-              <div class="field-value">No valid step tree returned.</div>
+              <div class="field-value">No valid detailed tree returned.</div>
             </div>
           `;
           return;
@@ -622,14 +606,18 @@
 
         tree = data.tree;
         currentStep = tree.steps.find(step => step.id === tree.current_step_id) || tree.steps[0] || null;
+        stepStack = [];
 
-        document.getElementById("currentPosition").innerText = tree.current_position || "Fast diagnosis loaded";
-        historyLog = [`Started fast tree: ${tree.issue_summary || "Diagnostic flow started"}`];
+        if (data.vehicle) {
+          setVehicle(data.vehicle, tree.current_position || "Detailed diagnosis loaded");
+        } else {
+          document.getElementById("currentPosition").innerText = tree.current_position || "Detailed diagnosis loaded";
+        }
+
+        historyLog = [`Started detailed tree: ${tree.issue_summary || "Detailed diagnostic flow started"}`];
         renderHistory();
         renderStep();
-        setStatus("System Status: Fast tree ready");
-
-        loadDetailedTree(localRunToken);
+        setStatus("System Status: Detailed tree ready");
       } catch (err) {
         if (localRunToken !== runToken) return;
 
@@ -682,7 +670,7 @@
       }
 
       currentStep = (tree.steps || []).find(step => step.id === nextId) || null;
-      setStatus(detailedTreeLoaded ? "System Status: Detailed step advanced" : "System Status: Step advanced");
+      setStatus("System Status: Step advanced");
       renderStep();
     }
 
@@ -755,7 +743,6 @@
       historyLog = [];
       stepStack = [];
       vehicleData = {};
-      detailedTreeLoaded = false;
 
       document.getElementById("vehicleVin").innerText = "-";
       document.getElementById("vehicleYear").innerText = "-";
