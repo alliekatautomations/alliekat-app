@@ -1,199 +1,616 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Allie-Kat Diagnostics v2.0</title>
-
-<style>
-body {
-  background:#06111b;
-  color:#eaf8ff;
-  font-family:Arial;
-  margin:0;
-}
-
-.wrap {
-  max-width:900px;
-  margin:auto;
-  padding:20px;
-}
-
-.header {
-  border:1px solid rgba(0,255,255,0.2);
-  padding:15px;
-  border-radius:15px;
-  margin-bottom:15px;
-}
-
-.title { color:#4ce5ff; font-size:28px; }
-
-.panel {
-  border:1px solid rgba(0,255,255,0.2);
-  padding:15px;
-  border-radius:15px;
-  margin-bottom:15px;
-}
-
-input, textarea {
-  width:100%;
-  margin-top:8px;
-  margin-bottom:10px;
-  padding:10px;
-  background:#0b1d2a;
-  color:white;
-  border:1px solid rgba(0,255,255,0.2);
-  border-radius:8px;
-}
-
-button {
-  padding:12px;
-  margin-top:8px;
-  border:none;
-  border-radius:8px;
-  cursor:pointer;
-  font-weight:bold;
-}
-
-.primary { background:#00d9ff; color:black; }
-.pass { background:#00ff88; }
-.fail { background:#ff4d4d; }
-.skip { background:#ffaa00; }
-
-.step-box {
-  border:1px solid rgba(0,255,255,0.2);
-  padding:15px;
-  border-radius:12px;
-  margin-top:10px;
-}
-</style>
-</head>
-
-<body>
-
-<div class="wrap">
-
-<div class="header">
-<div class="title">ALLIE-KAT DIAGNOSTICS v2.0</div>
-<div id="status">Ready</div>
-</div>
-
-<div class="panel" id="inputPanel">
-<input id="vin" placeholder="VIN">
-<input id="code" placeholder="Code">
-<input id="symptom" placeholder="Symptom">
-<textarea id="notes" placeholder="Notes"></textarea>
-<button class="primary" onclick="startDiag()">Start Diagnosis</button>
-</div>
-
-<div class="panel" id="stepPanel" style="display:none;">
-<div id="stepContent"></div>
-</div>
-
-</div>
-
-<script>
-const backend = "https://alliekat-app.onrender.com";
-
-let tree = {};
-let currentStep = null;
-
-async function startDiag() {
-  document.getElementById("status").innerText = "Loading...";
-
-  try {
-    const res = await fetch(`${backend}/diagnose`, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        vin:vin.value,
-        code:code.value,
-        symptom:symptom.value,
-        notes:notes.value
-      })
-    });
-
-    const data = await res.json();
-
-    if (!data.tree || !data.tree.steps) {
-      document.getElementById("status").innerText = "Error: no tree returned";
-      console.log(data);
-      return;
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Allie-Kat Diagnostics v2.0</title>
+  <style>
+    * {
+      box-sizing: border-box;
     }
 
-    tree = data.tree;
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background:
+        radial-gradient(circle at top, rgba(0, 217, 255, 0.10), transparent 24%),
+        linear-gradient(180deg, #02060b 0%, #07111b 45%, #03070d 100%);
+      color: #eaf8ff;
+      min-height: 100vh;
+    }
 
-    currentStep = tree.steps.find(s => s.id === tree.current_step_id);
+    .wrap {
+      max-width: 1150px;
+      margin: 0 auto;
+      padding: 20px;
+    }
 
-    document.getElementById("inputPanel").style.display = "none";
-    document.getElementById("stepPanel").style.display = "block";
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      flex-wrap: wrap;
+      border: 1px solid rgba(76, 229, 255, 0.22);
+      border-radius: 22px;
+      padding: 18px 20px;
+      margin-bottom: 18px;
+      background: rgba(5, 15, 25, 0.95);
+      box-shadow: 0 0 20px rgba(0, 170, 255, 0.10);
+    }
 
-    document.getElementById("status").innerText = "Diagnosis active";
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
 
-    renderStep();
+    .logo-box {
+      width: 84px;
+      height: 84px;
+      border-radius: 16px;
+      border: 1px solid rgba(76, 229, 255, 0.18);
+      background: rgba(8, 20, 31, 0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      padding: 8px;
+    }
 
-  } catch (err) {
-    document.getElementById("status").innerText = "Error loading diagnosis";
-    console.error(err);
-  }
-}
+    .logo-box img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+    }
 
-function renderStep() {
+    .title {
+      margin: 0;
+      font-size: 30px;
+      color: #4ce5ff;
+    }
 
-  if(!currentStep){
-    document.getElementById("stepContent").innerHTML =
-      `<h3>Complete</h3><p>${tree.likely_fault_path || "Done"}</p>`;
-    return;
-  }
+    .subtitle {
+      margin-top: 6px;
+      font-size: 13px;
+      color: #8bbfd0;
+    }
 
-  let buttons = currentStep.result_buttons.map(btn =>
-    `<button onclick="nextStep('${btn.next_step_id}','${btn.label}')" 
-    class="${btn.label==='PASS'?'pass':btn.label==='FAIL'?'fail':'skip'}">
-    ${btn.label}</button>`
-  ).join("");
+    .status {
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(76, 229, 255, 0.22);
+      background: rgba(11, 28, 39, 0.96);
+      color: #aef7ff;
+      font-size: 13px;
+      min-width: 180px;
+      text-align: center;
+    }
 
-  document.getElementById("stepContent").innerHTML = `
-    <div class="step-box">
-      <h3>${currentStep.title}</h3>
+    .grid {
+      display: grid;
+      grid-template-columns: 0.95fr 1.05fr;
+      gap: 18px;
+    }
 
-      <p><b>Test:</b> ${currentStep.instruction || ""}</p>
-      <p><b>Where:</b> ${currentStep.where_to_test || ""}</p>
+    .panel {
+      border: 1px solid rgba(76, 229, 255, 0.18);
+      border-radius: 22px;
+      padding: 18px;
+      background: rgba(6, 18, 28, 0.95);
+      box-shadow: 0 0 16px rgba(0, 140, 255, 0.06);
+    }
 
-      <p><b>Voltage:</b> ${currentStep.expected_specs?.voltage || ""}</p>
-      <p><b>Ohms:</b> ${currentStep.expected_specs?.ohms || ""}</p>
+    .panel h2 {
+      margin-top: 0;
+      margin-bottom: 14px;
+      color: #4ce5ff;
+      font-size: 24px;
+    }
 
-      <p><b>How:</b> ${currentStep.how_to_test || ""}</p>
+    label {
+      display: block;
+      margin-top: 12px;
+      margin-bottom: 6px;
+      font-size: 12px;
+      color: #7fb8cd;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
 
-      ${buttons}
+    input,
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(76, 229, 255, 0.18);
+      background: #0b1d2a;
+      color: #ffffff;
+      font-size: 15px;
+      outline: none;
+    }
+
+    input:focus,
+    textarea:focus {
+      border-color: rgba(76, 229, 255, 0.45);
+      box-shadow: 0 0 0 3px rgba(76, 229, 255, 0.10);
+    }
+
+    textarea {
+      min-height: 130px;
+      resize: vertical;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+
+    button {
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .primary {
+      background: linear-gradient(90deg, #00d9ff, #0099ff);
+      color: #021018;
+    }
+
+    .secondary {
+      background: #112a3b;
+      color: #9ef3ff;
+      border: 1px solid rgba(76, 229, 255, 0.18);
+    }
+
+    .pass {
+      background: #00c774;
+      color: #03130c;
+    }
+
+    .fail {
+      background: #ff4d4d;
+      color: white;
+    }
+
+    .skip {
+      background: #ffaa00;
+      color: #221500;
+    }
+
+    .vehicle-card,
+    .step-card,
+    .summary-card {
+      border: 1px solid rgba(76, 229, 255, 0.14);
+      border-radius: 16px;
+      padding: 14px;
+      background: rgba(10, 22, 34, 0.94);
+      margin-top: 12px;
+    }
+
+    .vehicle-grid,
+    .spec-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .field-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: #73a8bc;
+      margin-bottom: 4px;
+      letter-spacing: 1px;
+    }
+
+    .field-value {
+      font-size: 15px;
+      color: #f4fbff;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+
+    .step-title {
+      margin: 0 0 12px;
+      color: #4ce5ff;
+      font-size: 22px;
+    }
+
+    .step-section {
+      margin-bottom: 12px;
+    }
+
+    .step-section-title {
+      color: #7fb8cd;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+
+    .step-section-body {
+      color: #eefcff;
+      font-size: 15px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .result-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .history-line {
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(76, 229, 255, 0.10);
+      color: #dff7ff;
+      font-size: 14px;
+    }
+
+    .history-line:last-child {
+      border-bottom: none;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 18px;
+      color: #6f95a8;
+      font-size: 12px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 980px) {
+      .grid,
+      .vehicle-grid,
+      .spec-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .title {
+        font-size: 26px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <div class="header">
+      <div class="brand">
+        <div class="logo-box">
+          <img src="logo.png" alt="Allie-Kat Logo" onerror="this.style.display='none';" />
+        </div>
+        <div>
+          <h1 class="title">ALLIE-KAT DIAGNOSTICS v2.0</h1>
+          <div class="subtitle">
+            Revolutionizing your automotive experience with intelligent technology to transport your machine into the future....
+          </div>
+        </div>
+      </div>
+
+      <div class="status" id="status">System Status: Ready</div>
     </div>
-  `;
-}
 
-async function nextStep(nextId, result){
+    <div class="grid">
+      <div class="panel" id="inputPanel">
+        <h2>Start Diagnosis</h2>
 
-  try {
-    await fetch(`${backend}/record-step-result`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        vin:vin.value || "",
-        fault_code:code.value || "",
-        complaint:symptom.value || "",
-        notes:notes.value || "",
-        step_title:currentStep.title || "",
-        step_id:currentStep.id || "",
-        button_result:result || "",
-        next_step_id:nextId || ""
-      })
-    });
-  } catch (err) {
-    console.log("Save step failed (non-blocking)", err);
-  }
+        <label for="vin">VIN</label>
+        <input id="vin" placeholder="Enter VIN" />
 
-  currentStep = tree.steps.find(s => s.id === nextId);
+        <label for="code">DTC Code</label>
+        <input id="code" placeholder="Example: P2135" />
 
-  renderStep();
-}
-</script>
+        <label for="symptom">Symptom / Complaint</label>
+        <input id="symptom" placeholder="Describe complaint" />
 
+        <label for="notes">Completed Tests / Notes</label>
+        <textarea id="notes" placeholder="Enter voltage checks, ohm checks, visual findings, and technician notes"></textarea>
+
+        <div class="button-row">
+          <button class="primary" onclick="startDiag()">Start Diagnosis</button>
+          <button class="secondary" onclick="clearAll()">Clear</button>
+        </div>
+      </div>
+
+      <div class="panel" id="resultsPanel">
+        <h2>Vehicle / Flow</h2>
+
+        <div class="vehicle-card">
+          <div class="vehicle-grid">
+            <div>
+              <div class="field-label">VIN</div>
+              <div class="field-value" id="vehicleVin">-</div>
+            </div>
+            <div>
+              <div class="field-label">Year</div>
+              <div class="field-value" id="vehicleYear">-</div>
+            </div>
+            <div>
+              <div class="field-label">Make</div>
+              <div class="field-value" id="vehicleMake">-</div>
+            </div>
+            <div>
+              <div class="field-label">Model</div>
+              <div class="field-value" id="vehicleModel">-</div>
+            </div>
+            <div>
+              <div class="field-label">Engine</div>
+              <div class="field-value" id="vehicleEngine">-</div>
+            </div>
+            <div>
+              <div class="field-label">Current Position</div>
+              <div class="field-value" id="currentPosition">Waiting for diagnosis...</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="stepContainer">
+          <div class="step-card">
+            <div class="field-value">No diagnostic step loaded yet.</div>
+          </div>
+        </div>
+
+        <div class="summary-card">
+          <div class="field-label">Step History</div>
+          <div id="historyBox" class="field-value">No steps taken yet.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">Allie-Kat Automations</div>
+  </div>
+
+  <script>
+    const backend = "https://alliekat-app.onrender.com";
+
+    let tree = null;
+    let currentStep = null;
+    let historyLog = [];
+    let vehicleData = {};
+
+    function setStatus(text) {
+      document.getElementById("status").innerText = text;
+    }
+
+    function setVehicle(vehicle, currentPositionText) {
+      vehicleData = vehicle || {};
+
+      document.getElementById("vehicleVin").innerText = vehicleData.vin || document.getElementById("vin").value || "-";
+      document.getElementById("vehicleYear").innerText = vehicleData.year || "-";
+      document.getElementById("vehicleMake").innerText = vehicleData.make || "-";
+      document.getElementById("vehicleModel").innerText = vehicleData.model || "-";
+      document.getElementById("vehicleEngine").innerText = vehicleData.engine || "-";
+      document.getElementById("currentPosition").innerText = currentPositionText || "Diagnosis loaded";
+    }
+
+    function renderHistory() {
+      const historyBox = document.getElementById("historyBox");
+
+      if (!historyLog.length) {
+        historyBox.innerText = "No steps taken yet.";
+        return;
+      }
+
+      historyBox.innerHTML = historyLog
+        .map(item => `<div class="history-line">${item}</div>`)
+        .join("");
+    }
+
+    function renderStep() {
+      const stepContainer = document.getElementById("stepContainer");
+
+      if (!currentStep) {
+        stepContainer.innerHTML = `
+          <div class="step-card">
+            <h3 class="step-title">Diagnostic Path Complete</h3>
+
+            <div class="step-section">
+              <div class="step-section-title">Likely Fault Path</div>
+              <div class="step-section-body">${tree?.likely_fault_path || "No likely fault path returned."}</div>
+            </div>
+
+            <div class="step-section">
+              <div class="step-section-title">Final Recommendation</div>
+              <div class="step-section-body">${tree?.final_recommendation || "No final recommendation returned."}</div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      const buttonsHtml = (currentStep.result_buttons || [])
+        .map(btn => {
+          let cls = "skip";
+
+          if (btn.label === "PASS") cls = "pass";
+          if (btn.label === "FAIL") cls = "fail";
+
+          return `<button class="${cls}" onclick="nextStep('${btn.next_step_id}', '${btn.label.replace(/'/g, "\\'")}')">${btn.label}</button>`;
+        })
+        .join("");
+
+      stepContainer.innerHTML = `
+        <div class="step-card">
+          <h3 class="step-title">${currentStep.title || "Diagnostic Step"}</h3>
+
+          <div class="step-section">
+            <div class="step-section-title">Instruction</div>
+            <div class="step-section-body">${currentStep.instruction || "-"}</div>
+          </div>
+
+          <div class="step-section">
+            <div class="step-section-title">Where To Test</div>
+            <div class="step-section-body">${currentStep.where_to_test || "-"}</div>
+          </div>
+
+          <div class="step-section">
+            <div class="step-section-title">Expected Specs</div>
+            <div class="spec-grid">
+              <div>
+                <div class="field-label">Expected Voltage</div>
+                <div class="field-value">${currentStep.expected_specs?.voltage || "-"}</div>
+              </div>
+              <div>
+                <div class="field-label">Expected Ohms</div>
+                <div class="field-value">${currentStep.expected_specs?.ohms || "-"}</div>
+              </div>
+              <div>
+                <div class="field-label">Expected Pressure</div>
+                <div class="field-value">${currentStep.expected_specs?.pressure || "-"}</div>
+              </div>
+              <div>
+                <div class="field-label">Expected Signal</div>
+                <div class="field-value">${currentStep.expected_specs?.signal || "-"}</div>
+              </div>
+              <div>
+                <div class="field-label">Expected Voltage Drop</div>
+                <div class="field-value">${currentStep.expected_specs?.voltage_drop || "-"}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="step-section">
+            <div class="step-section-title">How To Test</div>
+            <div class="step-section-body">${currentStep.how_to_test || "-"}</div>
+          </div>
+
+          <div class="result-buttons">
+            ${buttonsHtml}
+          </div>
+        </div>
+      `;
+    }
+
+    async function startDiag() {
+      setStatus("System Status: Loading diagnosis...");
+
+      historyLog = [];
+      renderHistory();
+
+      try {
+        const res = await fetch(`${backend}/diagnose`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            vin: document.getElementById("vin").value,
+            code: document.getElementById("code").value,
+            symptom: document.getElementById("symptom").value,
+            notes: document.getElementById("notes").value
+          })
+        });
+
+        const data = await res.json();
+
+        if (!data.success || !data.tree || !Array.isArray(data.tree.steps)) {
+          setStatus("System Status: Diagnosis failed");
+          document.getElementById("stepContainer").innerHTML = `
+            <div class="step-card">
+              <div class="field-value">No valid step tree returned.</div>
+            </div>
+          `;
+          return;
+        }
+
+        tree = data.tree;
+        currentStep = tree.steps.find(step => step.id === tree.current_step_id) || tree.steps[0] || null;
+
+        setVehicle(data.vehicle || {}, tree.current_position || "Diagnosis loaded");
+        setStatus("System Status: Diagnosis ready");
+
+        historyLog.push(`Started tree: ${tree.issue_summary || "Diagnostic flow started"}`);
+        renderHistory();
+        renderStep();
+      } catch (err) {
+        setStatus("System Status: Error loading diagnosis");
+        document.getElementById("stepContainer").innerHTML = `
+          <div class="step-card">
+            <div class="field-value">Error: ${err.message}</div>
+          </div>
+        `;
+      }
+    }
+
+    async function nextStep(nextId, resultLabel) {
+      if (!currentStep) return;
+
+      historyLog.push(`${currentStep.title} → ${resultLabel}`);
+      renderHistory();
+
+      try {
+        await fetch(`${backend}/record-step-result`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            vin: document.getElementById("vin").value || "",
+            year: vehicleData.year || "",
+            make: vehicleData.make || "",
+            model: vehicleData.model || "",
+            engine: vehicleData.engine || "",
+            fault_code: document.getElementById("code").value || "",
+            complaint: document.getElementById("symptom").value || "",
+            notes: document.getElementById("notes").value || "",
+            step_title: currentStep.title || "",
+            step_id: currentStep.id || "",
+            button_result: resultLabel || "",
+            next_step_id: nextId || "",
+            ai_diagnosis: tree?.issue_summary || "",
+            status: "in_progress"
+          })
+        });
+      } catch (err) {
+        console.log("record-step-result failed:", err.message);
+      }
+
+      if (!nextId) {
+        currentStep = null;
+        setStatus("System Status: Flow complete");
+        renderStep();
+        return;
+      }
+
+      currentStep = (tree.steps || []).find(step => step.id === nextId) || null;
+      setStatus("System Status: Step advanced");
+      renderStep();
+    }
+
+    function clearAll() {
+      document.getElementById("vin").value = "";
+      document.getElementById("code").value = "";
+      document.getElementById("symptom").value = "";
+      document.getElementById("notes").value = "";
+
+      tree = null;
+      currentStep = null;
+      historyLog = [];
+      vehicleData = {};
+
+      document.getElementById("vehicleVin").innerText = "-";
+      document.getElementById("vehicleYear").innerText = "-";
+      document.getElementById("vehicleMake").innerText = "-";
+      document.getElementById("vehicleModel").innerText = "-";
+      document.getElementById("vehicleEngine").innerText = "-";
+      document.getElementById("currentPosition").innerText = "Waiting for diagnosis...";
+
+      document.getElementById("stepContainer").innerHTML = `
+        <div class="step-card">
+          <div class="field-value">No diagnostic step loaded yet.</div>
+        </div>
+      `;
+
+      renderHistory();
+      setStatus("System Status: Ready");
+    }
+  </script>
 </body>
 </html>
