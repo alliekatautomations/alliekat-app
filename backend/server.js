@@ -1001,7 +1001,7 @@ app.post('/record-step-result', async (req, res) => {
   }
 });
 
-// STEP 1 USER ACCOUNTS: SIGNUP
+// USER ACCOUNTS STEP 1: SIGNUP
 app.post('/signup', async (req, res) => {
   try {
     const email = safeString(req.body.email);
@@ -1027,6 +1027,35 @@ app.post('/signup', async (req, res) => {
     res.json({
       success: true,
       user: data.user
+    });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// USER ACCOUNTS STEP 2: LOGIN
+app.post('/login', async (req, res) => {
+  try {
+    const email = safeString(req.body.email);
+    const password = safeString(req.body.password);
+
+    if (!email || !password) {
+      return res.json({ success: false, error: 'Email and password required' });
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) {
+      return res.json({ success: false, error: error.message });
+    }
+
+    res.json({
+      success: true,
+      user: data.user,
+      session: data.session
     });
   } catch (err) {
     res.json({ success: false, error: err.message });
