@@ -218,7 +218,8 @@
     .final-card,
     .learning-card,
     .chat-card,
-    .auth-card {
+    .auth-card,
+    .locked-card {
       border: 1px solid rgba(76, 229, 255, 0.14);
       border-radius: 16px;
       padding: 14px;
@@ -394,6 +395,28 @@
       font-size: 13px;
     }
 
+    .locked-card {
+      text-align: center;
+      padding: 28px 18px;
+    }
+
+    .locked-title {
+      color: #4ce5ff;
+      font-size: 22px;
+      margin-bottom: 10px;
+      font-weight: 700;
+    }
+
+    .locked-text {
+      color: #cfefff;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
     .footer {
       text-align: center;
       margin-top: 18px;
@@ -475,36 +498,43 @@
           <div id="loginResult" class="auth-result">No login attempt yet.</div>
         </div>
 
-        <h2 style="margin-top: 18px;">Start Diagnosis</h2>
-
-        <div class="field-group">
-          <label for="vin">VIN</label>
-          <input id="vin" placeholder="Enter VIN" />
+        <div id="diagLockedCard" class="locked-card">
+          <div class="locked-title">Diagnosis Locked</div>
+          <div class="locked-text">Log in to start diagnosis, view flow, and use chat assist.</div>
         </div>
 
-        <div class="field-group">
-          <label for="code">DTC Code</label>
-          <input id="code" placeholder="Example: P2135" />
-        </div>
+        <div id="diagPanelContent" class="hidden">
+          <h2 style="margin-top: 18px;">Start Diagnosis</h2>
 
-        <div class="field-group">
-          <label for="symptom">Symptom / Complaint</label>
-          <input id="symptom" placeholder="Describe complaint" />
-        </div>
+          <div class="field-group">
+            <label for="vin">VIN</label>
+            <input id="vin" placeholder="Enter VIN" />
+          </div>
 
-        <div class="field-group">
-          <label for="notes">Completed Tests / Notes</label>
-          <textarea id="notes" placeholder="Enter voltage checks, ohm checks, visual findings, and technician notes"></textarea>
-        </div>
+          <div class="field-group">
+            <label for="code">DTC Code</label>
+            <input id="code" placeholder="Example: P2135" />
+          </div>
 
-        <div class="button-row">
-          <button class="primary" onclick="startDiag('standard')">Start Diagnosis</button>
-          <button class="expert" onclick="startDiag('expert')">Expert Diagnosis</button>
-          <button class="secondary" onclick="clearAll()">Clear</button>
+          <div class="field-group">
+            <label for="symptom">Symptom / Complaint</label>
+            <input id="symptom" placeholder="Describe complaint" />
+          </div>
+
+          <div class="field-group">
+            <label for="notes">Completed Tests / Notes</label>
+            <textarea id="notes" placeholder="Enter voltage checks, ohm checks, visual findings, and technician notes"></textarea>
+          </div>
+
+          <div class="button-row">
+            <button class="primary" onclick="startDiag('standard')">Start Diagnosis</button>
+            <button class="expert" onclick="startDiag('expert')">Expert Diagnosis</button>
+            <button class="secondary" onclick="clearAll()">Clear</button>
+          </div>
         </div>
       </div>
 
-      <div class="panel">
+      <div id="flowPanel" class="panel hidden">
         <h2>Vehicle / Flow</h2>
 
         <div class="vehicle-card">
@@ -550,7 +580,7 @@
         </div>
       </div>
 
-      <div class="panel">
+      <div id="chatPanel" class="panel hidden">
         <h2>Chat Assist</h2>
 
         <div class="chat-card">
@@ -587,6 +617,15 @@
 
     function setStatus(text) {
       document.getElementById("status").innerText = text;
+    }
+
+    function updateAuthView() {
+      const loggedIn = !!currentUser;
+
+      document.getElementById("diagLockedCard").classList.toggle("hidden", loggedIn);
+      document.getElementById("diagPanelContent").classList.toggle("hidden", !loggedIn);
+      document.getElementById("flowPanel").classList.toggle("hidden", !loggedIn);
+      document.getElementById("chatPanel").classList.toggle("hidden", !loggedIn);
     }
 
     function setVehicle(vehicle, currentPositionText) {
@@ -845,6 +884,7 @@
           currentUser = data.user || null;
           currentSession = data.session || null;
           renderCurrentUser();
+          updateAuthView();
           resultBox.innerText = JSON.stringify({
             success: data.success,
             email: data.user?.email || "",
@@ -858,18 +898,25 @@
         currentUser = null;
         currentSession = null;
         renderCurrentUser();
+        updateAuthView();
         resultBox.innerText = JSON.stringify(data, null, 2);
         setStatus("System Status: Login failed");
       } catch (err) {
         currentUser = null;
         currentSession = null;
         renderCurrentUser();
+        updateAuthView();
         resultBox.innerText = `Login error: ${err.message}`;
         setStatus("System Status: Login error");
       }
     }
 
     async function startDiag(mode) {
+      if (!currentUser) {
+        setStatus("System Status: Login required");
+        return;
+      }
+
       currentMode = mode || "standard";
       runToken += 1;
       const localRunToken = runToken;
@@ -964,7 +1011,7 @@
     }
 
     async function nextStep(nextId, resultLabel) {
-      if (!currentStep) return;
+      if (!currentStep || !currentUser) return;
 
       stepStack.push(currentStep);
       historyLog.push(`${currentStep.title} → ${resultLabel}`);
@@ -1008,7 +1055,7 @@
     }
 
     function goBack() {
-      if (stepStack.length === 0) return;
+      if (stepStack.length === 0 || !currentUser) return;
 
       currentStep = stepStack.pop();
       historyLog.push("Went back one step");
@@ -1018,6 +1065,11 @@
     }
 
     async function sendChat() {
+      if (!currentUser) {
+        setStatus("System Status: Login required");
+        return;
+      }
+
       const input = document.getElementById("chatInput");
       const question = (input.value || "").trim();
 
@@ -1065,6 +1117,11 @@
     }
 
     async function makeNextStep(chatIndex) {
+      if (!currentUser) {
+        setStatus("System Status: Login required");
+        return;
+      }
+
       const msg = chatHistory[chatIndex];
       if (!msg || msg.role !== "assistant") return;
 
@@ -1148,6 +1205,11 @@
     }
 
     async function saveFinal() {
+      if (!currentUser) {
+        setStatus("System Status: Login required");
+        return;
+      }
+
       const finalFix = document.getElementById("finalFix")?.value?.trim() || "";
 
       if (!finalFix) {
@@ -1172,7 +1234,7 @@
             ai_diagnosis: tree?.issue_summary || "",
             recommended_tests: tree?.final_recommendation || "",
             final_fix: finalFix,
-            tech_name: "",
+            tech_name: currentUser?.email || "",
             status: "fixed",
             notes: document.getElementById("notes").value || ""
           })
@@ -1231,6 +1293,7 @@
 
     renderCurrentUser();
     renderChat();
+    updateAuthView();
   </script>
 </body>
 </html>
