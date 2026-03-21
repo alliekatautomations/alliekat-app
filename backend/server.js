@@ -10,6 +10,16 @@ const supabaseUrl = 'https://julpheuumolnwkthazdj.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1bHBoZXV1bW9sbndrdGhhemRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMzc5ODYsImV4cCI6MjA4OTYxMzk4Nn0.i3jI-PjdAUPnbgVn_EXctr0-F158Gbp-r6icrEdvOGM';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabaseAdmin = serviceRoleKey
+  ? createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+  : null;
+
 function safeString(value) {
   return String(value || '').trim();
 }
@@ -24,6 +34,12 @@ function lower(value) {
 
 function getOnlineCutoffIso(minutes = 15) {
   return new Date(Date.now() - minutes * 60 * 1000).toISOString();
+}
+
+function generateTempPassword() {
+  const partA = Math.random().toString(36).slice(2, 8);
+  const partB = Math.random().toString(36).slice(2, 8).toUpperCase();
+  return `AllieKat!${partA}${partB}9`;
 }
 
 async function touchUserLastSeen(userId) {
@@ -467,7 +483,7 @@ Build the ${mode === 'expert' ? 'expert' : 'detailed'} diagnostic tree now.
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAiKey}`,
+        Authorization: `Bearer ${openAiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -569,7 +585,7 @@ Answer the technician now.
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAiKey}`,
+        Authorization: `Bearer ${openAiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -671,7 +687,7 @@ ${context.knownFixesText || 'No known fixes shown.'}
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAiKey}`,
+        Authorization: `Bearer ${openAiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -870,6 +886,13 @@ app.get('/access-requests', async (req, res) => {
 
 app.post('/approve-request', async (req, res) => {
   try {
+    if (!supabaseAdmin) {
+      return res.json({
+        success: false,
+        error: 'SUPABASE_SERVICE_ROLE_KEY is missing in Render environment variables.'
+      });
+    }
+
     const requestId = safeString(req.body.request_id);
 
     if (!requestId) {
@@ -879,22 +902,111 @@ app.post('/approve-request', async (req, res) => {
       });
     }
 
-    const { data, error } = await supabase
+    const { data: requestRow, error: requestError } = await supabase
       .from('access_requests')
-      .update({ status: 'approved' })
+      .select('*')
+      .eq('id', requestId)
+      .single();
+
+    if (requestError || !requestRow) {
+      return res.json({
+        success: false,
+        error: requestError?.message || 'Access request not found'
+      });
+    }
+
+    const email = safeString(requestRow.email).toLowerCase();
+    const name = safeString(requestRow.name);
+
+    if (!email) {
+      return res.json({
+        success: false,
+        error: 'Approved request has no email address'
+      });
+    }
+
+    const { data: existingUsersData, error: listUsersError } = await supabaseAdmin.auth.admin.listUsers();
+    if (listUsersError) {
+      return res.json({
+        success: false,
+        error: listUsersError.message
+      });
+    }
+
+    const existingAuthUser = (existingUsersData?.users || []).find(
+      (user) => safeString(user.email).toLowerCase() === email
+    );
+
+    let authUser = existingAuthUser || null;
+    let tempPassword = '';
+
+    if (!authUser) {
+      tempPassword = generateTempPassword();
+
+      const { data: createdUserData, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: {
+          name
+        }
+      });
+
+      if (createUserError || !createdUserData?.user) {
+        return res.json({
+          success: false,
+          error: createUserError?.message || 'Failed to create auth user'
+        });
+      }
+
+      authUser = createdUserData.user;
+    }
+
+    const profilePayload = {
+      id: authUser.id,
+      email,
+      name,
+      role: 'tech',
+      last_seen: new Date().toISOString()
+    };
+
+    const { error: profileError } = await supabaseAdmin
+      .from('user_profiles')
+      .upsert([profilePayload], { onConflict: 'id' });
+
+    if (profileError) {
+      return res.json({
+        success: false,
+        error: profileError.message
+      });
+    }
+
+    const { data: approvedRows, error: approveError } = await supabase
+      .from('access_requests')
+      .update({
+        status: 'approved',
+        approved_at: new Date().toISOString()
+      })
       .eq('id', requestId)
       .select();
 
-    if (error) {
+    if (approveError) {
       return res.json({
         success: false,
-        error: error.message
+        error: approveError.message
       });
     }
 
     return res.json({
       success: true,
-      data
+      data: approvedRows,
+      login_created: true,
+      email,
+      user_id: authUser.id,
+      temporary_password: tempPassword || '',
+      password_note: tempPassword
+        ? 'Temporary password created for this new user. Save it now and give it to the user.'
+        : 'Auth user already existed. Use a password reset if the user does not know their password.'
     });
   } catch (err) {
     return res.json({
