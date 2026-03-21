@@ -4,7 +4,7 @@ const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '4mb' }));
 
 const supabaseUrl = 'https://julpheuumolnwkthazdj.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1bHBoZXV1bW9sbndrdGhhemRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMzc5ODYsImV4cCI6MjA4OTYxMzk4Nn0.i3jI-PjdAUPnbgVn_EXctr0-F158Gbp-r6icrEdvOGM';
@@ -483,6 +483,122 @@ Build the ${mode === 'expert' ? 'expert' : 'detailed'} diagnostic tree now.
   }
 }
 
+async function callOpenAIForChat({
+  question,
+  vin,
+  code,
+  symptom,
+  notes,
+  vehicle,
+  currentMode,
+  currentStep,
+  treeIssueSummary,
+  treeLikelyFaultPath,
+  treeFinalRecommendation,
+  stepHistory,
+  chatHistory,
+  knownFixesText
+}) {
+  const openAiKey = process.env.OPENAI_API_KEY;
+  if (!openAiKey) {
+    return 'Chat is not available because the OpenAI API key is missing.';
+  }
+
+  const systemPrompt = `
+You are Allie-Kat Job Chat, a shop-floor diagnostic assistant for mechanics.
+
+You are answering inside an active repair job.
+Be practical, direct, and useful.
+Do not act like a general chatbot.
+
+Rules:
+- Base your answer on the current job context first.
+- Use current step, current mode, notes, known fixes, and prior step history.
+- Explain what the tech should do next in plain bay language.
+- If the user asks what a voltage or ohm reading means, explain what good/bad means and what branch it points toward.
+- If the tech asks whether to skip a step, answer based on the evidence already present.
+- If exact OEM pinouts are not certain, say:
+  "Verify exact OEM pinout for this platform"
+- Do not invent exact pin numbers if uncertain.
+- Keep answers concise but strong.
+- Prefer actionable guidance over theory.
+`;
+
+  const trimmedChatHistory = Array.isArray(chatHistory) ? chatHistory.slice(-8) : [];
+  const chatTranscript = trimmedChatHistory
+    .map(msg => `${safeString(msg.role).toUpperCase()}: ${safeString(msg.content)}`)
+    .join('\n');
+
+  const userPrompt = `
+QUESTION:
+${question}
+
+CURRENT JOB CONTEXT:
+VIN: ${vin || 'not provided'}
+Code: ${code || 'not provided'}
+Complaint: ${symptom || 'not provided'}
+Notes: ${notes || 'not provided'}
+
+VEHICLE:
+Year: ${safeString(vehicle?.year)}
+Make: ${safeString(vehicle?.make)}
+Model: ${safeString(vehicle?.model)}
+Engine: ${safeString(vehicle?.engine)}
+
+MODE:
+${currentMode || 'standard'}
+
+CURRENT STEP:
+Title: ${safeString(currentStep?.title)}
+Instruction: ${safeString(currentStep?.instruction)}
+Where to test: ${safeString(currentStep?.where_to_test)}
+Expected voltage: ${safeString(currentStep?.expected_specs?.voltage)}
+Expected ohms: ${safeString(currentStep?.expected_specs?.ohms)}
+Expected signal: ${safeString(currentStep?.expected_specs?.signal)}
+Expected voltage drop: ${safeString(currentStep?.expected_specs?.voltage_drop)}
+How to test: ${safeString(currentStep?.how_to_test)}
+
+CURRENT TREE:
+Issue summary: ${treeIssueSummary || ''}
+Likely fault path: ${treeLikelyFaultPath || ''}
+Final recommendation: ${treeFinalRecommendation || ''}
+
+STEP HISTORY:
+${Array.isArray(stepHistory) && stepHistory.length ? stepHistory.join('\n') : 'No step history yet.'}
+
+KNOWN FIXES:
+${knownFixesText || 'No known fixes shown.'}
+
+CHAT HISTORY:
+${chatTranscript || 'No prior chat.'}
+
+Answer the technician now.
+`;
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        temperature: 0.15,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ]
+      })
+    });
+
+    const data = await response.json();
+    return safeString(data?.choices?.[0]?.message?.content) || 'No reply returned.';
+  } catch (err) {
+    return `Chat error: ${err.message}`;
+  }
+}
+
 app.get('/', (req, res) => {
   res.send('Allie-kat backend live');
 });
@@ -616,6 +732,37 @@ app.post('/diagnose-expert', async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/chat', async (req, res) => {
+  try {
+    const reply = await callOpenAIForChat({
+      question: safeString(req.body.question),
+      vin: safeString(req.body.vin),
+      code: safeString(req.body.code),
+      symptom: safeString(req.body.symptom),
+      notes: safeString(req.body.notes),
+      vehicle: req.body.vehicle || {},
+      currentMode: safeString(req.body.current_mode),
+      currentStep: req.body.current_step || {},
+      treeIssueSummary: safeString(req.body.tree_issue_summary),
+      treeLikelyFaultPath: safeString(req.body.tree_likely_fault_path),
+      treeFinalRecommendation: safeString(req.body.tree_final_recommendation),
+      stepHistory: Array.isArray(req.body.step_history) ? req.body.step_history : [],
+      chatHistory: Array.isArray(req.body.chat_history) ? req.body.chat_history : [],
+      knownFixesText: safeString(req.body.known_fixes_text)
+    });
+
+    res.json({
+      success: true,
+      reply
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      reply: `Chat error: ${err.message}`
+    });
   }
 });
 
