@@ -744,6 +744,109 @@ app.get('/user-profile/:id', async (req, res) => {
   }
 });
 
+app.get('/access-requests', async (req, res) => {
+  try {
+    const status = safeString(req.query.status || 'pending').toLowerCase();
+
+    const { data, error } = await supabase
+      .from('access_requests')
+      .select('*')
+      .eq('status', status)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return res.json({
+        success: false,
+        error: error.message,
+        requests: []
+      });
+    }
+
+    return res.json({
+      success: true,
+      requests: data || []
+    });
+  } catch (err) {
+    return res.json({
+      success: false,
+      error: err.message,
+      requests: []
+    });
+  }
+});
+
+app.post('/approve-request', async (req, res) => {
+  try {
+    const requestId = safeString(req.body.request_id);
+
+    if (!requestId) {
+      return res.json({
+        success: false,
+        error: 'request_id is required'
+      });
+    }
+
+    const { data, error } = await supabase
+      .from('access_requests')
+      .update({ status: 'approved' })
+      .eq('id', requestId)
+      .select();
+
+    if (error) {
+      return res.json({
+        success: false,
+        error: error.message
+      });
+    }
+
+    return res.json({
+      success: true,
+      data
+    });
+  } catch (err) {
+    return res.json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+app.post('/deny-request', async (req, res) => {
+  try {
+    const requestId = safeString(req.body.request_id);
+
+    if (!requestId) {
+      return res.json({
+        success: false,
+        error: 'request_id is required'
+      });
+    }
+
+    const { data, error } = await supabase
+      .from('access_requests')
+      .update({ status: 'denied' })
+      .eq('id', requestId)
+      .select();
+
+    if (error) {
+      return res.json({
+        success: false,
+        error: error.message
+      });
+    }
+
+    return res.json({
+      success: true,
+      data
+    });
+  } catch (err) {
+    return res.json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
 app.post('/decode-vin', async (req, res) => {
   try {
     const vin = safeString(req.body.vin);
