@@ -178,7 +178,8 @@
     .result-buttons,
     .final-row,
     .chat-input-row,
-    .chat-action-row {
+    .chat-action-row,
+    .auth-action-row {
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
@@ -395,6 +396,17 @@
       font-size: 13px;
     }
 
+    .auth-disclaimer {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 170, 0, 0.18);
+      background: rgba(255, 170, 0, 0.08);
+      color: #ffd98a;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
     .locked-card {
       text-align: center;
       padding: 28px 18px;
@@ -475,53 +487,61 @@
           <h2>User Access</h2>
 
           <div class="auth-card">
-            <div class="auth-title">Sign Up</div>
+            <div id="loginView">
+              <div class="auth-title">Login</div>
 
-            <div class="field-group">
-              <label for="signupName">Name</label>
-              <input id="signupName" placeholder="Enter name" />
+              <div class="field-group">
+                <label for="loginEmail">Email</label>
+                <input id="loginEmail" placeholder="Enter email" />
+              </div>
+
+              <div class="field-group">
+                <label for="loginPassword">Password</label>
+                <input id="loginPassword" type="password" placeholder="Enter password" />
+              </div>
+
+              <div class="auth-action-row">
+                <button class="primary" onclick="loginUser()">Login</button>
+                <button class="secondary" onclick="showSignup()">Create Account</button>
+              </div>
+
+              <div class="field-group" style="margin-top: 14px;">
+                <div class="field-label">Current User</div>
+                <div class="field-value" id="currentUserBox">Not logged in</div>
+              </div>
+
+              <div id="loginResult" class="auth-result">No login attempt yet.</div>
             </div>
 
-            <div class="field-group">
-              <label for="signupEmail">Email</label>
-              <input id="signupEmail" placeholder="Enter email" />
+            <div id="signupView" class="hidden">
+              <div class="auth-title">Create Account</div>
+
+              <div class="field-group">
+                <label for="signupName">Name</label>
+                <input id="signupName" placeholder="Enter name" />
+              </div>
+
+              <div class="field-group">
+                <label for="signupEmail">Email</label>
+                <input id="signupEmail" placeholder="Enter email" />
+              </div>
+
+              <div class="field-group">
+                <label for="signupPassword">Password</label>
+                <input id="signupPassword" type="password" placeholder="Enter password" />
+              </div>
+
+              <div class="auth-action-row">
+                <button class="secondary" onclick="signupUser()">Sign Up</button>
+                <button class="back" onclick="showLogin()">Back to Login</button>
+              </div>
+
+              <div class="auth-disclaimer">
+                By creating an account, you understand this tool provides technician support information only. Final diagnosis, testing, and repair decisions remain the responsibility of the user or technician.
+              </div>
+
+              <div id="signupResult" class="auth-result">No signup attempt yet.</div>
             </div>
-
-            <div class="field-group">
-              <label for="signupPassword">Password</label>
-              <input id="signupPassword" type="password" placeholder="Enter password" />
-            </div>
-
-            <div class="button-row">
-              <button class="secondary" onclick="signupUser()">Sign Up</button>
-            </div>
-
-            <div id="signupResult" class="auth-result">No signup attempt yet.</div>
-          </div>
-
-          <div class="auth-card">
-            <div class="auth-title">Login</div>
-
-            <div class="field-group">
-              <label for="loginEmail">Email</label>
-              <input id="loginEmail" placeholder="Enter email" />
-            </div>
-
-            <div class="field-group">
-              <label for="loginPassword">Password</label>
-              <input id="loginPassword" type="password" placeholder="Enter password" />
-            </div>
-
-            <div class="button-row">
-              <button class="primary" onclick="loginUser()">Login</button>
-            </div>
-
-            <div class="field-group" style="margin-top: 14px;">
-              <div class="field-label">Current User</div>
-              <div class="field-value" id="currentUserBox">Not logged in</div>
-            </div>
-
-            <div id="loginResult" class="auth-result">No login attempt yet.</div>
           </div>
         </div>
 
@@ -644,6 +664,16 @@
 
     function setStatus(text) {
       document.getElementById("status").innerText = text;
+    }
+
+    function showSignup() {
+      document.getElementById("loginView").classList.add("hidden");
+      document.getElementById("signupView").classList.remove("hidden");
+    }
+
+    function showLogin() {
+      document.getElementById("signupView").classList.add("hidden");
+      document.getElementById("loginView").classList.remove("hidden");
     }
 
     function updateAuthView() {
@@ -913,6 +943,7 @@
         if (data.success) {
           document.getElementById("loginEmail").value = email;
           document.getElementById("loginPassword").value = password;
+          showLogin();
           setStatus("System Status: Signup complete");
         } else {
           setStatus("System Status: Signup failed");
@@ -1358,6 +1389,7 @@
 
     renderCurrentUser();
     renderChat();
+    showLogin();
     updateAuthView();
   </script>
 </body>
