@@ -18,6 +18,10 @@ function normalizeCode(code) {
   return safeString(code).toUpperCase();
 }
 
+function lower(value) {
+  return safeString(value).toLowerCase();
+}
+
 async function decodeVIN(vin) {
   try {
     const cleanVin = safeString(vin);
@@ -145,7 +149,37 @@ function normalizeTree(modelTree, payload, vehicleInfo, sourceLabel = 'openai') 
   };
 }
 
-function summarizeLearningRows(rows) {
+function rowLooksUsableForLearning(row) {
+  const finalFix = safeString(row.final_fix);
+  if (!finalFix) return false;
+
+  const status = lower(row.status);
+  if (!status) return true;
+  return ['fixed', 'complete', 'completed', 'closed'].includes(status);
+}
+
+function scoreLearningRow(row, normalizedCode, make, model, engine) {
+  let score = 0;
+
+  if (normalizedCode && lower(row.fault_code).includes(lower(normalizedCode))) score += 10;
+  if (make && lower(row.make) === lower(make)) score += 4;
+  if (model && lower(row.model) === lower(model)) score += 5;
+
+  const rowEngine = lower(row.engine);
+  const targetEngine = lower(engine);
+  if (targetEngine && rowEngine) {
+    if (rowEngine === targetEngine) score += 5;
+    else if (rowEngine.includes(targetEngine) || targetEngine.includes(rowEngine)) score += 3;
+  }
+
+  const complaint = lower(row.complaint);
+  if (complaint.includes('no throttle')) score += 1;
+  if (lower(row.notes).includes('harness')) score += 1;
+
+  return score;
+}
+
+function summarizeLearningRows(rows, normalizedCode, make, model, engine) {
   const fixesMap = new Map();
 
   for (const row of rows) {
@@ -153,17 +187,20 @@ function summarizeLearningRows(rows) {
     if (!finalFix) continue;
 
     const key = finalFix.toLowerCase();
+    const rowScore = scoreLearningRow(row, normalizedCode, make, model, engine);
 
     if (!fixesMap.has(key)) {
       fixesMap.set(key, {
         final_fix: finalFix,
         count: 0,
+        weighted_score: 0,
         examples: []
       });
     }
 
     const item = fixesMap.get(key);
     item.count += 1;
+    item.weighted_score += rowScore;
 
     if (item.examples.length < 3) {
       item.examples.push({
@@ -179,23 +216,11 @@ function summarizeLearningRows(rows) {
   }
 
   return Array.from(fixesMap.values())
-    .sort((a, b) => b.count - a.count)
+    .sort((a, b) => {
+      if (b.weighted_score !== a.weighted_score) return b.weighted_score - a.weighted_score;
+      return b.count - a.count;
+    })
     .slice(0, 5);
-}
-
-function rowLooksUsableForLearning(row) {
-  const finalFix = safeString(row.final_fix);
-  if (!finalFix) return false;
-
-  const status = safeString(row.status).toLowerCase();
-
-  if (!status) return true;
-  if (status === 'fixed') return true;
-  if (status === 'complete') return true;
-  if (status === 'completed') return true;
-  if (status === 'closed') return true;
-
-  return false;
 }
 
 async function getLearningContext({ code, vehicleInfo }) {
@@ -204,57 +229,35 @@ async function getLearningContext({ code, vehicleInfo }) {
   const model = safeString(vehicleInfo?.Model);
   const engine = safeString(vehicleInfo?.EngineModel || vehicleInfo?.DisplacementL);
 
-  let codeRows = [];
-  let vehicleRows = [];
+  const { data } = await supabase
+    .from('repair_cases')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(150);
 
-  if (normalizedCode) {
-    const { data } = await supabase
-      .from('repair_cases')
-      .select('*')
-      .ilike('fault_code', `%${normalizedCode}%`)
-      .order('created_at', { ascending: false })
-      .limit(50);
+  const usable = (data || []).filter(rowLooksUsableForLearning);
 
-    codeRows = (data || []).filter(rowLooksUsableForLearning);
-  }
+  const scored = usable
+    .map(row => ({
+      ...row,
+      _score: scoreLearningRow(row, normalizedCode, make, model, engine)
+    }))
+    .filter(row => row._score > 0)
+    .sort((a, b) => b._score - a._score);
 
-  if (make || model) {
-    let query = supabase
-      .from('repair_cases')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50);
+  const topRows = scored.slice(0, 20);
 
-    if (make) query = query.ilike('make', make);
-    if (model) query = query.ilike('model', model);
-
-    const { data } = await query;
-    vehicleRows = (data || [])
-      .filter(rowLooksUsableForLearning)
-      .filter(row => {
-        if (!engine) return true;
-        const rowEngine = safeString(row.engine).toLowerCase();
-        return rowEngine.includes(engine.toLowerCase()) || engine.toLowerCase().includes(rowEngine);
-      });
-  }
-
-  const combined = [];
-
-  for (const row of codeRows) {
-    if (!combined.find(x => x.id === row.id)) combined.push(row);
-  }
-
-  for (const row of vehicleRows) {
-    if (!combined.find(x => x.id === row.id)) combined.push(row);
-  }
-
-  const suggestedFixes = summarizeLearningRows(combined);
+  const suggestedFixes = summarizeLearningRows(topRows, normalizedCode, make, model, engine);
 
   return {
-    total_matches: combined.length,
-    code_matches: codeRows.slice(0, 10),
-    vehicle_matches: vehicleRows.slice(0, 10),
-    suggested_fixes: suggestedFixes
+    total_matches: topRows.length,
+    top_rows: topRows,
+    suggested_fixes: suggestedFixes,
+    strongest_fix: suggestedFixes[0] || null,
+    aggressive_signal: suggestedFixes.length > 0 && suggestedFixes[0].count >= 1,
+    aggressive_summary: suggestedFixes.length
+      ? `Top learned fix: ${suggestedFixes[0].final_fix} | Seen ${suggestedFixes[0].count} time(s) | Weighted score ${suggestedFixes[0].weighted_score}`
+      : 'No aggressive learning signal found.'
   };
 }
 
@@ -264,26 +267,22 @@ function learningContextToText(learningContext) {
   }
 
   const lines = [];
-  lines.push(`Internal confirmed repair matches found: ${learningContext.total_matches}`);
+  lines.push(`Aggressive learning matches found: ${learningContext.total_matches}`);
+  lines.push(learningContext.aggressive_summary || '');
 
   if (learningContext.suggested_fixes?.length) {
-    lines.push('Most common confirmed fixes:');
+    lines.push('Prioritized confirmed fixes:');
     for (const fix of learningContext.suggested_fixes) {
-      lines.push(`- ${fix.final_fix} (count: ${fix.count})`);
+      lines.push(`- ${fix.final_fix} | count=${fix.count} | weighted_score=${fix.weighted_score}`);
     }
   }
 
-  if (learningContext.code_matches?.length) {
-    lines.push('Recent confirmed code matches:');
-    for (const row of learningContext.code_matches.slice(0, 5)) {
-      lines.push(`- Code: ${safeString(row.fault_code)} | Complaint: ${safeString(row.complaint)} | Fix: ${safeString(row.final_fix)} | Notes: ${safeString(row.notes)}`);
-    }
-  }
-
-  if (learningContext.vehicle_matches?.length) {
-    lines.push('Recent confirmed same-platform matches:');
-    for (const row of learningContext.vehicle_matches.slice(0, 5)) {
-      lines.push(`- ${safeString(row.make)} ${safeString(row.model)} ${safeString(row.engine)} | Code: ${safeString(row.fault_code)} | Fix: ${safeString(row.final_fix)}`);
+  if (learningContext.top_rows?.length) {
+    lines.push('Highest-scoring historical matches:');
+    for (const row of learningContext.top_rows.slice(0, 6)) {
+      lines.push(
+        `- score=${row._score} | ${safeString(row.make)} ${safeString(row.model)} ${safeString(row.engine)} | code=${safeString(row.fault_code)} | complaint=${safeString(row.complaint)} | fix=${safeString(row.final_fix)} | notes=${safeString(row.notes)}`
+      );
     }
   }
 
@@ -306,33 +305,32 @@ No extra commentary.
 
 Build a highly detailed button-driven diagnostic tree that walks a technician through troubleshooting like an OEM service tree.
 
-Hard requirements:
+Requirements:
 - Use the actual DTC and complaint throughout the tree when available.
-- Make each step read like a real technician instruction, not a summary.
-- Include practical checks like:
-  - power feed checks
-  - ground checks
-  - reference voltage checks
+- Make each step read like a real technician instruction.
+- Include practical checks:
+  - power feed
+  - ground
+  - reference voltage
   - signal checks
   - connector inspection
   - wiggle harness testing
   - ohms checks while moving harness
-  - continuity checks while moving harness
-  - voltage drop checks
+  - continuity while moving harness
+  - voltage drop
   - module-side verification
   - compare source-side reading to module-side reading
 - Explain HOW to perform each check in bay language.
-- For wiggle test steps, explicitly mention checking for opens/high resistance while moving the harness by hand.
+- For wiggle tests, explicitly mention opens/high resistance while moving the harness.
 - For wire continuity steps, explain expected ohms and what change during movement means.
-- For voltage steps, explain expected ranges and what a bad reading means.
+- For voltage steps, explain expected ranges and what bad readings mean.
 - Include pinout guidance when confidently known.
 - If exact OEM pin numbers are not certain, say:
   "Verify exact OEM pinout for this platform"
 - Do not invent exact pin numbers if uncertain.
-- Prefer 5 to 8 steps total.
+- Prefer 5 to 8 steps.
 - Every step must drive to the next logical branch.
-- Use internal confirmed repair history if it is relevant, but do not blindly jump to the prior fix without proving it by testing.
-- If internal history strongly suggests a common failure point, direct the tech to test that failure point early.
+- Use aggressive learning context to move high-confidence repeat failure points earlier, but still validate them by testing before concluding the fix.
 
 Return JSON exactly in this shape:
 {
@@ -366,38 +364,35 @@ Return JSON exactly in this shape:
 `;
 
   const expertSystemPrompt = `
-You are a master diesel and automotive diagnostic technician in EXPERT MODE.
+You are a master diesel and automotive diagnostic technician in EXPERT MODE with aggressive learning prioritization.
 
 You must return ONLY valid JSON.
 No markdown.
 No code fences.
 No extra commentary.
 
-Build a highly detailed button-driven diagnostic tree that reasons like a seasoned diagnostic tech.
-
-Expert mode requirements:
-- Treat the technician notes as real evidence, not background filler.
-- Skip or compress basic checks if the notes already strongly prove they were done.
-- Do NOT restart from beginner steps unless the evidence is weak or conflicting.
-- Use actual DTC, complaint, vehicle platform, and internal confirmed repair history aggressively.
-- Prioritize the most likely failure path sooner.
-- If internal repair history points to a repeat failure point, move that branch early in the tree.
+Rules:
+- Treat notes as evidence.
+- Skip or compress basic checks already strongly supported by notes.
+- Use actual DTC, complaint, platform, and aggressive learning context aggressively.
+- If a repeat validated failure is strongly indicated by learning context, move that failure point into step 1 or step 2.
+- Do not blindly replace a part or assume the fix; validate it with the right test first.
 - Focus on direct fault isolation:
-  - source-side signal checks
-  - module-side signal checks
-  - voltage drop under load
+  - source-side signal
+  - module-side signal
+  - loaded voltage drop
   - continuity / ohms while moving harness
   - wiggle test with meter/live data
-  - connector drag / spread pin / corrosion / rub-through
-  - compare commanded vs actual
-- Explain exactly what the tech should do with the meter or scan tool.
+  - spread pin / corrosion / rub-through / connector drag
+  - commanded vs actual
+- Explain exactly what the tech should do.
 - Include expected voltages, ohms, signal behavior, voltage drop, and what the result means.
 - Include pinout guidance when confidently known.
 - If exact OEM pin numbers are not certain, say:
   "Verify exact OEM pinout for this platform"
 - Do not invent exact pin numbers if uncertain.
 - Prefer 4 to 7 high-value steps.
-- Every branch should move the tech closer to isolating the failure, not just verifying basics again.
+- The tree should behave like a senior tech who knows repeat failure points on this platform.
 
 Return JSON exactly in this shape:
 {
@@ -444,7 +439,7 @@ Fault Code: ${code || 'none provided'}
 Symptom: ${symptom || 'none provided'}
 Completed tests / notes: ${notes || 'none provided'}
 
-Internal learning context:
+AGGRESSIVE LEARNING CONTEXT:
 ${learningText}
 
 Build the ${mode === 'expert' ? 'expert' : 'detailed'} diagnostic tree now.
@@ -459,7 +454,7 @@ Build the ${mode === 'expert' ? 'expert' : 'detailed'} diagnostic tree now.
       },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
-        temperature: mode === 'expert' ? 0.05 : 0.1,
+        temperature: mode === 'expert' ? 0.05 : 0.08,
         messages: [
           {
             role: 'system',
@@ -477,7 +472,7 @@ Build the ${mode === 'expert' ? 'expert' : 'detailed'} diagnostic tree now.
     const content = data?.choices?.[0]?.message?.content || '';
     const parsed = cleanModelJson(content);
 
-    return normalizeTree(parsed, { vin, code, symptom, notes }, vehicleInfo, mode === 'expert' ? 'openai-expert' : 'openai');
+    return normalizeTree(parsed, { vin, code, symptom, notes }, vehicleInfo, mode === 'expert' ? 'openai-expert-aggressive' : 'openai-aggressive');
   } catch {
     return buildQuickTree({ vin, code, symptom, notes });
   }
@@ -492,21 +487,13 @@ async function callOpenAIForChat(context) {
   const systemPrompt = `
 You are Allie-Kat Job Chat, a shop-floor diagnostic assistant for mechanics.
 
-You are answering inside an active repair job.
 Be practical, direct, and useful.
-Do not act like a general chatbot.
-
-Rules:
-- Base your answer on the current job context first.
-- Use current step, current mode, notes, known fixes, and prior step history.
-- Explain what the tech should do next in plain bay language.
-- If the user asks what a voltage or ohm reading means, explain what good/bad means and what branch it points toward.
-- If the tech asks whether to skip a step, answer based on the evidence already present.
-- If exact OEM pinouts are not certain, say:
-  "Verify exact OEM pinout for this platform"
-- Do not invent exact pin numbers if uncertain.
-- Keep answers concise but strong.
-- Prefer actionable guidance over theory.
+Base your answer on the current job context first.
+Use current step, current mode, notes, known fixes, and prior step history.
+If exact OEM pinouts are not certain, say:
+"Verify exact OEM pinout for this platform"
+Do not invent exact pin numbers if uncertain.
+Keep answers concise but strong.
 `;
 
   const trimmedChatHistory = Array.isArray(context.chatHistory) ? context.chatHistory.slice(-8) : [];
