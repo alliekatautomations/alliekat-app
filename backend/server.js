@@ -48,7 +48,7 @@ function buildQuickTree(payload) {
         id: 'step_1',
         title: code ? `Verify DTC ${code} and complaint` : 'Verify complaint and active fault',
         instruction: code
-          ? `Confirm DTC ${code} is active/current and verify the complaint.`
+          ? `Confirm DTC ${code} is active/current and verify complaint.`
           : `Confirm the complaint is present now and determine whether the fault is active or intermittent.`,
         where_to_test: 'Scan tool, key on / engine off and key on / engine running as applicable.',
         expected_specs: {
@@ -214,12 +214,163 @@ function buildQuickTree(payload) {
   };
 }
 
-// ROOT
+function cleanModelJson(raw) {
+  const text = String(raw || '').trim();
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text);
+  } catch {}
+
+  const firstBrace = text.indexOf('{');
+  const lastBrace = text.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    try {
+      return JSON.parse(text.slice(firstBrace, lastBrace + 1));
+    } catch {}
+  }
+
+  return null;
+}
+
+function normalizeTree(modelTree, payload, vehicleInfo) {
+  const fallback = buildQuickTree(payload);
+  if (!modelTree || typeof modelTree !== 'object') return fallback;
+
+  const steps = Array.isArray(modelTree.steps) ? modelTree.steps : fallback.steps;
+
+  return {
+    issue_summary: safeString(modelTree.issue_summary) || fallback.issue_summary,
+    current_position: safeString(modelTree.current_position) || fallback.current_position,
+    current_step_id: safeString(modelTree.current_step_id) || (steps[0]?.id || 'step_1'),
+    steps: steps.map((step, index) => ({
+      id: safeString(step.id) || `step_${index + 1}`,
+      title: safeString(step.title) || `Step ${index + 1}`,
+      instruction: safeString(step.instruction) || '',
+      where_to_test: safeString(step.where_to_test) || '',
+      expected_specs: {
+        voltage: safeString(step?.expected_specs?.voltage) || 'Verify exact OEM spec/pinout for this platform',
+        ohms: safeString(step?.expected_specs?.ohms) || 'Verify exact OEM spec/pinout for this platform',
+        pressure: safeString(step?.expected_specs?.pressure) || 'Verify exact OEM spec/pinout for this platform',
+        signal: safeString(step?.expected_specs?.signal) || 'Verify exact OEM spec/pinout for this platform',
+        voltage_drop: safeString(step?.expected_specs?.voltage_drop) || 'Verify exact OEM spec/pinout for this platform'
+      },
+      how_to_test: safeString(step.how_to_test) || '',
+      result_buttons: Array.isArray(step.result_buttons)
+        ? step.result_buttons.map((btn) => ({
+            label: safeString(btn.label) || 'NEXT',
+            next_step_id: safeString(btn.next_step_id) || ''
+          }))
+        : []
+    })),
+    likely_fault_path: safeString(modelTree.likely_fault_path) || fallback.likely_fault_path,
+    final_recommendation: safeString(modelTree.final_recommendation) || fallback.final_recommendation,
+    source: 'openai',
+    vehicle_snapshot: {
+      vin: safeString(payload.vin),
+      year: safeString(vehicleInfo?.ModelYear),
+      make: safeString(vehicleInfo?.Make),
+      model: safeString(vehicleInfo?.Model),
+      engine: safeString(vehicleInfo?.EngineModel || vehicleInfo?.DisplacementL),
+      trim: safeString(vehicleInfo?.Trim),
+      driveType: safeString(vehicleInfo?.DriveType),
+      fuelType: safeString(vehicleInfo?.FuelTypePrimary)
+    }
+  };
+}
+
+async function createStructuredTroubleTree({ vin, code, symptom, notes, vehicleInfo }) {
+  const openAiKey = process.env.OPENAI_API_KEY;
+  if (!openAiKey) return buildQuickTree({ vin, code, symptom, notes });
+
+  const systemPrompt = `
+You are a master diesel and automotive diagnostic technician.
+
+You must return ONLY valid JSON.
+No markdown.
+No code fences.
+No extra commentary.
+
+Build a detailed button-driven diagnostic tree.
+Use the actual DTC and complaint throughout the tree when available.
+Include practical checks like feed, ground, reference, signal, wiggle harness testing, connector inspection, and module-side verification where relevant.
+If exact OEM specs are not certain, say: "Verify exact OEM spec/pinout for this platform"
+
+Return JSON:
+{
+  "issue_summary": "string",
+  "current_position": "string",
+  "current_step_id": "step_1",
+  "steps": [
+    {
+      "id": "step_1",
+      "title": "string",
+      "instruction": "string",
+      "where_to_test": "string",
+      "expected_specs": {
+        "voltage": "string",
+        "ohms": "string",
+        "pressure": "string",
+        "signal": "string",
+        "voltage_drop": "string"
+      },
+      "how_to_test": "string",
+      "result_buttons": [
+        { "label": "PASS", "next_step_id": "step_2" },
+        { "label": "FAIL", "next_step_id": "step_fail_1" }
+      ]
+    }
+  ],
+  "likely_fault_path": "string",
+  "final_recommendation": "string"
+}
+`;
+
+  const userPrompt = `
+VIN: ${vin || 'not provided'}
+Make: ${vehicleInfo?.Make || 'unknown'}
+Model: ${vehicleInfo?.Model || 'unknown'}
+Year: ${vehicleInfo?.ModelYear || 'unknown'}
+Engine: ${vehicleInfo?.EngineModel || vehicleInfo?.DisplacementL || 'unknown'}
+
+Fault Code: ${code || 'none provided'}
+Symptom: ${symptom || 'none provided'}
+Completed tests / notes: ${notes || 'none provided'}
+
+Build the diagnostic tree now.
+`;
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        temperature: 0.1,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ]
+      })
+    });
+
+    const data = await response.json();
+    const content = data?.choices?.[0]?.message?.content || '';
+    const parsed = cleanModelJson(content);
+
+    return normalizeTree(parsed, { vin, code, symptom, notes }, vehicleInfo);
+  } catch {
+    return buildQuickTree({ vin, code, symptom, notes });
+  }
+}
+
 app.get('/', (req, res) => {
   res.send('Allie-kat backend live');
 });
 
-// VIN DECODE ROUTE
 app.post('/decode-vin', async (req, res) => {
   try {
     const vin = safeString(req.body.vin);
@@ -239,14 +390,68 @@ app.post('/decode-vin', async (req, res) => {
       }
     });
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message
-    });
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// TEST DB
+app.post('/diagnose', async (req, res) => {
+  try {
+    const vin = safeString(req.body.vin);
+    const code = safeString(req.body.code);
+    const symptom = safeString(req.body.symptom);
+    const notes = safeString(req.body.notes);
+
+    const quickTree = buildQuickTree({ vin, code, symptom, notes });
+
+    res.json({
+      success: true,
+      mode: 'step-tree',
+      tree: quickTree
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/diagnose-detailed', async (req, res) => {
+  try {
+    const vin = safeString(req.body.vin);
+    const code = safeString(req.body.code);
+    const symptom = safeString(req.body.symptom);
+    const notes = safeString(req.body.notes);
+
+    let vehicleInfo = null;
+    if (vin && vin.length >= 11) {
+      vehicleInfo = await decodeVIN(vin);
+    }
+
+    const detailedTree = await createStructuredTroubleTree({
+      vin,
+      code,
+      symptom,
+      notes,
+      vehicleInfo
+    });
+
+    res.json({
+      success: true,
+      tree: detailedTree,
+      vehicle: {
+        vin,
+        year: safeString(vehicleInfo?.ModelYear),
+        make: safeString(vehicleInfo?.Make),
+        model: safeString(vehicleInfo?.Model),
+        engine: safeString(vehicleInfo?.EngineModel || vehicleInfo?.DisplacementL),
+        trim: safeString(vehicleInfo?.Trim),
+        driveType: safeString(vehicleInfo?.DriveType),
+        fuelType: safeString(vehicleInfo?.FuelTypePrimary)
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.get('/test-db', async (req, res) => {
   const { data, error } = await supabase
     .from('repair_cases')
@@ -254,14 +459,10 @@ app.get('/test-db', async (req, res) => {
     .order('created_at', { ascending: false })
     .limit(20);
 
-  if (error) {
-    return res.status(500).json({ success: false, error: error.message });
-  }
-
+  if (error) return res.status(500).json({ success: false, error: error.message });
   res.json({ success: true, data });
 });
 
-// SAVE / UPDATE REPAIR
 app.post('/save-repair', async (req, res) => {
   try {
     const record = {
@@ -272,12 +473,8 @@ app.post('/save-repair', async (req, res) => {
       engine: safeString(req.body.engine),
       fault_code: safeString(req.body.fault_code),
       complaint: safeString(req.body.complaint),
-      ai_diagnosis: typeof req.body.ai_diagnosis === 'string'
-        ? req.body.ai_diagnosis
-        : JSON.stringify(req.body.ai_diagnosis || ''),
-      recommended_tests: typeof req.body.recommended_tests === 'string'
-        ? req.body.recommended_tests
-        : JSON.stringify(req.body.recommended_tests || ''),
+      ai_diagnosis: typeof req.body.ai_diagnosis === 'string' ? req.body.ai_diagnosis : JSON.stringify(req.body.ai_diagnosis || ''),
+      recommended_tests: typeof req.body.recommended_tests === 'string' ? req.body.recommended_tests : JSON.stringify(req.body.recommended_tests || ''),
       final_fix: safeString(req.body.final_fix),
       tech_name: safeString(req.body.tech_name),
       status: safeString(req.body.status) || 'open',
@@ -296,7 +493,6 @@ app.post('/save-repair', async (req, res) => {
 
       if (existingRows && existingRows.length > 0) {
         const existing = existingRows[0];
-
         const { data: updated, error: updateError } = await supabase
           .from('repair_cases')
           .update({
@@ -314,10 +510,7 @@ app.post('/save-repair', async (req, res) => {
           .eq('id', existing.id)
           .select();
 
-        if (updateError) {
-          return res.status(500).json({ success: false, error: updateError.message });
-        }
-
+        if (updateError) return res.status(500).json({ success: false, error: updateError.message });
         return res.json({ success: true, updated: true, data: updated });
       }
     }
@@ -327,49 +520,13 @@ app.post('/save-repair', async (req, res) => {
       .insert([record])
       .select();
 
-    if (error) {
-      return res.status(500).json({ success: false, error: error.message });
-    }
-
+    if (error) return res.status(500).json({ success: false, error: error.message });
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// DIAGNOSE
-app.post('/diagnose', async (req, res) => {
-  try {
-    const vin = safeString(req.body.vin);
-    const code = safeString(req.body.code);
-    const symptom = safeString(req.body.symptom);
-    const notes = safeString(req.body.notes);
-
-    const quickTree = buildQuickTree({ vin, code, symptom, notes });
-
-    res.json({
-      success: true,
-      mode: 'step-tree',
-      vehicle: {
-        vin,
-        year: '',
-        make: '',
-        model: '',
-        engine: '',
-        trim: '',
-        driveType: '',
-        fuelType: ''
-      },
-      tree: quickTree
-    });
-  } catch (err) {
-    if (!res.headersSent) {
-      res.status(500).json({ success: false, error: err.message });
-    }
-  }
-});
-
-// RECORD STEP
 app.post('/record-step-result', async (req, res) => {
   try {
     const vin = safeString(req.body.vin);
@@ -404,10 +561,7 @@ app.post('/record-step-result', async (req, res) => {
       ])
       .select();
 
-    if (error) {
-      return res.status(500).json({ success: false, error: error.message });
-    }
-
+    if (error) return res.status(500).json({ success: false, error: error.message });
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
