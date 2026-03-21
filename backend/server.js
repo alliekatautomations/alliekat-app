@@ -483,22 +483,7 @@ Build the ${mode === 'expert' ? 'expert' : 'detailed'} diagnostic tree now.
   }
 }
 
-async function callOpenAIForChat({
-  question,
-  vin,
-  code,
-  symptom,
-  notes,
-  vehicle,
-  currentMode,
-  currentStep,
-  treeIssueSummary,
-  treeLikelyFaultPath,
-  treeFinalRecommendation,
-  stepHistory,
-  chatHistory,
-  knownFixesText
-}) {
+async function callOpenAIForChat(context) {
   const openAiKey = process.env.OPENAI_API_KEY;
   if (!openAiKey) {
     return 'Chat is not available because the OpenAI API key is missing.';
@@ -524,50 +509,50 @@ Rules:
 - Prefer actionable guidance over theory.
 `;
 
-  const trimmedChatHistory = Array.isArray(chatHistory) ? chatHistory.slice(-8) : [];
+  const trimmedChatHistory = Array.isArray(context.chatHistory) ? context.chatHistory.slice(-8) : [];
   const chatTranscript = trimmedChatHistory
     .map(msg => `${safeString(msg.role).toUpperCase()}: ${safeString(msg.content)}`)
     .join('\n');
 
   const userPrompt = `
 QUESTION:
-${question}
+${context.question}
 
 CURRENT JOB CONTEXT:
-VIN: ${vin || 'not provided'}
-Code: ${code || 'not provided'}
-Complaint: ${symptom || 'not provided'}
-Notes: ${notes || 'not provided'}
+VIN: ${context.vin || 'not provided'}
+Code: ${context.code || 'not provided'}
+Complaint: ${context.symptom || 'not provided'}
+Notes: ${context.notes || 'not provided'}
 
 VEHICLE:
-Year: ${safeString(vehicle?.year)}
-Make: ${safeString(vehicle?.make)}
-Model: ${safeString(vehicle?.model)}
-Engine: ${safeString(vehicle?.engine)}
+Year: ${safeString(context.vehicle?.year)}
+Make: ${safeString(context.vehicle?.make)}
+Model: ${safeString(context.vehicle?.model)}
+Engine: ${safeString(context.vehicle?.engine)}
 
 MODE:
-${currentMode || 'standard'}
+${context.currentMode || 'standard'}
 
 CURRENT STEP:
-Title: ${safeString(currentStep?.title)}
-Instruction: ${safeString(currentStep?.instruction)}
-Where to test: ${safeString(currentStep?.where_to_test)}
-Expected voltage: ${safeString(currentStep?.expected_specs?.voltage)}
-Expected ohms: ${safeString(currentStep?.expected_specs?.ohms)}
-Expected signal: ${safeString(currentStep?.expected_specs?.signal)}
-Expected voltage drop: ${safeString(currentStep?.expected_specs?.voltage_drop)}
-How to test: ${safeString(currentStep?.how_to_test)}
+Title: ${safeString(context.currentStep?.title)}
+Instruction: ${safeString(context.currentStep?.instruction)}
+Where to test: ${safeString(context.currentStep?.where_to_test)}
+Expected voltage: ${safeString(context.currentStep?.expected_specs?.voltage)}
+Expected ohms: ${safeString(context.currentStep?.expected_specs?.ohms)}
+Expected signal: ${safeString(context.currentStep?.expected_specs?.signal)}
+Expected voltage drop: ${safeString(context.currentStep?.expected_specs?.voltage_drop)}
+How to test: ${safeString(context.currentStep?.how_to_test)}
 
 CURRENT TREE:
-Issue summary: ${treeIssueSummary || ''}
-Likely fault path: ${treeLikelyFaultPath || ''}
-Final recommendation: ${treeFinalRecommendation || ''}
+Issue summary: ${context.treeIssueSummary || ''}
+Likely fault path: ${context.treeLikelyFaultPath || ''}
+Final recommendation: ${context.treeFinalRecommendation || ''}
 
 STEP HISTORY:
-${Array.isArray(stepHistory) && stepHistory.length ? stepHistory.join('\n') : 'No step history yet.'}
+${Array.isArray(context.stepHistory) && context.stepHistory.length ? context.stepHistory.join('\n') : 'No step history yet.'}
 
 KNOWN FIXES:
-${knownFixesText || 'No known fixes shown.'}
+${context.knownFixesText || 'No known fixes shown.'}
 
 CHAT HISTORY:
 ${chatTranscript || 'No prior chat.'}
@@ -596,6 +581,136 @@ Answer the technician now.
     return safeString(data?.choices?.[0]?.message?.content) || 'No reply returned.';
   } catch (err) {
     return `Chat error: ${err.message}`;
+  }
+}
+
+async function callOpenAIForNextStep(context) {
+  const openAiKey = process.env.OPENAI_API_KEY;
+  if (!openAiKey) return null;
+
+  const systemPrompt = `
+You are a master diesel diagnostic assistant.
+
+Return ONLY valid JSON.
+No markdown.
+No code fences.
+No commentary.
+
+Convert the technician chat insight into ONE structured next diagnostic step.
+
+Rules:
+- This must be a single high-value next step for the current job.
+- Use the current job context and current step.
+- Make the step practical and specific.
+- Include what to test, where to test, expected specs, and how to test.
+- If exact OEM pin numbers are not certain, say:
+  "Verify exact OEM pinout for this platform"
+- Do not invent exact pin numbers if uncertain.
+
+Return JSON exactly like:
+{
+  "id": "chat_step_1",
+  "title": "string",
+  "instruction": "string",
+  "where_to_test": "string",
+  "expected_specs": {
+    "voltage": "string",
+    "ohms": "string",
+    "pressure": "string",
+    "signal": "string",
+    "voltage_drop": "string"
+  },
+  "how_to_test": "string",
+  "result_buttons": [
+    { "label": "PASS", "next_step_id": "" },
+    { "label": "FAIL", "next_step_id": "" },
+    { "label": "NOT TESTED", "next_step_id": "" }
+  ]
+}
+`;
+
+  const userPrompt = `
+CHAT INSIGHT TO CONVERT:
+${context.question}
+
+CURRENT JOB:
+VIN: ${context.vin || 'not provided'}
+Code: ${context.code || 'not provided'}
+Complaint: ${context.symptom || 'not provided'}
+Notes: ${context.notes || 'not provided'}
+
+VEHICLE:
+Year: ${safeString(context.vehicle?.year)}
+Make: ${safeString(context.vehicle?.make)}
+Model: ${safeString(context.vehicle?.model)}
+Engine: ${safeString(context.vehicle?.engine)}
+
+MODE:
+${context.currentMode || 'standard'}
+
+CURRENT STEP:
+Title: ${safeString(context.currentStep?.title)}
+Instruction: ${safeString(context.currentStep?.instruction)}
+Where to test: ${safeString(context.currentStep?.where_to_test)}
+Expected voltage: ${safeString(context.currentStep?.expected_specs?.voltage)}
+Expected ohms: ${safeString(context.currentStep?.expected_specs?.ohms)}
+Expected signal: ${safeString(context.currentStep?.expected_specs?.signal)}
+Expected voltage drop: ${safeString(context.currentStep?.expected_specs?.voltage_drop)}
+How to test: ${safeString(context.currentStep?.how_to_test)}
+
+KNOWN FIXES:
+${context.knownFixesText || 'No known fixes shown.'}
+`;
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        temperature: 0.1,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ]
+      })
+    });
+
+    const data = await response.json();
+    const content = data?.choices?.[0]?.message?.content || '';
+    const parsed = cleanModelJson(content);
+
+    if (!parsed || typeof parsed !== 'object') return null;
+
+    return {
+      id: safeString(parsed.id) || `chat_step_${Date.now()}`,
+      title: safeString(parsed.title) || 'Chat-Suggested Next Step',
+      instruction: safeString(parsed.instruction) || '',
+      where_to_test: safeString(parsed.where_to_test) || '',
+      expected_specs: {
+        voltage: safeString(parsed?.expected_specs?.voltage) || 'Verify exact OEM spec/pinout for this platform',
+        ohms: safeString(parsed?.expected_specs?.ohms) || 'Verify exact OEM spec/pinout for this platform',
+        pressure: safeString(parsed?.expected_specs?.pressure) || 'Verify exact OEM spec/pinout for this platform',
+        signal: safeString(parsed?.expected_specs?.signal) || 'Verify exact OEM spec/pinout for this platform',
+        voltage_drop: safeString(parsed?.expected_specs?.voltage_drop) || 'Verify exact OEM spec/pinout for this platform'
+      },
+      how_to_test: safeString(parsed.how_to_test) || '',
+      result_buttons: Array.isArray(parsed.result_buttons) && parsed.result_buttons.length
+        ? parsed.result_buttons.map(btn => ({
+            label: safeString(btn.label) || 'NEXT',
+            next_step_id: safeString(btn.next_step_id) || ''
+          }))
+        : [
+            { label: 'PASS', next_step_id: '' },
+            { label: 'FAIL', next_step_id: '' },
+            { label: 'NOT TESTED', next_step_id: '' }
+          ]
+    };
+  } catch {
+    return null;
   }
 }
 
@@ -737,7 +852,7 @@ app.post('/diagnose-expert', async (req, res) => {
 
 app.post('/chat', async (req, res) => {
   try {
-    const reply = await callOpenAIForChat({
+    const context = {
       question: safeString(req.body.question),
       vin: safeString(req.body.vin),
       code: safeString(req.body.code),
@@ -752,7 +867,24 @@ app.post('/chat', async (req, res) => {
       stepHistory: Array.isArray(req.body.step_history) ? req.body.step_history : [],
       chatHistory: Array.isArray(req.body.chat_history) ? req.body.chat_history : [],
       knownFixesText: safeString(req.body.known_fixes_text)
-    });
+    };
+
+    const action = safeString(req.body.action) || 'chat';
+
+    if (action === 'make_next_step') {
+      const nextStep = await callOpenAIForNextStep(context);
+      const reply = nextStep
+        ? `Built next step: ${nextStep.title}`
+        : 'Could not build a structured next step from chat.';
+
+      return res.json({
+        success: true,
+        reply,
+        next_step: nextStep
+      });
+    }
+
+    const reply = await callOpenAIForChat(context);
 
     res.json({
       success: true,
