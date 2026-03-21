@@ -46,12 +46,12 @@ function buildQuickTree(payload) {
     : `Rapid-start diagnostic path${symptom ? ` for complaint: ${symptom}` : ''}`;
 
   const currentPosition = notes
-    ? `Starting from technician notes already provided: ${notes}`
+    ? `Technician notes already entered: ${notes}`
     : code
-      ? `Starting rapid flow using entered DTC ${code}`
-      : 'Starting rapid flow with no DTC-specific information entered.';
+      ? `Starting rapid tree using entered DTC ${code}`
+      : 'Starting rapid tree with no DTC-specific information entered.';
 
-  const dtcLabel = code || 'entered fault';
+  const dtcLabel = code || 'reported fault';
   const complaintLabel = symptom || 'reported complaint';
 
   return {
@@ -63,18 +63,18 @@ function buildQuickTree(payload) {
         id: 'step_1',
         title: code ? `Verify DTC ${code} and complaint` : 'Verify complaint and active fault',
         instruction: code
-          ? `Confirm DTC ${code} is active/current and verify the reported complaint: ${complaintLabel}.`
-          : `Confirm the complaint is present now and verify whether a current fault is active.`,
+          ? `Confirm DTC ${code} is active/current and verify complaint: ${complaintLabel}. Determine whether the fault is present now or intermittent.`
+          : `Confirm the complaint is present now and determine whether the fault is active or intermittent.`,
         where_to_test: 'Scan tool, key on / engine off and key on / engine running as applicable.',
         expected_specs: {
           voltage: 'Verify exact OEM spec/pinout for this platform',
           ohms: 'Verify exact OEM spec/pinout for this platform',
           pressure: 'Verify exact OEM spec/pinout for this platform',
-          signal: code ? `Fault state and live data should support DTC ${code}` : 'Fault state should match complaint condition',
+          signal: code ? `Live data and fault state should support DTC ${code}` : 'Fault state should match complaint condition',
           voltage_drop: 'Verify exact OEM spec/pinout for this platform'
         },
         how_to_test: code
-          ? `Record whether DTC ${code} is active, inactive, history-only, or resets immediately after clearing.`
+          ? `Record whether DTC ${code} is active, inactive, history-only, or resets immediately after clearing. Compare complaint with live data and freeze-frame.`
           : 'Record whether the fault is active, inactive, history-only, or resets immediately after clearing.',
         result_buttons: [
           { label: 'PASS', next_step_id: 'step_2' },
@@ -84,19 +84,19 @@ function buildQuickTree(payload) {
       },
       {
         id: 'step_2',
-        title: code ? `Check primary circuits tied to ${code}` : 'Check primary power, ground, and reference circuits',
+        title: code ? `Check primary power, ground, and reference circuits for ${code}` : 'Check primary power, ground, and reference circuits',
         instruction: code
-          ? `Check the main power, ground, reference, and signal circuits related to DTC ${code} before replacing parts.`
-          : 'Check the main power, ground, reference, and signal circuits before replacing parts.',
-        where_to_test: 'At the suspected sensor, actuator, or control circuit connector.',
+          ? `Before replacing parts for DTC ${code}, verify the main power feed, ground path, 5V reference if used, and signal return at the affected circuit.`
+          : 'Before replacing parts, verify main power feed, ground path, reference circuit, and signal return at the affected circuit.',
+        where_to_test: 'At the affected sensor, actuator, or module connector.',
         expected_specs: {
           voltage: 'Typical 5V reference or battery voltage depending on circuit; verify exact OEM spec/pinout for this platform',
           ohms: 'Low resistance on good ground path; verify exact OEM spec/pinout for this platform',
           pressure: 'N/A unless pressure-based fault',
           signal: code ? `Signal should behave normally for the circuit tied to DTC ${code}` : 'Signal should change logically with operating condition',
-          voltage_drop: 'Typically low on good circuits; verify exact OEM spec/pinout for this platform'
+          voltage_drop: 'Typically low on good feeds and grounds; verify exact OEM spec/pinout for this platform'
         },
-        how_to_test: 'Backprobe connector, verify feed, verify ground integrity, and verify signal behavior under load.',
+        how_to_test: 'Backprobe the connector. Check supply voltage, reference voltage, ground integrity, and signal return under load instead of open-circuit only.',
         result_buttons: [
           { label: 'PASS', next_step_id: 'step_3' },
           { label: 'FAIL', next_step_id: 'step_fail_2' },
@@ -105,19 +105,19 @@ function buildQuickTree(payload) {
       },
       {
         id: 'step_3',
-        title: code ? `Inspect wiring and connector issues related to ${code}` : 'Inspect harness, connector fit, and known failure points',
+        title: code ? `Check signal sweep and compare actual behavior for ${code}` : 'Check signal sweep and compare actual behavior',
         instruction: code
-          ? `Inspect for rub-through, spread pins, corrosion, water intrusion, and prior repair issues on the circuits related to DTC ${code}.`
-          : 'Inspect for rub-through, spread pins, corrosion, water intrusion, and prior repair issues.',
-        where_to_test: 'Harness routing, connector bodies, bends near brackets, frame rails, and entry points.',
+          ? `Verify the signal circuit tied to DTC ${code} changes correctly through its full operating range without dropouts, spikes, or dead spots.`
+          : 'Verify the signal changes correctly through its operating range without dropouts, spikes, or dead spots.',
+        where_to_test: 'Signal wire at component connector, scan data, and related module input where applicable.',
         expected_specs: {
-          voltage: 'No abnormal voltage change during movement test',
-          ohms: 'No opens or unstable readings during movement test',
-          pressure: 'N/A unless pressure-based fault',
-          signal: 'Signal should remain stable during wiggle test',
-          voltage_drop: 'No excessive change during movement test'
+          voltage: 'Typical sensor signal may sweep through a range such as about 0.5V to 4.5V depending on circuit; verify exact OEM spec/pinout for this platform',
+          ohms: 'Verify exact OEM spec/pinout for this platform',
+          pressure: 'Per OEM spec if pressure-based sensor is involved',
+          signal: 'Signal should move smoothly and logically with no sudden jumps or loss',
+          voltage_drop: 'Signal path should not collapse under movement/load'
         },
-        how_to_test: 'Wiggle test the harness while monitoring live data or meter readings.',
+        how_to_test: 'Monitor live data and meter/graphing meter if possible. Move the component through range and watch for glitches, flat spots, or mismatch.',
         result_buttons: [
           { label: 'PASS', next_step_id: 'step_4' },
           { label: 'FAIL', next_step_id: 'step_fail_3' },
@@ -126,19 +126,40 @@ function buildQuickTree(payload) {
       },
       {
         id: 'step_4',
-        title: code ? `Verify component operation for ${code}` : 'Verify component operation',
+        title: code ? `Inspect harness and connectors related to ${code}` : 'Inspect harness and connectors',
         instruction: code
-          ? `Once circuit integrity checks pass, verify whether the component or subsystem tied to DTC ${code} is responding correctly.`
-          : 'Once circuit integrity checks pass, verify whether the affected component is responding correctly.',
-        where_to_test: 'At the component and with scan data if available.',
+          ? `Inspect for rub-through, poor pin drag, corrosion, water intrusion, stretched wiring, and prior repair issues on the circuits related to DTC ${code}.`
+          : 'Inspect for rub-through, poor pin drag, corrosion, water intrusion, stretched wiring, and prior repair issues.',
+        where_to_test: 'Harness routing, connector bodies, bends near brackets, engine movement points, frame rails, and module entry points.',
         expected_specs: {
-          voltage: 'Per OEM spec for the affected component',
-          ohms: 'Per OEM spec for the affected component',
-          pressure: 'Per OEM spec if pressure-related',
-          signal: 'Signal should track input or command smoothly with no dropouts',
-          voltage_drop: 'Minimal on good circuits'
+          voltage: 'No abnormal change during harness movement',
+          ohms: 'No opens or unstable resistance during harness movement',
+          pressure: 'N/A unless pressure-based fault',
+          signal: 'Signal should remain stable during wiggle test',
+          voltage_drop: 'No excessive voltage drop change during wiggle test'
         },
-        how_to_test: 'Compare commanded values versus actual values, or manually stimulate the component where applicable.',
+        how_to_test: 'Perform a wiggle harness test while monitoring live data or meter readings. Move the harness by hand near bends, mounts, hot spots, and connectors to catch intermittent opens or shorts.',
+        result_buttons: [
+          { label: 'PASS', next_step_id: 'step_5' },
+          { label: 'FAIL', next_step_id: 'step_fail_4' },
+          { label: 'NOT TESTED', next_step_id: 'step_5' }
+        ]
+      },
+      {
+        id: 'step_5',
+        title: code ? `Check module input / output response for ${code}` : 'Check module input / output response',
+        instruction: code
+          ? `After circuit and harness checks pass, verify the receiving module is seeing the correct signal for DTC ${code} and responding correctly.`
+          : 'After circuit and harness checks pass, verify the receiving module is seeing the correct signal and responding correctly.',
+        where_to_test: 'Module connector pins, scan data PIDs, and commanded vs actual values.',
+        expected_specs: {
+          voltage: 'Verify exact OEM spec/pinout for this platform',
+          ohms: 'Verify exact OEM spec/pinout for this platform',
+          pressure: 'Per OEM spec if pressure-related',
+          signal: 'Module input should match component output / expected PID behavior',
+          voltage_drop: 'Verify exact OEM spec/pinout for this platform'
+        },
+        how_to_test: 'Compare commanded value versus actual value, compare component-side reading to module-side reading, and verify the module is interpreting the signal correctly.',
         result_buttons: [
           { label: 'PASS', next_step_id: 'step_pass_final' },
           { label: 'FAIL', next_step_id: 'step_fail_final' },
@@ -147,19 +168,19 @@ function buildQuickTree(payload) {
       },
       {
         id: 'step_fail_1',
-        title: code ? `${code} did not verify normally` : 'Code / complaint did not verify normally',
+        title: code ? `${code} did not verify normally` : 'Fault did not verify normally',
         instruction: code
-          ? `Treat DTC ${code} as intermittent or event-based. Check freeze-frame, duplication conditions, and recent repairs.`
-          : 'Treat fault as intermittent or event-based. Check freeze-frame, duplication conditions, and recent repairs.',
-        where_to_test: 'Scan tool history, freeze-frame, and operating conditions.',
+          ? `Treat DTC ${code} as intermittent or event-based. Review freeze-frame, duplication conditions, and recent repairs before condemning a part.`
+          : 'Treat fault as intermittent or event-based. Review freeze-frame, duplication conditions, and recent repairs before condemning a part.',
+        where_to_test: 'Scan tool history, freeze-frame, duplication conditions, and operator description.',
         expected_specs: {
           voltage: 'Verify exact OEM spec/pinout for this platform',
           ohms: 'Verify exact OEM spec/pinout for this platform',
           pressure: 'Verify exact OEM spec/pinout for this platform',
-          signal: 'Complaint should be reproducible before part replacement',
+          signal: 'Complaint should be reproducible before final part replacement',
           voltage_drop: 'Verify exact OEM spec/pinout for this platform'
         },
-        how_to_test: 'Road test or duplicate condition, then restart tree once the fault is active.',
+        how_to_test: 'Road test or reproduce the event under the same condition, then restart the tree once the fault becomes active.',
         result_buttons: [
           { label: 'CONTINUE', next_step_id: 'step_2' }
         ]
@@ -168,23 +189,42 @@ function buildQuickTree(payload) {
         id: 'step_fail_2',
         title: 'Primary circuit failure found',
         instruction: code
-          ? `Repair the feed, ground, reference, or signal issue associated with DTC ${code} before condemning a component.`
-          : 'Repair the feed, ground, reference, or signal issue before condemning a component.',
+          ? `Repair the feed, ground, reference, or return issue associated with DTC ${code} before replacing the component.`
+          : 'Repair the feed, ground, reference, or return issue before replacing the component.',
         where_to_test: 'Affected circuit path between source, component, and module.',
         expected_specs: {
           voltage: 'Restore proper supply/reference',
-          ohms: 'Restore proper continuity / ground path',
+          ohms: 'Restore proper continuity / low resistance ground path',
           pressure: 'N/A',
           signal: 'Signal should normalize after circuit repair',
           voltage_drop: 'Return to acceptable range'
         },
-        how_to_test: 'Repair open, short, high resistance, pin drag, or corrosion. Recheck before moving forward.',
+        how_to_test: 'Repair open, short, corrosion, high resistance, loose terminal, or pin drag issue. Recheck circuit under load.',
         result_buttons: [
           { label: 'RETEST', next_step_id: 'step_1' }
         ]
       },
       {
         id: 'step_fail_3',
+        title: 'Signal failure found',
+        instruction: code
+          ? `Signal behavior tied to DTC ${code} is not normal. Confirm whether the issue is component-generated or caused by the circuit path.`
+          : 'Signal behavior is not normal. Confirm whether the issue is component-generated or caused by the circuit path.',
+        where_to_test: 'Signal circuit at source and receiving end.',
+        expected_specs: {
+          voltage: 'Signal should remain in expected range for application',
+          ohms: 'Verify exact OEM spec/pinout for this platform',
+          pressure: 'Per OEM spec if pressure-related',
+          signal: 'Smooth and logical signal with no spikes, flat spots, or dropouts',
+          voltage_drop: 'No abnormal loss through signal path'
+        },
+        how_to_test: 'Compare signal at the component to signal at the receiving module. If source is good and received signal is bad, suspect wiring/connectors. If source is bad, suspect component.',
+        result_buttons: [
+          { label: 'RETEST', next_step_id: 'step_4' }
+        ]
+      },
+      {
+        id: 'step_fail_4',
         title: 'Harness / connector defect found',
         instruction: 'Repair the physical wiring or connector defect and verify the fault does not return.',
         where_to_test: 'The exact damaged section or connector location.',
@@ -195,7 +235,7 @@ function buildQuickTree(payload) {
           signal: 'Stable after repair',
           voltage_drop: 'Stable after repair'
         },
-        how_to_test: 'Repair harness or connector, clear codes, duplicate complaint, and retest.',
+        how_to_test: 'Repair harness or connector, clear the code, duplicate the complaint, and repeat wiggle harness verification.',
         result_buttons: [
           { label: 'RETEST', next_step_id: 'step_1' }
         ]
@@ -204,44 +244,44 @@ function buildQuickTree(payload) {
         id: 'step_pass_final',
         title: 'Circuit and component both tested good',
         instruction: code
-          ? `If DTC ${code} still returns, suspect intermittent wiring, environmental trigger, related system issue, or software/calibration concern.`
-          : 'Suspect intermittent wiring, environmental trigger, related system issue, or software/calibration concern.',
-        where_to_test: 'System-level review, freeze-frame, and related systems.',
+          ? `If DTC ${code} still returns, suspect intermittent wiring, environmental trigger, related subsystem fault, mechanical issue, or software/calibration problem.`
+          : 'If the fault still returns, suspect intermittent wiring, environmental trigger, related subsystem fault, mechanical issue, or software/calibration problem.',
+        where_to_test: 'System-level review, related systems, freeze-frame, and update history.',
         expected_specs: {
           voltage: 'Verify exact OEM spec/pinout for this platform',
           ohms: 'Verify exact OEM spec/pinout for this platform',
           pressure: 'Verify exact OEM spec/pinout for this platform',
-          signal: 'No abnormal dropouts under operating condition',
+          signal: 'No abnormal dropout under actual operating condition',
           voltage_drop: 'Verify exact OEM spec/pinout for this platform'
         },
-        how_to_test: 'Check related circuits, module updates, mechanical binding, and intermittents.',
+        how_to_test: 'Review related sensors/modules, software updates, mechanical binding, and conditions required to duplicate the fault.',
         result_buttons: []
       },
       {
         id: 'step_fail_final',
-        title: 'Component likely failed after circuit verification',
+        title: 'Component or module fault path likely',
         instruction: code
-          ? `If all feeds, grounds, references, signal paths, and harness integrity tied to DTC ${code} are verified good, the component/subsystem fault path is likely.`
-          : 'If all feeds, grounds, references, and harness integrity are verified good, component fault path is likely.',
-        where_to_test: 'Affected sensor / actuator / module.',
+          ? `If all feeds, grounds, reference circuits, signal paths, and harness integrity tied to DTC ${code} are verified good, component or receiving module fault path is likely.`
+          : 'If all feeds, grounds, reference circuits, signal paths, and harness integrity are verified good, component or module fault path is likely.',
+        where_to_test: 'Affected sensor / actuator / receiving module.',
         expected_specs: {
           voltage: 'Verify exact OEM spec/pinout for this platform',
           ohms: 'Verify exact OEM spec/pinout for this platform',
           pressure: 'Verify exact OEM spec/pinout for this platform',
-          signal: 'Should be abnormal only after circuit integrity is confirmed good',
+          signal: 'Abnormal only after all supporting circuits are proven good',
           voltage_drop: 'Verify exact OEM spec/pinout for this platform'
         },
-        how_to_test: 'Substitute known-good component or perform OEM final verification before replacement.',
+        how_to_test: 'Use known-good substitution or OEM final verification before replacement.',
         result_buttons: []
       }
     ],
     likely_fault_path: code
-      ? `Most likely rapid-start path for DTC ${code} is circuit, connector, or harness fault first. Confirm circuit integrity before replacing components.`
-      : 'Most likely path is circuit, connector, or harness issue first. Confirm circuit integrity before replacing components.',
+      ? `Most likely rapid-start path for DTC ${code} is circuit, connector, harness, or signal-path issue first. Confirm circuit integrity before replacing parts.`
+      : 'Most likely path is circuit, connector, harness, or signal-path issue first. Confirm circuit integrity before replacing parts.',
     final_recommendation: code
-      ? `Walk the rapid-start tree for DTC ${code}, then save the confirmed final fix after repair.`
-      : 'Walk the rapid-start tree, then save the confirmed final fix after repair.',
-    source: 'fast-code-aware'
+      ? `Walk the rapid-start tree for DTC ${code}, confirm the failed branch, and save the actual final repair once the unit is fixed.`
+      : 'Walk the rapid-start tree, confirm the failed branch, and save the actual final repair once the unit is fixed.',
+    source: 'fast-detailed-code-aware'
   };
 }
 
@@ -340,6 +380,7 @@ Rules:
 - Prefer button labels like PASS, FAIL, NOT TESTED, CONTINUE, RETEST.
 - Use the notes already provided so you do not restart from the beginning if previous checks were already completed.
 - Use the actual DTC and complaint throughout the tree when available.
+- Include practical checks like feed, ground, reference, signal, wiggle harness testing, connector inspection, and module-side verification where relevant.
 - If exact OEM specs are not certain, say: "Verify exact OEM spec/pinout for this platform"
 - Never invent exact pin numbers if uncertain.
 - Keep wording practical and bay-friendly.
@@ -603,7 +644,7 @@ app.post('/save-repair', async (req, res) => {
   }
 });
 
-// FAST + DTC-AWARE DIAGNOSE ROUTE
+// FAST + DETAILED DIAGNOSE ROUTE
 app.post('/diagnose', async (req, res) => {
   try {
     const vin = safeString(req.body.vin);
