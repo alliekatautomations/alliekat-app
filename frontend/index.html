@@ -198,6 +198,7 @@
     }
 
     .primary { background: linear-gradient(90deg, #00d9ff, #0099ff); color: #021018; }
+    .expert { background: linear-gradient(90deg, #7a5cff, #ae73ff); color: #ffffff; }
     .secondary { background: #112a3b; color: #9ef3ff; border: 1px solid rgba(76, 229, 255, 0.18); }
     .pass { background: #00d878; color: #04130c; }
     .fail { background: #ff4d4d; color: #ffffff; }
@@ -399,7 +400,8 @@
         </div>
 
         <div class="button-row">
-          <button class="primary" onclick="startDiag()">Start Diagnosis</button>
+          <button class="primary" onclick="startDiag('standard')">Start Diagnosis</button>
+          <button class="expert" onclick="startDiag('expert')">Expert Diagnosis</button>
           <button class="secondary" onclick="clearAll()">Clear</button>
         </div>
       </div>
@@ -463,6 +465,7 @@
     let stepStack = [];
     let vehicleData = {};
     let runToken = 0;
+    let currentMode = "standard";
 
     function setStatus(text) {
       document.getElementById("status").innerText = text;
@@ -487,10 +490,10 @@
       historyBox.innerHTML = historyLog.map(item => `<div class="history-line">${item}</div>`).join("");
     }
 
-    function renderLoadingCard() {
+    function renderLoadingCard(modeLabel) {
       document.getElementById("stepContainer").innerHTML = `
         <div class="step-card loading-card">
-          <div class="loading-title">Building Detailed Tree...</div>
+          <div class="loading-title">Building ${modeLabel} Tree...</div>
           <div class="loading-text">
             VIN is decoded and the system is building the richer troubleshooting path now.
           </div>
@@ -613,7 +616,8 @@
       `;
     }
 
-    async function startDiag() {
+    async function startDiag(mode) {
+      currentMode = mode || "standard";
       runToken += 1;
       const localRunToken = runToken;
 
@@ -626,8 +630,8 @@
 
       const enteredVin = document.getElementById("vin").value || "";
       setVehicle({ vin: enteredVin }, "Decoding VIN...");
-      setStatus("System Status: Decoding VIN...");
-      renderLoadingCard();
+      setStatus(`System Status: Decoding VIN for ${currentMode} mode...`);
+      renderLoadingCard(currentMode === "expert" ? "Expert" : "Detailed");
 
       try {
         const vinRes = await fetch(`${backend}/decode-vin`, {
@@ -644,10 +648,14 @@
           setVehicle(vinData.vehicle || { vin: enteredVin }, "VIN decoded");
         }
 
-        setStatus("System Status: Building detailed tree...");
-        document.getElementById("currentPosition").innerText = "Building detailed tree...";
+        const diagnosisEndpoint = currentMode === "expert"
+          ? `${backend}/diagnose-expert`
+          : `${backend}/diagnose-detailed`;
 
-        const detailedRes = await fetch(`${backend}/diagnose-detailed`, {
+        setStatus(`System Status: Building ${currentMode} tree...`);
+        document.getElementById("currentPosition").innerText = `Building ${currentMode} tree...`;
+
+        const diagRes = await fetch(diagnosisEndpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -658,7 +666,7 @@
           })
         });
 
-        const data = await detailedRes.json();
+        const data = await diagRes.json();
 
         if (localRunToken !== runToken) return;
 
@@ -666,7 +674,7 @@
           setStatus("System Status: Diagnosis failed");
           document.getElementById("stepContainer").innerHTML = `
             <div class="step-card">
-              <div class="field-value">No valid detailed tree returned.</div>
+              <div class="field-value">No valid tree returned.</div>
             </div>
           `;
           return;
@@ -677,17 +685,17 @@
         stepStack = [];
 
         if (data.vehicle) {
-          setVehicle(data.vehicle, tree.current_position || "Detailed diagnosis loaded");
+          setVehicle(data.vehicle, tree.current_position || `${currentMode} diagnosis loaded`);
         } else {
-          document.getElementById("currentPosition").innerText = tree.current_position || "Detailed diagnosis loaded";
+          document.getElementById("currentPosition").innerText = tree.current_position || `${currentMode} diagnosis loaded`;
         }
 
         renderLearningPanel(data.suggested_fixes || [], data.learning_matches || 0);
 
-        historyLog = [`Started detailed tree: ${tree.issue_summary || "Detailed diagnostic flow started"}`];
+        historyLog = [`Started ${currentMode} tree: ${tree.issue_summary || "Diagnostic flow started"}`];
         renderHistory();
         renderStep();
-        setStatus("System Status: Detailed tree ready");
+        setStatus(`System Status: ${currentMode} tree ready`);
       } catch (err) {
         if (localRunToken !== runToken) return;
 
@@ -740,7 +748,7 @@
       }
 
       currentStep = (tree.steps || []).find(step => step.id === nextId) || null;
-      setStatus("System Status: Step advanced");
+      setStatus(`System Status: ${currentMode} step advanced`);
       renderStep();
     }
 
@@ -813,6 +821,7 @@
       historyLog = [];
       stepStack = [];
       vehicleData = {};
+      currentMode = "standard";
 
       document.getElementById("vehicleVin").innerText = "-";
       document.getElementById("vehicleYear").innerText = "-";
