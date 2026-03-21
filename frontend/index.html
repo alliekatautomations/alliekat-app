@@ -717,6 +717,10 @@
           historyLog.push(`Final fix saved: ${finalFix}`);
           renderHistory();
           setStatus("System Status: Final fix saved");
+
+          setTimeout(() => {
+            clearAll();
+          }, 1200);
         } else {
           setStatus("System Status: Save failed");
           console.log(data);
