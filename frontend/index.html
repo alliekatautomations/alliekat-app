@@ -688,6 +688,7 @@
     let chatHistory = [];
     let currentUser = null;
     let currentSession = null;
+    let currentProfile = null;
 
     function setStatus(text) {
       document.getElementById("status").innerText = text;
@@ -704,28 +705,44 @@
     }
 
     function saveAuthToStorage() {
-      if (currentUser && currentSession) {
-        localStorage.setItem("alliekat_current_user", JSON.stringify(currentUser));
-        localStorage.setItem("alliekat_current_session", JSON.stringify(currentSession));
-      }
+      localStorage.setItem("alliekat_current_user", JSON.stringify(currentUser || null));
+      localStorage.setItem("alliekat_current_session", JSON.stringify(currentSession || null));
+      localStorage.setItem("alliekat_current_profile", JSON.stringify(currentProfile || null));
     }
 
     function loadAuthFromStorage() {
       try {
-        const savedUser = localStorage.getItem("alliekat_current_user");
-        const savedSession = localStorage.getItem("alliekat_current_session");
-
-        currentUser = savedUser ? JSON.parse(savedUser) : null;
-        currentSession = savedSession ? JSON.parse(savedSession) : null;
+        currentUser = JSON.parse(localStorage.getItem("alliekat_current_user") || "null");
+        currentSession = JSON.parse(localStorage.getItem("alliekat_current_session") || "null");
+        currentProfile = JSON.parse(localStorage.getItem("alliekat_current_profile") || "null");
       } catch (err) {
         currentUser = null;
         currentSession = null;
+        currentProfile = null;
       }
     }
 
     function clearAuthFromStorage() {
       localStorage.removeItem("alliekat_current_user");
       localStorage.removeItem("alliekat_current_session");
+      localStorage.removeItem("alliekat_current_profile");
+    }
+
+    async function loadUserProfile(userId) {
+      if (!userId) return null;
+
+      try {
+        const res = await fetch(`${backend}/user-profile/${userId}`);
+        const data = await res.json();
+
+        if (data.success && data.profile) {
+          return data.profile;
+        }
+
+        return null;
+      } catch (err) {
+        return null;
+      }
     }
 
     function updateAuthView() {
@@ -757,7 +774,9 @@
         return;
       }
 
-      box.innerText = `${currentUser.email || "Unknown email"}${currentUser.id ? " | " + currentUser.id : ""}`;
+      const email = currentUser.email || "Unknown email";
+      const role = currentProfile?.role || "tech";
+      box.innerText = `${email} | role: ${role}`;
     }
 
     function renderHistory() {
@@ -981,7 +1000,7 @@
         return;
       }
 
-      setStatus("System Status: Creating user...");
+      setStatus("System Status: Creating request...");
 
       try {
         const res = await fetch(`${backend}/signup`, {
@@ -997,9 +1016,9 @@
           document.getElementById("loginEmail").value = email;
           document.getElementById("loginPassword").value = password;
           showLogin();
-          setStatus("System Status: Signup complete");
+          setStatus("System Status: Access request submitted");
         } else {
-          setStatus("System Status: Signup failed");
+          setStatus("System Status: Request failed");
         }
       } catch (err) {
         resultBox.innerText = `Signup error: ${err.message}`;
@@ -1032,21 +1051,28 @@
         if (data.success) {
           currentUser = data.user || null;
           currentSession = data.session || null;
+          currentProfile = await loadUserProfile(currentUser?.id);
           saveAuthToStorage();
           renderCurrentUser();
           updateAuthView();
+
+          const role = currentProfile?.role || "tech";
+
           resultBox.innerText = JSON.stringify({
             success: data.success,
             email: data.user?.email || "",
             user_id: data.user?.id || "",
+            role,
             access_token_found: !!data.session?.access_token
           }, null, 2);
-          setStatus("System Status: Login successful");
+
+          setStatus(`System Status: Login successful (${role})`);
           return;
         }
 
         currentUser = null;
         currentSession = null;
+        currentProfile = null;
         clearAuthFromStorage();
         renderCurrentUser();
         updateAuthView();
@@ -1055,6 +1081,7 @@
       } catch (err) {
         currentUser = null;
         currentSession = null;
+        currentProfile = null;
         clearAuthFromStorage();
         renderCurrentUser();
         updateAuthView();
@@ -1066,6 +1093,7 @@
     function logoutUser() {
       currentUser = null;
       currentSession = null;
+      currentProfile = null;
       clearAuthFromStorage();
       renderCurrentUser();
       updateAuthView();
@@ -1452,19 +1480,41 @@
       renderHistory();
       renderChat();
       if (currentUser) {
-        setStatus("System Status: Ready");
+        const role = currentProfile?.role || "tech";
+        setStatus(`System Status: Ready (${role})`);
       }
     }
 
-    loadAuthFromStorage();
-    renderCurrentUser();
-    renderChat();
-    showLogin();
-    updateAuthView();
+    async function restoreSessionState() {
+      loadAuthFromStorage();
+      renderCurrentUser();
+      renderChat();
+      showLogin();
+      updateAuthView();
 
-    if (currentUser) {
-      setStatus("System Status: Session restored");
+      if (currentUser && currentUser.id) {
+        currentProfile = await loadUserProfile(currentUser.id);
+        saveAuthToStorage();
+        renderCurrentUser();
+        updateAuthView();
+        const role = currentProfile?.role || "tech";
+        setStatus(`System Status: Session restored (${role})`);
+      }
     }
+
+    logoutUser = function () {
+      currentUser = null;
+      currentSession = null;
+      currentProfile = null;
+      clearAuthFromStorage();
+      renderCurrentUser();
+      updateAuthView();
+      clearAll();
+      showLogin();
+      setStatus("System Status: Logged out");
+    };
+
+    restoreSessionState();
   </script>
 </body>
 </html>
