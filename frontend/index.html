@@ -5,32 +5,41 @@
 
 <style>
 body{
-  background:#06111b;
+  background:linear-gradient(180deg,#02060b,#06111b);
   color:#eaf8ff;
   font-family:Arial;
 }
 
 .wrap{
-  max-width:900px;
+  max-width:1000px;
   margin:auto;
   padding:20px;
 }
 
 .header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
   border:1px solid rgba(0,255,255,0.2);
-  border-radius:15px;
+  border-radius:20px;
   padding:15px;
   margin-bottom:15px;
 }
 
 .title{
   color:#4ce5ff;
-  font-size:26px;
+  font-size:28px;
+}
+
+.status{
+  border:1px solid rgba(0,255,255,0.2);
+  padding:8px 12px;
+  border-radius:20px;
 }
 
 .panel{
   border:1px solid rgba(0,255,255,0.2);
-  border-radius:15px;
+  border-radius:20px;
   padding:15px;
   margin-bottom:15px;
 }
@@ -39,33 +48,33 @@ input, textarea{
   width:100%;
   margin-top:8px;
   margin-bottom:10px;
-  padding:10px;
+  padding:12px;
   background:#0b1d2a;
   color:white;
   border:1px solid rgba(0,255,255,0.2);
-  border-radius:8px;
+  border-radius:10px;
 }
 
 button{
-  padding:12px;
-  margin:5px;
+  padding:12px 16px;
+  margin:6px;
   border:none;
-  border-radius:8px;
+  border-radius:10px;
   font-weight:bold;
   cursor:pointer;
 }
 
 .primary{ background:#00d9ff; color:black; }
 .pass{ background:#00ff88; }
-.fail{ background:#ff4d4d; }
+.fail{ background:#ff4d4d; color:white; }
 .skip{ background:#ffaa00; }
-.back{ background:#445; color:white; }
+.back{ background:#334; color:white; }
 .complete{ background:#00bfff; color:black; }
 
 .step{
   border:1px solid rgba(0,255,255,0.2);
   padding:15px;
-  border-radius:12px;
+  border-radius:15px;
   margin-top:10px;
 }
 </style>
@@ -77,7 +86,7 @@ button{
 
 <div class="header">
 <div class="title">ALLIE-KAT DIAGNOSTICS v2.0</div>
-<div id="status">Ready</div>
+<div id="status" class="status">Ready</div>
 </div>
 
 <div id="inputPanel" class="panel">
@@ -100,8 +109,8 @@ const backend = "https://alliekat-app.onrender.com";
 let tree = {};
 let currentStep = null;
 let stepStack = [];
-let history = [];
 
+// ================= START DIAG =================
 async function startDiag(){
 
   status.innerText="Loading...";
@@ -119,6 +128,11 @@ async function startDiag(){
 
   const data = await res.json();
 
+  if(!data.tree){
+    status.innerText="Error loading";
+    return;
+  }
+
   tree = data.tree;
   currentStep = tree.steps.find(s=>s.id===tree.current_step_id);
 
@@ -130,15 +144,17 @@ async function startDiag(){
   render();
 }
 
+// ================= RENDER =================
 function render(){
 
-  // 🔚 FINAL SCREEN
+  // FINAL SCREEN
   if(!currentStep){
     stepBox.innerHTML=`
       <div class="step">
         <h3>Diagnosis Complete</h3>
-        <p><b>Likely Fault:</b> ${tree.likely_fault_path}</p>
-        <p><b>Recommendation:</b> ${tree.final_recommendation}</p>
+
+        <p><b>Likely Fault:</b><br>${tree.likely_fault_path || ""}</p>
+        <p><b>Recommendation:</b><br>${tree.final_recommendation || ""}</p>
 
         <textarea id="finalFix" placeholder="Enter final repair performed"></textarea>
 
@@ -153,10 +169,9 @@ function render(){
     if(b.label==="PASS") cls="pass";
     if(b.label==="FAIL") cls="fail";
 
-    return `<button class="${cls}" onclick="next('${b.next_step_id}','${b.label}')">${b.label}</button>`;
+    return `<button class="${cls}" onclick="nextStep('${b.next_step_id}','${b.label}')">${b.label}</button>`;
   }).join("");
 
-  // 👇 BACK BUTTON (NOW GUARANTEED)
   let backBtn = stepStack.length > 0
     ? `<button class="back" onclick="goBack()">⬅ Back</button>`
     : "";
@@ -179,24 +194,20 @@ function render(){
       ${buttons}
 
       <br>
-
       ${backBtn}
     </div>
   `;
 }
 
-function next(id,result){
+// ================= NEXT =================
+function nextStep(id,result){
 
-  // track history for back
   stepStack.push(currentStep);
-
-  history.push(`${currentStep.title} → ${result}`);
 
   currentStep = tree.steps.find(s=>s.id===id);
 
   render();
 
-  // save step (non-blocking)
   fetch(`${backend}/record-step-result`,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
@@ -209,33 +220,52 @@ function next(id,result){
   });
 }
 
+// ================= BACK =================
 function goBack(){
-
   if(stepStack.length===0) return;
-
   currentStep = stepStack.pop();
-
   render();
 }
 
-// 🔥 FINAL FIX SAVE
-function saveFinal(){
+// ================= FINAL FIX =================
+async function saveFinal(){
 
   const fix = document.getElementById("finalFix").value;
 
-  fetch(`${backend}/save-repair`,{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      vin:vin.value,
-      fault_code:code.value,
-      complaint:symptom.value,
-      final_fix:fix,
-      status:"fixed"
-    })
-  });
+  if(!fix){
+    status.innerText="Enter final fix first";
+    return;
+  }
 
-  status.innerText="Repair Saved";
+  status.innerText="Saving repair...";
+
+  try{
+    const res = await fetch(`${backend}/save-repair`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        vin:vin.value,
+        fault_code:code.value,
+        complaint:symptom.value,
+        final_fix:fix,
+        status:"fixed",
+        notes:notes.value
+      })
+    });
+
+    const data = await res.json();
+
+    if(data.success){
+      status.innerText="Repair Saved ✔";
+    }else{
+      status.innerText="Save failed";
+      console.log(data);
+    }
+
+  }catch(err){
+    status.innerText="Save error";
+    console.log(err);
+  }
 }
 </script>
 
