@@ -48,7 +48,7 @@ function buildQuickTree(payload) {
         id: 'step_1',
         title: code ? `Verify DTC ${code} and complaint` : 'Verify complaint and active fault',
         instruction: code
-          ? `Confirm DTC ${code} is active/current and verify complaint.`
+          ? `Confirm DTC ${code} is active/current and verify the complaint is present now.`
           : `Confirm the complaint is present now and determine whether the fault is active or intermittent.`,
         where_to_test: 'Scan tool, key on / engine off and key on / engine running as applicable.',
         expected_specs: {
@@ -291,12 +291,34 @@ No markdown.
 No code fences.
 No extra commentary.
 
-Build a detailed button-driven diagnostic tree.
-Use the actual DTC and complaint throughout the tree when available.
-Include practical checks like feed, ground, reference, signal, wiggle harness testing, connector inspection, and module-side verification where relevant.
-If exact OEM specs are not certain, say: "Verify exact OEM spec/pinout for this platform"
+Build a highly detailed button-driven diagnostic tree that walks a technician through troubleshooting like an OEM service tree.
 
-Return JSON:
+Hard requirements:
+- Use the actual DTC and complaint throughout the tree when available.
+- Make each step read like a real technician instruction, not a summary.
+- Include practical checks like:
+  - power feed checks
+  - ground checks
+  - reference voltage checks
+  - signal checks
+  - connector inspection
+  - wiggle harness testing
+  - ohms checks while moving harness
+  - voltage drop checks
+  - module-side verification
+  - compare source-side reading to module-side reading
+- Explain HOW to perform each check in bay language.
+- For wiggle test steps, explicitly mention checking for opens/high resistance while moving the harness by hand.
+- For wire continuity steps, explain expected ohms and what change during movement means.
+- For voltage steps, explain expected ranges and what a bad reading means.
+- Include pinout guidance when confidently known.
+- If exact OEM pin numbers are not certain, say:
+  "Verify exact OEM pinout for this platform"
+- Do not invent exact pin numbers if uncertain.
+- Prefer 5 to 8 steps total.
+- Every step must drive to the next logical branch.
+
+Return JSON exactly in this shape:
 {
   "issue_summary": "string",
   "current_position": "string",
@@ -317,7 +339,8 @@ Return JSON:
       "how_to_test": "string",
       "result_buttons": [
         { "label": "PASS", "next_step_id": "step_2" },
-        { "label": "FAIL", "next_step_id": "step_fail_1" }
+        { "label": "FAIL", "next_step_id": "step_fail_1" },
+        { "label": "NOT TESTED", "next_step_id": "step_2" }
       ]
     }
   ],
@@ -332,19 +355,22 @@ Make: ${vehicleInfo?.Make || 'unknown'}
 Model: ${vehicleInfo?.Model || 'unknown'}
 Year: ${vehicleInfo?.ModelYear || 'unknown'}
 Engine: ${vehicleInfo?.EngineModel || vehicleInfo?.DisplacementL || 'unknown'}
+Trim: ${vehicleInfo?.Trim || 'unknown'}
+Drive Type: ${vehicleInfo?.DriveType || 'unknown'}
+Fuel Type: ${vehicleInfo?.FuelTypePrimary || 'unknown'}
 
 Fault Code: ${code || 'none provided'}
 Symptom: ${symptom || 'none provided'}
 Completed tests / notes: ${notes || 'none provided'}
 
-Build the diagnostic tree now.
+Build the detailed diagnostic tree now.
 `;
 
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAiKey}`,
+        'Authorization': \`Bearer \${openAiKey}\`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -538,7 +564,7 @@ app.post('/record-step-result', async (req, res) => {
     const button_result = safeString(req.body.button_result);
     const next_step_id = safeString(req.body.next_step_id);
 
-    const timelineLine = `[${new Date().toISOString()}] Step: ${step_title || step_id} | Result: ${button_result} | Next: ${next_step_id || 'end'}`;
+    const timelineLine = \`[\${new Date().toISOString()}] Step: \${step_title || step_id} | Result: \${button_result} | Next: \${next_step_id || 'end'}\`;
 
     const { data, error } = await supabase
       .from('repair_cases')
@@ -556,7 +582,7 @@ app.post('/record-step-result', async (req, res) => {
           final_fix: safeString(req.body.final_fix),
           tech_name: safeString(req.body.tech_name),
           status: safeString(req.body.status) || 'in_progress',
-          notes: notes ? `${notes}\n${timelineLine}` : timelineLine
+          notes: notes ? \`\${notes}\n\${timelineLine}\` : timelineLine
         }
       ])
       .select();
