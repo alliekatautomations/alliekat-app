@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Allie-Kat Diagnostics v2.0.2</title>
+  <title>Allie-Kat Diagnostics v2.0.3</title>
 
   <style>
     * { box-sizing: border-box; }
@@ -555,7 +555,7 @@
 
         <div class="brand-copy">
           <div class="eyebrow">Allie-Kat Fleet Services</div>
-          <h1 class="title">Allie-Kat Diagnostics <span>v2.0.2</span></h1>
+          <h1 class="title">Allie-Kat Diagnostics <span>v2.0.3</span></h1>
           <div class="motto">
             Revolutionizing your automotive experience with intelligent technology to transport your machine into the future....
           </div>
@@ -790,6 +790,7 @@
     let currentUser = null;
     let currentSession = null;
     let currentProfile = null;
+    let heartbeatTimer = null;
 
     function setStatus(text) {
       document.getElementById("status").innerText = text;
@@ -829,6 +830,38 @@
       localStorage.removeItem("alliekat_current_profile");
     }
 
+    async function sendHeartbeat() {
+      if (!currentUser || !currentUser.id) return;
+
+      try {
+        await fetch(`${backend}/heartbeat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: currentUser.id
+          })
+        });
+      } catch (err) {
+        console.log("heartbeat failed:", err.message);
+      }
+    }
+
+    function startHeartbeat() {
+      stopHeartbeat();
+
+      if (!currentUser || !currentUser.id) return;
+
+      sendHeartbeat();
+      heartbeatTimer = setInterval(sendHeartbeat, 60000);
+    }
+
+    function stopHeartbeat() {
+      if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+      }
+    }
+
     async function loadUserProfile(userId) {
       if (!userId) return null;
 
@@ -862,7 +895,7 @@
         if (data.success) {
           totalBox.innerText = data.total_registered_users ?? 0;
           onlineBox.innerText = data.online_registered_users ?? 0;
-          resultBox.innerText = `Loaded user stats. Online window: ${data.online_window_minutes ?? 5} minute(s).`;
+          resultBox.innerText = `Loaded user stats. Online window: ${data.online_window_minutes ?? 15} minute(s).`;
           return;
         }
 
@@ -1317,6 +1350,7 @@ Reason: ${request.reason || "-"}
           saveAuthToStorage();
           renderCurrentUser();
           updateAuthView();
+          startHeartbeat();
 
           const role = currentProfile?.role || "tech";
 
@@ -1339,6 +1373,7 @@ Reason: ${request.reason || "-"}
         currentUser = null;
         currentSession = null;
         currentProfile = null;
+        stopHeartbeat();
         clearAuthFromStorage();
         renderCurrentUser();
         updateAuthView();
@@ -1348,6 +1383,7 @@ Reason: ${request.reason || "-"}
         currentUser = null;
         currentSession = null;
         currentProfile = null;
+        stopHeartbeat();
         clearAuthFromStorage();
         renderCurrentUser();
         updateAuthView();
@@ -1357,6 +1393,7 @@ Reason: ${request.reason || "-"}
     }
 
     function logoutUser() {
+      stopHeartbeat();
       currentUser = null;
       currentSession = null;
       currentProfile = null;
@@ -1770,6 +1807,7 @@ Reason: ${request.reason || "-"}
         saveAuthToStorage();
         renderCurrentUser();
         updateAuthView();
+        startHeartbeat();
         const role = currentProfile?.role || "tech";
         if (role === "admin") {
           await loadAdminDashboardData();
@@ -1777,6 +1815,8 @@ Reason: ${request.reason || "-"}
         setStatus(`System Status: Session restored (${role})`);
       }
     }
+
+    window.addEventListener("beforeunload", stopHeartbeat);
 
     restoreSessionState();
   </script>
