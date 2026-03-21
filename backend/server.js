@@ -22,6 +22,24 @@ function lower(value) {
   return safeString(value).toLowerCase();
 }
 
+function getOnlineCutoffIso(minutes = 15) {
+  return new Date(Date.now() - minutes * 60 * 1000).toISOString();
+}
+
+async function touchUserLastSeen(userId) {
+  const cleanUserId = safeString(userId);
+  if (!cleanUserId) return;
+
+  try {
+    await supabase
+      .from('user_profiles')
+      .update({ last_seen: new Date().toISOString() })
+      .eq('id', cleanUserId);
+  } catch (err) {
+    console.log('touchUserLastSeen failed:', err.message);
+  }
+}
+
 async function decodeVIN(vin) {
   try {
     const cleanVin = safeString(vin);
@@ -744,6 +762,81 @@ app.get('/user-profile/:id', async (req, res) => {
   }
 });
 
+app.get('/admin-user-stats', async (req, res) => {
+  try {
+    const onlineWindowMinutes = 15;
+    const cutoffIso = getOnlineCutoffIso(onlineWindowMinutes);
+
+    const { count: totalRegisteredUsers, error: totalError } = await supabase
+      .from('user_profiles')
+      .select('*', { count: 'exact', head: true });
+
+    if (totalError) {
+      return res.json({
+        success: false,
+        error: totalError.message,
+        total_registered_users: 0,
+        online_registered_users: 0,
+        online_window_minutes: onlineWindowMinutes
+      });
+    }
+
+    const { count: onlineRegisteredUsers, error: onlineError } = await supabase
+      .from('user_profiles')
+      .select('*', { count: 'exact', head: true })
+      .gte('last_seen', cutoffIso);
+
+    if (onlineError) {
+      return res.json({
+        success: false,
+        error: onlineError.message,
+        total_registered_users: totalRegisteredUsers || 0,
+        online_registered_users: 0,
+        online_window_minutes: onlineWindowMinutes
+      });
+    }
+
+    return res.json({
+      success: true,
+      total_registered_users: totalRegisteredUsers || 0,
+      online_registered_users: onlineRegisteredUsers || 0,
+      online_window_minutes: onlineWindowMinutes
+    });
+  } catch (err) {
+    return res.json({
+      success: false,
+      error: err.message,
+      total_registered_users: 0,
+      online_registered_users: 0,
+      online_window_minutes: 15
+    });
+  }
+});
+
+app.post('/heartbeat', async (req, res) => {
+  try {
+    const userId = safeString(req.body.user_id);
+
+    if (!userId) {
+      return res.json({
+        success: false,
+        error: 'user_id is required'
+      });
+    }
+
+    await touchUserLastSeen(userId);
+
+    return res.json({
+      success: true
+    });
+  } catch (err) {
+    return res.json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
 app.get('/access-requests', async (req, res) => {
   try {
     const status = safeString(req.query.status || 'pending').toLowerCase();
@@ -1241,6 +1334,8 @@ app.post('/login', async (req, res) => {
         session: data?.session || null
       });
     }
+
+    await touchUserLastSeen(data.user.id);
 
     return res.json({
       success: true,
