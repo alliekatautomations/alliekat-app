@@ -14,6 +14,10 @@ function safeString(value) {
   return String(value || '').trim();
 }
 
+function normalizeCode(code) {
+  return safeString(code).toUpperCase();
+}
+
 async function decodeVIN(vin) {
   try {
     const cleanVin = safeString(vin);
@@ -29,7 +33,7 @@ async function decodeVIN(vin) {
 }
 
 function buildQuickTree(payload) {
-  const code = safeString(payload.code).toUpperCase();
+  const code = normalizeCode(payload.code);
   const symptom = safeString(payload.symptom);
   const notes = safeString(payload.notes);
 
@@ -64,144 +68,6 @@ function buildQuickTree(payload) {
           { label: 'FAIL', next_step_id: 'step_fail_1' },
           { label: 'NOT TESTED', next_step_id: 'step_2' }
         ]
-      },
-      {
-        id: 'step_2',
-        title: 'Check primary power, ground, and reference circuits',
-        instruction: 'Verify main power feed, ground path, reference circuit, and signal return at the affected circuit.',
-        where_to_test: 'At the affected sensor, actuator, or module connector.',
-        expected_specs: {
-          voltage: 'Typical 5V reference or battery voltage depending on circuit; verify exact OEM spec/pinout for this platform',
-          ohms: 'Low resistance on good ground path; verify exact OEM spec/pinout for this platform',
-          pressure: 'N/A unless pressure-based fault',
-          signal: 'Signal should change logically with operating condition',
-          voltage_drop: 'Typically low on good feeds and grounds; verify exact OEM spec/pinout for this platform'
-        },
-        how_to_test: 'Backprobe the connector. Check supply voltage, reference voltage, ground integrity, and signal return under load.',
-        result_buttons: [
-          { label: 'PASS', next_step_id: 'step_3' },
-          { label: 'FAIL', next_step_id: 'step_fail_2' },
-          { label: 'NOT TESTED', next_step_id: 'step_3' }
-        ]
-      },
-      {
-        id: 'step_3',
-        title: 'Inspect harness and connectors',
-        instruction: 'Inspect for rub-through, poor pin drag, corrosion, water intrusion, stretched wiring, and prior repair issues.',
-        where_to_test: 'Harness routing, connector bodies, bends near brackets, engine movement points, frame rails, and module entry points.',
-        expected_specs: {
-          voltage: 'No abnormal change during harness movement',
-          ohms: 'No opens or unstable resistance during harness movement',
-          pressure: 'N/A unless pressure-based fault',
-          signal: 'Signal should remain stable during wiggle test',
-          voltage_drop: 'No excessive voltage drop change during wiggle test'
-        },
-        how_to_test: 'Perform a wiggle harness test while monitoring live data or meter readings.',
-        result_buttons: [
-          { label: 'PASS', next_step_id: 'step_4' },
-          { label: 'FAIL', next_step_id: 'step_fail_3' },
-          { label: 'NOT TESTED', next_step_id: 'step_4' }
-        ]
-      },
-      {
-        id: 'step_4',
-        title: 'Verify component and module response',
-        instruction: 'After circuit and harness checks pass, verify component response and module-side input.',
-        where_to_test: 'Component connector, module input, scan data, and commanded vs actual values.',
-        expected_specs: {
-          voltage: 'Per OEM spec for the affected component',
-          ohms: 'Per OEM spec for the affected component',
-          pressure: 'Per OEM spec if pressure-related',
-          signal: 'Signal should track input or command smoothly with no dropouts',
-          voltage_drop: 'Minimal on good circuits'
-        },
-        how_to_test: 'Compare commanded vs actual values and compare component-side reading to module-side reading.',
-        result_buttons: [
-          { label: 'PASS', next_step_id: 'step_pass_final' },
-          { label: 'FAIL', next_step_id: 'step_fail_final' },
-          { label: 'NOT TESTED', next_step_id: 'step_fail_final' }
-        ]
-      },
-      {
-        id: 'step_fail_1',
-        title: 'Fault did not verify normally',
-        instruction: 'Treat as intermittent or event-based. Review freeze-frame, duplication conditions, and recent repairs.',
-        where_to_test: 'Scan tool history, freeze-frame, duplication conditions, and operator description.',
-        expected_specs: {
-          voltage: 'Verify exact OEM spec/pinout for this platform',
-          ohms: 'Verify exact OEM spec/pinout for this platform',
-          pressure: 'Verify exact OEM spec/pinout for this platform',
-          signal: 'Complaint should be reproducible before final part replacement',
-          voltage_drop: 'Verify exact OEM spec/pinout for this platform'
-        },
-        how_to_test: 'Road test or reproduce the event, then restart the tree once the fault becomes active.',
-        result_buttons: [
-          { label: 'CONTINUE', next_step_id: 'step_2' }
-        ]
-      },
-      {
-        id: 'step_fail_2',
-        title: 'Primary circuit failure found',
-        instruction: 'Repair the feed, ground, reference, or return issue before replacing the component.',
-        where_to_test: 'Affected circuit path between source, component, and module.',
-        expected_specs: {
-          voltage: 'Restore proper supply/reference',
-          ohms: 'Restore proper continuity / low resistance ground path',
-          pressure: 'N/A',
-          signal: 'Signal should normalize after circuit repair',
-          voltage_drop: 'Return to acceptable range'
-        },
-        how_to_test: 'Repair open, short, corrosion, high resistance, loose terminal, or pin drag issue.',
-        result_buttons: [
-          { label: 'RETEST', next_step_id: 'step_1' }
-        ]
-      },
-      {
-        id: 'step_fail_3',
-        title: 'Harness / connector defect found',
-        instruction: 'Repair the physical wiring or connector defect and verify the fault does not return.',
-        where_to_test: 'The exact damaged section or connector location.',
-        expected_specs: {
-          voltage: 'Stable after repair',
-          ohms: 'Stable after repair',
-          pressure: 'N/A',
-          signal: 'Stable after repair',
-          voltage_drop: 'Stable after repair'
-        },
-        how_to_test: 'Repair harness or connector, clear the code, duplicate the complaint, and repeat wiggle harness verification.',
-        result_buttons: [
-          { label: 'RETEST', next_step_id: 'step_1' }
-        ]
-      },
-      {
-        id: 'step_pass_final',
-        title: 'Circuit and component both tested good',
-        instruction: 'Suspect intermittent wiring, related subsystem fault, mechanical issue, or software/calibration problem.',
-        where_to_test: 'System-level review, related systems, freeze-frame, and update history.',
-        expected_specs: {
-          voltage: 'Verify exact OEM spec/pinout for this platform',
-          ohms: 'Verify exact OEM spec/pinout for this platform',
-          pressure: 'Verify exact OEM spec/pinout for this platform',
-          signal: 'No abnormal dropout under actual operating condition',
-          voltage_drop: 'Verify exact OEM spec/pinout for this platform'
-        },
-        how_to_test: 'Review related sensors/modules, software updates, and conditions required to duplicate the fault.',
-        result_buttons: []
-      },
-      {
-        id: 'step_fail_final',
-        title: 'Component or module fault path likely',
-        instruction: 'If all supporting circuits are verified good, component or receiving module fault path is likely.',
-        where_to_test: 'Affected sensor / actuator / receiving module.',
-        expected_specs: {
-          voltage: 'Verify exact OEM spec/pinout for this platform',
-          ohms: 'Verify exact OEM spec/pinout for this platform',
-          pressure: 'Verify exact OEM spec/pinout for this platform',
-          signal: 'Abnormal only after all supporting circuits are proven good',
-          voltage_drop: 'Verify exact OEM spec/pinout for this platform'
-        },
-        how_to_test: 'Use known-good substitution or OEM final verification before replacement.',
-        result_buttons: []
       }
     ],
     likely_fault_path: code
@@ -279,9 +145,156 @@ function normalizeTree(modelTree, payload, vehicleInfo) {
   };
 }
 
-async function createStructuredTroubleTree({ vin, code, symptom, notes, vehicleInfo }) {
+function summarizeLearningRows(rows) {
+  const fixesMap = new Map();
+
+  for (const row of rows) {
+    const finalFix = safeString(row.final_fix);
+    if (!finalFix) continue;
+
+    const key = finalFix.toLowerCase();
+
+    if (!fixesMap.has(key)) {
+      fixesMap.set(key, {
+        final_fix: finalFix,
+        count: 0,
+        examples: []
+      });
+    }
+
+    const item = fixesMap.get(key);
+    item.count += 1;
+
+    if (item.examples.length < 3) {
+      item.examples.push({
+        vin: safeString(row.vin),
+        make: safeString(row.make),
+        model: safeString(row.model),
+        engine: safeString(row.engine),
+        fault_code: safeString(row.fault_code),
+        complaint: safeString(row.complaint),
+        notes: safeString(row.notes)
+      });
+    }
+  }
+
+  return Array.from(fixesMap.values())
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+}
+
+function rowLooksUsableForLearning(row) {
+  const finalFix = safeString(row.final_fix);
+  if (!finalFix) return false;
+
+  const status = safeString(row.status).toLowerCase();
+
+  if (!status) return true;
+  if (status === 'fixed') return true;
+  if (status === 'complete') return true;
+  if (status === 'completed') return true;
+  if (status === 'closed') return true;
+
+  return false;
+}
+
+async function getLearningContext({ code, vehicleInfo }) {
+  const normalizedCode = normalizeCode(code);
+  const make = safeString(vehicleInfo?.Make);
+  const model = safeString(vehicleInfo?.Model);
+  const engine = safeString(vehicleInfo?.EngineModel || vehicleInfo?.DisplacementL);
+
+  let codeRows = [];
+  let vehicleRows = [];
+
+  if (normalizedCode) {
+    const { data } = await supabase
+      .from('repair_cases')
+      .select('*')
+      .ilike('fault_code', `%${normalizedCode}%`)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    codeRows = (data || []).filter(rowLooksUsableForLearning);
+  }
+
+  if (make || model) {
+    let query = supabase
+      .from('repair_cases')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (make) query = query.ilike('make', make);
+    if (model) query = query.ilike('model', model);
+
+    const { data } = await query;
+    vehicleRows = (data || [])
+      .filter(rowLooksUsableForLearning)
+      .filter(row => {
+        if (!engine) return true;
+        const rowEngine = safeString(row.engine).toLowerCase();
+        return rowEngine.includes(engine.toLowerCase()) || engine.toLowerCase().includes(rowEngine);
+      });
+  }
+
+  const combined = [];
+
+  for (const row of codeRows) {
+    if (!combined.find(x => x.id === row.id)) combined.push(row);
+  }
+
+  for (const row of vehicleRows) {
+    if (!combined.find(x => x.id === row.id)) combined.push(row);
+  }
+
+  const suggestedFixes = summarizeLearningRows(combined);
+
+  return {
+    total_matches: combined.length,
+    code_matches: codeRows.slice(0, 10),
+    vehicle_matches: vehicleRows.slice(0, 10),
+    suggested_fixes: suggestedFixes
+  };
+}
+
+function learningContextToText(learningContext) {
+  if (!learningContext || !learningContext.total_matches) {
+    return 'No prior confirmed repair history found in the internal database.';
+  }
+
+  const lines = [];
+  lines.push(`Internal confirmed repair matches found: ${learningContext.total_matches}`);
+
+  if (learningContext.suggested_fixes?.length) {
+    lines.push('Most common confirmed fixes:');
+    for (const fix of learningContext.suggested_fixes) {
+      lines.push(`- ${fix.final_fix} (count: ${fix.count})`);
+    }
+  }
+
+  if (learningContext.code_matches?.length) {
+    lines.push('Recent confirmed code matches:');
+    for (const row of learningContext.code_matches.slice(0, 5)) {
+      lines.push(`- Code: ${safeString(row.fault_code)} | Complaint: ${safeString(row.complaint)} | Fix: ${safeString(row.final_fix)} | Notes: ${safeString(row.notes)}`);
+    }
+  }
+
+  if (learningContext.vehicle_matches?.length) {
+    lines.push('Recent confirmed same-platform matches:');
+    for (const row of learningContext.vehicle_matches.slice(0, 5)) {
+      lines.push(`- ${safeString(row.make)} ${safeString(row.model)} ${safeString(row.engine)} | Code: ${safeString(row.fault_code)} | Fix: ${safeString(row.final_fix)}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+async function createStructuredTroubleTree({ vin, code, symptom, notes, vehicleInfo, learningContext }) {
   const openAiKey = process.env.OPENAI_API_KEY;
   if (!openAiKey) return buildQuickTree({ vin, code, symptom, notes });
+
+  const learningText = learningContextToText(learningContext);
 
   const systemPrompt = `
 You are a master diesel and automotive diagnostic technician.
@@ -304,6 +317,7 @@ Hard requirements:
   - connector inspection
   - wiggle harness testing
   - ohms checks while moving harness
+  - continuity checks while moving harness
   - voltage drop checks
   - module-side verification
   - compare source-side reading to module-side reading
@@ -317,6 +331,8 @@ Hard requirements:
 - Do not invent exact pin numbers if uncertain.
 - Prefer 5 to 8 steps total.
 - Every step must drive to the next logical branch.
+- Use internal confirmed repair history if it is relevant, but do not blindly jump to the prior fix without proving it by testing.
+- If internal history strongly suggests a common failure point, direct the tech to test that failure point early.
 
 Return JSON exactly in this shape:
 {
@@ -363,6 +379,9 @@ Fault Code: ${code || 'none provided'}
 Symptom: ${symptom || 'none provided'}
 Completed tests / notes: ${notes || 'none provided'}
 
+Internal learning context:
+${learningText}
+
 Build the detailed diagnostic tree now.
 `;
 
@@ -370,7 +389,7 @@ Build the detailed diagnostic tree now.
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': \`Bearer \${openAiKey}\`,
+        'Authorization': `Bearer ${openAiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -451,12 +470,15 @@ app.post('/diagnose-detailed', async (req, res) => {
       vehicleInfo = await decodeVIN(vin);
     }
 
+    const learningContext = await getLearningContext({ code, vehicleInfo });
+
     const detailedTree = await createStructuredTroubleTree({
       vin,
       code,
       symptom,
       notes,
-      vehicleInfo
+      vehicleInfo,
+      learningContext
     });
 
     res.json({
@@ -471,7 +493,9 @@ app.post('/diagnose-detailed', async (req, res) => {
         trim: safeString(vehicleInfo?.Trim),
         driveType: safeString(vehicleInfo?.DriveType),
         fuelType: safeString(vehicleInfo?.FuelTypePrimary)
-      }
+      },
+      learning_matches: learningContext.total_matches,
+      suggested_fixes: learningContext.suggested_fixes
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -530,7 +554,7 @@ app.post('/save-repair', async (req, res) => {
             recommended_tests: record.recommended_tests || existing.recommended_tests,
             final_fix: record.final_fix,
             tech_name: record.tech_name || existing.tech_name,
-            status: record.status || 'fixed',
+            status: 'fixed',
             notes: record.notes || existing.notes
           })
           .eq('id', existing.id)
@@ -564,7 +588,7 @@ app.post('/record-step-result', async (req, res) => {
     const button_result = safeString(req.body.button_result);
     const next_step_id = safeString(req.body.next_step_id);
 
-    const timelineLine = \`[\${new Date().toISOString()}] Step: \${step_title || step_id} | Result: \${button_result} | Next: \${next_step_id || 'end'}\`;
+    const timelineLine = `[${new Date().toISOString()}] Step: ${step_title || step_id} | Result: ${button_result} | Next: ${next_step_id || 'end'}`;
 
     const { data, error } = await supabase
       .from('repair_cases')
@@ -582,7 +606,7 @@ app.post('/record-step-result', async (req, res) => {
           final_fix: safeString(req.body.final_fix),
           tech_name: safeString(req.body.tech_name),
           status: safeString(req.body.status) || 'in_progress',
-          notes: notes ? \`\${notes}\n\${timelineLine}\` : timelineLine
+          notes: notes ? `${notes}\n${timelineLine}` : timelineLine
         }
       ])
       .select();
