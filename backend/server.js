@@ -99,7 +99,7 @@ function cleanModelJson(raw) {
   return null;
 }
 
-function normalizeTree(modelTree, payload, vehicleInfo) {
+function normalizeTree(modelTree, payload, vehicleInfo, sourceLabel = 'openai') {
   const fallback = buildQuickTree(payload);
   if (!modelTree || typeof modelTree !== 'object') return fallback;
 
@@ -131,7 +131,7 @@ function normalizeTree(modelTree, payload, vehicleInfo) {
     })),
     likely_fault_path: safeString(modelTree.likely_fault_path) || fallback.likely_fault_path,
     final_recommendation: safeString(modelTree.final_recommendation) || fallback.final_recommendation,
-    source: 'openai',
+    source: sourceLabel,
     vehicle_snapshot: {
       vin: safeString(payload.vin),
       year: safeString(vehicleInfo?.ModelYear),
@@ -290,13 +290,13 @@ function learningContextToText(learningContext) {
   return lines.join('\n');
 }
 
-async function createStructuredTroubleTree({ vin, code, symptom, notes, vehicleInfo, learningContext }) {
+async function callOpenAIForTree({ vin, code, symptom, notes, vehicleInfo, learningContext, mode }) {
   const openAiKey = process.env.OPENAI_API_KEY;
   if (!openAiKey) return buildQuickTree({ vin, code, symptom, notes });
 
   const learningText = learningContextToText(learningContext);
 
-  const systemPrompt = `
+  const standardSystemPrompt = `
 You are a master diesel and automotive diagnostic technician.
 
 You must return ONLY valid JSON.
@@ -365,6 +365,71 @@ Return JSON exactly in this shape:
 }
 `;
 
+  const expertSystemPrompt = `
+You are a master diesel and automotive diagnostic technician in EXPERT MODE.
+
+You must return ONLY valid JSON.
+No markdown.
+No code fences.
+No extra commentary.
+
+Build a highly detailed button-driven diagnostic tree that reasons like a seasoned diagnostic tech.
+
+Expert mode requirements:
+- Treat the technician notes as real evidence, not background filler.
+- Skip or compress basic checks if the notes already strongly prove they were done.
+- Do NOT restart from beginner steps unless the evidence is weak or conflicting.
+- Use actual DTC, complaint, vehicle platform, and internal confirmed repair history aggressively.
+- Prioritize the most likely failure path sooner.
+- If internal repair history points to a repeat failure point, move that branch early in the tree.
+- Focus on direct fault isolation:
+  - source-side signal checks
+  - module-side signal checks
+  - voltage drop under load
+  - continuity / ohms while moving harness
+  - wiggle test with meter/live data
+  - connector drag / spread pin / corrosion / rub-through
+  - compare commanded vs actual
+- Explain exactly what the tech should do with the meter or scan tool.
+- Include expected voltages, ohms, signal behavior, voltage drop, and what the result means.
+- Include pinout guidance when confidently known.
+- If exact OEM pin numbers are not certain, say:
+  "Verify exact OEM pinout for this platform"
+- Do not invent exact pin numbers if uncertain.
+- Prefer 4 to 7 high-value steps.
+- Every branch should move the tech closer to isolating the failure, not just verifying basics again.
+
+Return JSON exactly in this shape:
+{
+  "issue_summary": "string",
+  "current_position": "string",
+  "current_step_id": "step_1",
+  "steps": [
+    {
+      "id": "step_1",
+      "title": "string",
+      "instruction": "string",
+      "where_to_test": "string",
+      "expected_specs": {
+        "voltage": "string",
+        "ohms": "string",
+        "pressure": "string",
+        "signal": "string",
+        "voltage_drop": "string"
+      },
+      "how_to_test": "string",
+      "result_buttons": [
+        { "label": "PASS", "next_step_id": "step_2" },
+        { "label": "FAIL", "next_step_id": "step_fail_1" },
+        { "label": "NOT TESTED", "next_step_id": "step_2" }
+      ]
+    }
+  ],
+  "likely_fault_path": "string",
+  "final_recommendation": "string"
+}
+`;
+
   const userPrompt = `
 VIN: ${vin || 'not provided'}
 Make: ${vehicleInfo?.Make || 'unknown'}
@@ -382,7 +447,7 @@ Completed tests / notes: ${notes || 'none provided'}
 Internal learning context:
 ${learningText}
 
-Build the detailed diagnostic tree now.
+Build the ${mode === 'expert' ? 'expert' : 'detailed'} diagnostic tree now.
 `;
 
   try {
@@ -394,10 +459,16 @@ Build the detailed diagnostic tree now.
       },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
-        temperature: 0.1,
+        temperature: mode === 'expert' ? 0.05 : 0.1,
         messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
+          {
+            role: 'system',
+            content: mode === 'expert' ? expertSystemPrompt : standardSystemPrompt
+          },
+          {
+            role: 'user',
+            content: userPrompt
+          }
         ]
       })
     });
@@ -406,7 +477,7 @@ Build the detailed diagnostic tree now.
     const content = data?.choices?.[0]?.message?.content || '';
     const parsed = cleanModelJson(content);
 
-    return normalizeTree(parsed, { vin, code, symptom, notes }, vehicleInfo);
+    return normalizeTree(parsed, { vin, code, symptom, notes }, vehicleInfo, mode === 'expert' ? 'openai-expert' : 'openai');
   } catch {
     return buildQuickTree({ vin, code, symptom, notes });
   }
@@ -472,18 +543,64 @@ app.post('/diagnose-detailed', async (req, res) => {
 
     const learningContext = await getLearningContext({ code, vehicleInfo });
 
-    const detailedTree = await createStructuredTroubleTree({
+    const detailedTree = await callOpenAIForTree({
       vin,
       code,
       symptom,
       notes,
       vehicleInfo,
-      learningContext
+      learningContext,
+      mode: 'standard'
     });
 
     res.json({
       success: true,
       tree: detailedTree,
+      vehicle: {
+        vin,
+        year: safeString(vehicleInfo?.ModelYear),
+        make: safeString(vehicleInfo?.Make),
+        model: safeString(vehicleInfo?.Model),
+        engine: safeString(vehicleInfo?.EngineModel || vehicleInfo?.DisplacementL),
+        trim: safeString(vehicleInfo?.Trim),
+        driveType: safeString(vehicleInfo?.DriveType),
+        fuelType: safeString(vehicleInfo?.FuelTypePrimary)
+      },
+      learning_matches: learningContext.total_matches,
+      suggested_fixes: learningContext.suggested_fixes
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/diagnose-expert', async (req, res) => {
+  try {
+    const vin = safeString(req.body.vin);
+    const code = safeString(req.body.code);
+    const symptom = safeString(req.body.symptom);
+    const notes = safeString(req.body.notes);
+
+    let vehicleInfo = null;
+    if (vin && vin.length >= 11) {
+      vehicleInfo = await decodeVIN(vin);
+    }
+
+    const learningContext = await getLearningContext({ code, vehicleInfo });
+
+    const expertTree = await callOpenAIForTree({
+      vin,
+      code,
+      symptom,
+      notes,
+      vehicleInfo,
+      learningContext,
+      mode: 'expert'
+    });
+
+    res.json({
+      success: true,
+      tree: expertTree,
       vehicle: {
         vin,
         year: safeString(vehicleInfo?.ModelYear),
