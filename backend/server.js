@@ -709,7 +709,15 @@ Rules:
 - CRITICAL: If the question asks for a pinout or connector data, put ALL pin data in the pinout_table array — do NOT put pipe-separated tables or pin data inside the answer text field. The answer field should be clean readable prose only — introduce what you found, then the UI will render the table automatically.
 - Always give next_steps a mechanic can act on
 - Do not make up exact pin numbers if you are not sure — say "verify exact OEM pinout"
-- confidence_score is 0-100 based on how specific and verified your answer is
+- confidence_score is 0-100 — score it HONESTLY based on these rules:
+  * 90-100: Verified internal data confirmed this exact vehicle/component. High certainty.
+  * 70-89: Web data found specific application info that directly answers the question.
+  * 50-69: General info found that applies to similar vehicles but not confirmed for this exact application.
+  * 30-49: Limited or indirect data found. Answer is educated guidance, not confirmed specs.
+  * 10-29: No specific data found. Answer is based on general diagnostic reasoning only.
+  * 0-9: Cannot answer reliably — insufficient data for this application.
+- match_level must match: 70+ = high, 40-69 = medium, below 40 = low
+- DO NOT default to 85. Score honestly — a low score with a good explanation is better than a fake high score.
 - next_steps must be short actionable shop tests, not paragraphs
 
 Return ONLY valid JSON in exactly this shape:
@@ -852,14 +860,80 @@ async function buildAskAllieSourceList(sessionId) {
    ROUTES
 ========================= */
 
+// =========================
+// RATE LIMITING
+// =========================
+const rateLimitMap = new Map();
+
+function rateLimit(key, maxRequests = 20, windowMs = 60000) {
+  const now = Date.now();
+  const record = rateLimitMap.get(key) || { count: 0, resetAt: now + windowMs };
+  if (now > record.resetAt) {
+    record.count = 0;
+    record.resetAt = now + windowMs;
+  }
+  record.count += 1;
+  rateLimitMap.set(key, record);
+  return record.count > maxRequests;
+}
+
+// Clean up rate limit map every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, record] of rateLimitMap.entries()) {
+    if (now > record.resetAt) rateLimitMap.delete(key);
+  }
+}, 5 * 60 * 1000);
+
+// =========================
+// ERROR LOGGING
+// =========================
+const errorLog = [];
+const MAX_ERROR_LOG = 100;
+
+function logError(route, error, context = {}) {
+  const entry = {
+    timestamp: new Date().toISOString(),
+    route,
+    message: error?.message || String(error),
+    context
+  };
+  errorLog.unshift(entry);
+  if (errorLog.length > MAX_ERROR_LOG) errorLog.pop();
+  console.error(`[ERROR] ${route}: ${entry.message}`);
+}
+
+// =========================
+// REQUEST TIMEOUT WRAPPER
+// =========================
+function withTimeout(promise, ms = 30000) {
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('Request timed out after 30 seconds')), ms)
+  );
+  return Promise.race([promise, timeout]);
+}
+
 app.get('/', (req, res) => {
   res.send('Allie-kat backend live');
+});
+
+// Error log endpoint for super_admin debugging
+app.get('/error-log', async (req, res) => {
+  try {
+    return res.json({ success: true, errors: errorLog.slice(0, 50) });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // --- AUTH ---
 
 app.post('/login', async (req, res) => {
   try {
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+    if (rateLimit(`login:${ip}`, 10, 60000)) {
+      return res.status(429).json({ success: false, error: 'Too many login attempts. Please wait a minute.' });
+    }
     const email = safeString(req.body.email).toLowerCase();
     const password = safeString(req.body.password);
     if (!email || !password) return res.status(400).json({ success: false, error: 'Email and password required' });
@@ -867,26 +941,14 @@ app.post('/login', async (req, res) => {
     if (error) return res.status(401).json({ success: false, error: error.message });
     return res.json({ success: true, user: data.user, session: data.session });
   } catch (err) {
+    logError('/login', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });
 
 app.post('/signup', async (req, res) => {
-  try {
-    const name = safeString(req.body.name);
-    const email = safeString(req.body.email).toLowerCase();
-    const password = safeString(req.body.password);
-    if (!email || !password) return res.status(400).json({ success: false, error: 'Email and password required' });
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({ email, password, email_confirm: true });
-    if (error) return res.status(400).json({ success: false, error: error.message });
-    await supabaseAdmin.from('user_profiles').insert([{
-      id: data.user.id, email, name: name || email,
-      role: 'tech', last_seen: new Date().toISOString()
-    }]);
-    return res.json({ success: true, user: data.user });
-  } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
-  }
+  // Legacy route — redirect to signup-v2
+  return res.status(410).json({ success: false, error: 'This signup endpoint is no longer active. Please use the app signup form.' });
 });
 
 // --- USER PROFILE ---
@@ -951,6 +1013,10 @@ app.post('/diagnose', async (req, res) => {
 
 app.post('/diagnose-detailed', async (req, res) => {
   try {
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+    if (rateLimit(`diagnose:${ip}`, 20, 60000)) {
+      return res.status(429).json({ success: false, error: 'Too many diagnosis requests. Please wait a moment.' });
+    }
     const vin = safeString(req.body.vin);
     const code = safeString(req.body.code);
     const symptom = safeString(req.body.symptom);
@@ -958,7 +1024,7 @@ app.post('/diagnose-detailed', async (req, res) => {
     let vehicleInfo = null;
     if (vin && vin.length >= 11) vehicleInfo = await decodeVIN(vin);
     const learningContext = await getLearningContext({ code, vehicleInfo });
-    const detailedTree = await callOpenAIForTree({ vin, code, symptom, notes, vehicleInfo, learningContext, mode: 'standard' });
+    const detailedTree = await withTimeout(callOpenAIForTree({ vin, code, symptom, notes, vehicleInfo, learningContext, mode: 'standard' }));
     res.json({
       success: true, tree: detailedTree,
       vehicle: {
@@ -970,12 +1036,17 @@ app.post('/diagnose-detailed', async (req, res) => {
       suggested_fixes: learningContext.suggested_fixes
     });
   } catch (err) {
+    logError('/diagnose-detailed', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
 app.post('/diagnose-expert', async (req, res) => {
   try {
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+    if (rateLimit(`diagnose:${ip}`, 20, 60000)) {
+      return res.status(429).json({ success: false, error: 'Too many diagnosis requests. Please wait a moment.' });
+    }
     const vin = safeString(req.body.vin);
     const code = safeString(req.body.code);
     const symptom = safeString(req.body.symptom);
@@ -983,7 +1054,7 @@ app.post('/diagnose-expert', async (req, res) => {
     let vehicleInfo = null;
     if (vin && vin.length >= 11) vehicleInfo = await decodeVIN(vin);
     const learningContext = await getLearningContext({ code, vehicleInfo });
-    const expertTree = await callOpenAIForTree({ vin, code, symptom, notes, vehicleInfo, learningContext, mode: 'expert' });
+    const expertTree = await withTimeout(callOpenAIForTree({ vin, code, symptom, notes, vehicleInfo, learningContext, mode: 'expert' }));
     res.json({
       success: true, tree: expertTree,
       vehicle: {
@@ -995,6 +1066,7 @@ app.post('/diagnose-expert', async (req, res) => {
       suggested_fixes: learningContext.suggested_fixes
     });
   } catch (err) {
+    logError('/diagnose-expert', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -1179,6 +1251,10 @@ app.get('/ask-allie-health', async (req, res) => {
 
 app.post('/ask-allie', async (req, res) => {
   try {
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+    if (rateLimit(`ask-allie:${ip}`, 30, 60000)) {
+      return res.status(429).json({ success: false, error: 'Too many requests. Please slow down.' });
+    }
     const question = safeString(req.body.question);
     const incomingSessionId = safeString(req.body.session_id);
     const jobContext = buildAskAllieContext(req.body);
@@ -1344,7 +1420,7 @@ app.post('/ask-allie', async (req, res) => {
     });
 
   } catch (err) {
-    console.error('/ask-allie route error:', err.message);
+    logError('/ask-allie', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });
