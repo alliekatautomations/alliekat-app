@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const fetch = require('node-fetch');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
@@ -36,32 +35,41 @@ app.get('/', (req, res) => {
 });
 
 app.get('/ask-allie-health', async (req, res) => {
-  const { count } = await supabase
-    .from('ask_allie_sessions')
-    .select('*', { count: 'exact', head: true });
+  try {
+    const { count } = await supabase
+      .from('ask_allie_sessions')
+      .select('*', { count: 'exact', head: true });
 
-  res.json({
-    success: true,
-    status: 'ok',
-    ask_allie_sessions_count: count || 0,
-    openai_configured: true,
-    tavily_configured: true
-  });
+    res.json({
+      success: true,
+      status: 'ok',
+      ask_allie_sessions_count: count || 0,
+      openai_configured: true,
+      tavily_configured: true
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
 });
 
 /* =========================
-   LOGIN (FIXED)
+   LOGIN
 ========================= */
 
 app.post('/login', async (req, res) => {
   try {
-    const email = (req.body.email || '').toLowerCase();
-    const password = req.body.password || '';
+    const email = String(req.body.email || '').toLowerCase().trim();
+    const password = String(req.body.password || '');
 
     if (!email || !password) {
       return res.json({
         success: false,
-        error: 'Email and password required'
+        error: 'Email and password required',
+        user: null,
+        session: null
       });
     }
 
@@ -70,46 +78,97 @@ app.post('/login', async (req, res) => {
       password
     });
 
-    if (error || !data?.user) {
+    if (error) {
       return res.json({
         success: false,
-        error: error?.message || 'Invalid login'
+        error: error.message,
+        user: null,
+        session: null
       });
     }
 
     return res.json({
       success: true,
-      user: data.user,
-      session: data.session
+      user: data?.user || null,
+      session: data?.session || null
     });
-
   } catch (err) {
     return res.json({
       success: false,
-      error: err.message
+      error: err.message,
+      user: null,
+      session: null
     });
   }
 });
 
 /* =========================
-   ASK ALLIE (WEB + AI)
+   ASK ALLIE
 ========================= */
 
 app.post('/ask-allie', async (req, res) => {
   try {
-    const { question, context } = req.body;
+    const question = String(req.body.question || '').trim();
+    const jobContext = req.body.job_context || {};
 
     if (!question) {
-      return res.json({ success: false, error: 'Question required' });
+      return res.json({
+        success: false,
+        error: 'Question required'
+      });
     }
 
-    /* ========= TAVILY SEARCH ========= */
+    const sessionPayload = {
+      vin: String(jobContext.vin || '').trim() || null,
+      year: String(jobContext.year || '').trim() || null,
+      make: String(jobContext.make || '').trim() || null,
+      model: String(jobContext.model || '').trim() || null,
+      engine: String(jobContext.engine || '').trim() || null,
+      complaint: String(jobContext.complaint || '').trim() || null,
+      dtcs: Array.isArray(jobContext.dtcs) ? jobContext.dtcs : [],
+      symptoms: Array.isArray(jobContext.symptoms) ? jobContext.symptoms : [],
+      prior_tests: Array.isArray(jobContext.prior_tests || jobContext.priorTests)
+        ? (jobContext.prior_tests || jobContext.priorTests)
+        : [],
+      notes: String(jobContext.notes || '').trim() || null
+    };
+
+    const { data: session, error: sessionError } = await supabaseAdmin
+      .from('ask_allie_sessions')
+      .insert([sessionPayload])
+      .select()
+      .single();
+
+    if (sessionError) {
+      return res.json({
+        success: false,
+        error: sessionError.message
+      });
+    }
+
+    await supabaseAdmin
+      .from('ask_allie_messages')
+      .insert([
+        {
+          session_id: session.id,
+          role: 'user',
+          content: question,
+          metadata: { job_context: jobContext }
+        }
+      ]);
+
     const tavilyRes = await fetch('https://api.tavily.com/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         api_key: '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',
-        query: question,
+        query: [
+          jobContext.year,
+          jobContext.make,
+          jobContext.model,
+          jobContext.engine,
+          question
+        ].filter(Boolean).join(' '),
         search_depth: 'advanced',
         include_images: true,
         max_results: 6
@@ -118,7 +177,6 @@ app.post('/ask-allie', async (req, res) => {
 
     const tavilyData = await tavilyRes.json();
 
-    /* ========= OPENAI ========= */
     const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -131,56 +189,174 @@ app.post('/ask-allie', async (req, res) => {
         messages: [
           {
             role: 'system',
-            content: `
-You are a master automotive diagnostic assistant.
+            content: `You are a master automotive diagnostic assistant.
 
-You MUST:
-- Extract pinouts
-- Extract wire colors
-- Extract connector views
-- Verify data across multiple sources
-- Reject weak sources
-- Only return structured JSON
-`
+Return ONLY valid JSON in this exact shape:
+{
+  "answer": "string",
+  "pinout_table": [
+    {
+      "pin_label": "",
+      "wire_color": "",
+      "circuit_function": "",
+      "expected_value": ""
+    }
+  ],
+  "confidence_score": 0
+}
+
+Rules:
+- Extract usable pinout/spec data if present.
+- Do not invent exact pin numbers.
+- If exact OEM pinout is uncertain, say so in the answer.
+- Use the search results only.`
           },
           {
             role: 'user',
-            content: `
-QUESTION:
-${question}
-
-WEB DATA:
-${JSON.stringify(tavilyData)}
-`
+            content: JSON.stringify({
+              question,
+              job_context: jobContext,
+              web_results: tavilyData
+            })
           }
         ]
       })
     });
 
     const aiData = await aiRes.json();
-    const answer = aiData?.choices?.[0]?.message?.content || '';
+    const aiText = aiData?.choices?.[0]?.message?.content || '';
 
-    /* ========= SAVE SESSION ========= */
-    const { data: session } = await supabase
-      .from('ask_allie_sessions')
-      .insert([{ question }])
+    let parsed = null;
+    try {
+      parsed = JSON.parse(aiText);
+    } catch {
+      const firstBrace = aiText.indexOf('{');
+      const lastBrace = aiText.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        try {
+          parsed = JSON.parse(aiText.slice(firstBrace, lastBrace + 1));
+        } catch {
+          parsed = null;
+        }
+      }
+    }
+
+    const finalAnswer = parsed?.answer || 'I found data, but could not fully structure the answer.';
+    const pinoutTable = Array.isArray(parsed?.pinout_table) ? parsed.pinout_table : [];
+    const confidenceScore = Number(parsed?.confidence_score || 25);
+
+    for (const result of (tavilyData.results || [])) {
+      await supabaseAdmin.from('ask_allie_sources').insert([
+        {
+          session_id: session.id,
+          source_type: 'web',
+          title: result.title || '',
+          url: result.url || '',
+          domain: (() => {
+            try {
+              return new URL(result.url).hostname;
+            } catch {
+              return '';
+            }
+          })(),
+          raw_content: result.content || '',
+          extracted_summary: result.content || '',
+          status: 'unverified',
+          confidence_score: 40
+        }
+      ]);
+    }
+
+    for (const imageUrl of (tavilyData.images || []).slice(0, 5)) {
+      await supabaseAdmin.from('ask_allie_sources').insert([
+        {
+          session_id: session.id,
+          source_type: 'image',
+          title: 'Image result',
+          url: imageUrl,
+          domain: (() => {
+            try {
+              return new URL(imageUrl).hostname;
+            } catch {
+              return '';
+            }
+          })(),
+          raw_content: '',
+          extracted_summary: '',
+          status: 'unverified',
+          confidence_score: 25
+        }
+      ]);
+    }
+
+    if (pinoutTable.length > 0) {
+      for (const row of pinoutTable) {
+        await supabaseAdmin.from('ask_allie_facts').insert([
+          {
+            session_id: session.id,
+            source_id: null,
+            fact_type: 'pinout',
+            component_name: 'Throttle Position Sensor',
+            connector_name: '',
+            pin_label: String(row.pin_label || '').trim(),
+            wire_color: String(row.wire_color || '').trim(),
+            circuit_function: String(row.circuit_function || '').trim(),
+            expected_value: String(row.expected_value || '').trim(),
+            conditions: '',
+            application_year: String(jobContext.year || '').trim(),
+            application_make: String(jobContext.make || '').trim(),
+            application_model: String(jobContext.model || '').trim(),
+            application_engine: String(jobContext.engine || '').trim(),
+            fact_json: row,
+            status: 'unverified',
+            confidence_score: confidenceScore
+          }
+        ]);
+      }
+    }
+
+    const { data: assistantMessage } = await supabaseAdmin
+      .from('ask_allie_messages')
+      .insert([
+        {
+          session_id: session.id,
+          role: 'assistant',
+          content: finalAnswer,
+          metadata: {
+            confidence_score: confidenceScore,
+            pinout_table: pinoutTable,
+            used_web: true
+          }
+        }
+      ])
       .select()
       .single();
 
-    await supabase.from('ask_allie_messages').insert([
-      {
-        session_id: session?.id || null,
-        role: 'assistant',
-        content: answer
-      }
-    ]);
+    const { data: sources } = await supabaseAdmin
+      .from('ask_allie_sources')
+      .select('id, source_type, title, url, domain, status, confidence_score, created_at')
+      .eq('session_id', session.id)
+      .order('created_at', { ascending: false });
 
     return res.json({
       success: true,
-      answer,
-      sources: tavilyData?.results || []
+      session_id: session.id,
+      message_id: assistantMessage?.id || null,
+      data: {
+        answer: finalAnswer,
+        confidence_score: confidenceScore,
+        pinout_table: pinoutTable,
+        used_web: true,
+        web_query: [
+          jobContext.year,
+          jobContext.make,
+          jobContext.model,
+          jobContext.engine,
+          question
+        ].filter(Boolean).join(' '),
+        sources: sources || []
+      }
     });
-
   } catch (err) {
     return res.json({
       success: false,
@@ -188,10 +364,6 @@ ${JSON.stringify(tavilyData)}
     });
   }
 });
-
-/* =========================
-   START SERVER
-========================= */
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, '0.0.0.0', () => {
