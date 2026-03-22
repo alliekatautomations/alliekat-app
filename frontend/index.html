@@ -1,0 +1,2876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Allie-Kat Tech Assistant</title>
+
+  <!-- Industrial font -->
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- VIN Scanner Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/zxing-js/0.18.6/umd/index.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    :root {
+      --cyan: #00c8d4;
+      --cyan-bright: #00e5ff;
+      --cyan-dim: #007a87;
+      --cyan-glow: rgba(0, 200, 212, 0.15);
+      --bg-deep: #030b10;
+      --bg-panel: #060f16;
+      --bg-card: #091520;
+      --bg-input: #071018;
+      --border: rgba(0, 200, 212, 0.18);
+      --border-bright: rgba(0, 200, 212, 0.35);
+      --text-primary: #d8f4f8;
+      --text-secondary: #7aadb8;
+      --text-dim: #4a7a88;
+      --steel: #0d2130;
+      --pass: #00d878;
+      --fail: #ff3d3d;
+      --warn: #ffaa00;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Exo 2', Arial, sans-serif;
+      color: var(--text-primary);
+      background:
+        radial-gradient(ellipse at 20% 0%, rgba(0, 200, 212, 0.07) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 100%, rgba(0, 100, 120, 0.05) 0%, transparent 50%),
+        linear-gradient(180deg, #030b10 0%, #050e16 50%, #030b10 100%);
+      min-height: 100vh;
+    }
+
+    .wrap {
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      flex-wrap: wrap;
+      border: 1px solid var(--border-bright);
+      border-radius: 20px;
+      padding: 16px 20px;
+      margin-bottom: 18px;
+      background: linear-gradient(135deg, rgba(6, 15, 22, 0.98) 0%, rgba(9, 21, 33, 0.98) 100%);
+      box-shadow:
+        0 0 40px rgba(0, 200, 212, 0.08),
+        0 2px 0 rgba(0, 200, 212, 0.12),
+        inset 0 1px 0 rgba(0, 200, 212, 0.08);
+    }
+
+    .brand-block {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      min-width: 280px;
+      flex: 1;
+    }
+
+    .logo-box {
+      width: 88px;
+      height: 88px;
+      border-radius: 16px;
+      border: 1px solid var(--border-bright);
+      background: #030b10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      padding: 4px;
+      flex: 0 0 88px;
+      box-shadow: 0 0 20px rgba(0, 200, 212, 0.12);
+    }
+
+    .logo-box img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .brand-copy {
+      flex: 1;
+      min-width: 220px;
+    }
+
+    .eyebrow {
+      color: var(--cyan-dim);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      margin-bottom: 4px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+    }
+
+    .title {
+      margin: 0;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 36px;
+      line-height: 1.0;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      background: linear-gradient(90deg, #00e5ff 0%, #00c8d4 50%, #007a87 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .title span {
+      font-size: 18px;
+      letter-spacing: 4px;
+      opacity: 0.7;
+    }
+
+    .motto {
+      margin-top: 6px;
+      color: var(--text-secondary);
+      font-size: 13px;
+      line-height: 1.45;
+      max-width: 760px;
+      letter-spacing: 0.5px;
+    }
+
+    .status-area {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .status {
+      padding: 10px 16px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(6, 15, 22, 0.96);
+      color: var(--cyan);
+      font-size: 12px;
+      min-width: 220px;
+      text-align: center;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .logout-btn,
+    .admin-top-btn,
+    .admin-back-btn,
+    .users-page-btn {
+      background: var(--steel);
+      color: var(--cyan);
+      border: 1px solid var(--border);
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      display: none;
+      font-family: 'Rajdhani', sans-serif;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      font-size: 13px;
+    }
+
+    .admin-top-btn,
+    .users-page-btn {
+      background: linear-gradient(135deg, #0d2130, #102840);
+      color: var(--cyan-bright);
+      border-color: var(--border-bright);
+    }
+
+    .admin-back-btn {
+      display: inline-block;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(320px, 0.9fr) minmax(430px, 1.1fr) minmax(320px, 0.9fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .panel,
+    .admin-dashboard-panel,
+    .admin-users-panel {
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 18px;
+      background: linear-gradient(160deg, rgba(6, 15, 22, 0.98) 0%, rgba(9, 20, 30, 0.98) 100%);
+      box-shadow:
+        0 0 20px rgba(0, 200, 212, 0.04),
+        inset 0 1px 0 rgba(0, 200, 212, 0.06);
+    }
+
+    .panel h2,
+    .admin-dashboard-panel h2,
+    .admin-users-panel h2 {
+      margin: 0 0 14px;
+      color: var(--cyan-bright);
+      font-size: 22px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .field-group {
+      width: 100%;
+      margin-bottom: 10px;
+    }
+
+    label {
+      display: block;
+      margin: 0 0 6px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+    }
+
+    input,
+    textarea {
+      display: block;
+      width: 100%;
+      margin: 0;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg-input);
+      color: var(--text-primary);
+      font-size: 15px;
+      outline: none;
+      font-family: 'Exo 2', Arial, sans-serif;
+      transition: border-color 0.15s ease;
+    }
+
+    input:focus,
+    textarea:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 2px rgba(0, 200, 212, 0.08);
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+      color: var(--text-dim);
+    }
+
+    textarea {
+      min-height: 130px;
+      resize: vertical;
+    }
+
+    .button-row,
+    .result-buttons,
+    .final-row,
+    .chat-input-row,
+    .chat-action-row,
+    .auth-action-row,
+    .admin-action-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    button {
+      padding: 12px 18px;
+      border-radius: 10px;
+      border: none;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+      transition: 0.15s ease;
+      font-family: 'Rajdhani', sans-serif;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.08);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .primary {
+      background: linear-gradient(135deg, #00c8d4, #007a87);
+      color: #030b10;
+      box-shadow: 0 0 16px rgba(0, 200, 212, 0.25);
+    }
+
+    .expert {
+      background: linear-gradient(135deg, #005a6b, #00c8d4);
+      color: #d8f4f8;
+      border: 1px solid var(--border-bright);
+    }
+
+    .secondary {
+      background: var(--steel);
+      color: var(--cyan);
+      border: 1px solid var(--border);
+    }
+
+    .pass {
+      background: linear-gradient(135deg, #00a85a, #00d878);
+      color: #020f07;
+      box-shadow: 0 0 12px rgba(0, 216, 120, 0.20);
+    }
+
+    .fail {
+      background: linear-gradient(135deg, #aa0000, #ff3d3d);
+      color: #ffffff;
+      box-shadow: 0 0 12px rgba(255, 61, 61, 0.20);
+    }
+
+    .skip {
+      background: linear-gradient(135deg, #aa6600, #ffaa00);
+      color: #1a0d00;
+    }
+
+    .back {
+      background: #0d2130;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .complete {
+      background: linear-gradient(135deg, #00c8d4, #00e5ff);
+      color: #030b10;
+      box-shadow: 0 0 16px rgba(0, 229, 255, 0.25);
+    }
+
+    .chat-send {
+      background: linear-gradient(135deg, #00c8d4, #007a87);
+      color: #030b10;
+      box-shadow: 0 0 14px rgba(0, 200, 212, 0.20);
+    }
+
+    .chat-note-btn {
+      background: #091520;
+      color: var(--cyan);
+      border: 1px solid var(--border);
+    }
+
+    .chat-step-btn {
+      background: linear-gradient(135deg, #005a6b, #00c8d4);
+      color: #d8f4f8;
+      border: 1px solid var(--border-bright);
+    }
+
+    .approve-btn {
+      background: linear-gradient(135deg, #00a85a, #00d878);
+      color: #020f07;
+    }
+
+    .deny-btn {
+      background: linear-gradient(135deg, #aa0000, #ff3d3d);
+      color: #ffffff;
+    }
+
+    .vehicle-card,
+    .step-card,
+    .summary-card,
+    .final-card,
+    .learning-card,
+    .chat-card,
+    .auth-card,
+    .locked-card,
+    .admin-card,
+    .request-card,
+    .stats-card,
+    .user-card,
+    .online-user-card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      background: var(--bg-card);
+      margin-top: 12px;
+    }
+
+    .vehicle-grid,
+    .spec-grid,
+    .admin-stats-grid,
+    .users-grid,
+    .online-users-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .field-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+      letter-spacing: 1.5px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+    }
+
+    .field-value {
+      font-size: 15px;
+      color: var(--text-primary);
+      word-break: break-word;
+      white-space: pre-wrap;
+      line-height: 1.45;
+    }
+
+    .step-title,
+    .learning-title,
+    .chat-title,
+    .auth-title,
+    .admin-title {
+      margin: 0 0 12px;
+      color: var(--cyan-bright);
+      font-size: 20px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .chat-subtitle {
+      color: var(--text-secondary);
+      font-size: 13px;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    .step-section {
+      margin-bottom: 12px;
+    }
+
+    .step-section-title {
+      color: var(--text-secondary);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 4px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+    }
+
+    .step-section-body {
+      color: var(--text-primary);
+      font-size: 15px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .history-line {
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(0, 200, 212, 0.08);
+      color: var(--text-primary);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .history-line:last-child {
+      border-bottom: none;
+    }
+
+    .loading-card {
+      text-align: center;
+      padding: 28px 14px;
+    }
+
+    .loading-title {
+      color: var(--cyan-bright);
+      font-size: 20px;
+      margin-bottom: 10px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .loading-text {
+      color: var(--text-secondary);
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    .learning-subtitle {
+      color: var(--text-secondary);
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+
+    .learning-item {
+      border-top: 1px solid rgba(0, 200, 212, 0.08);
+      padding-top: 10px;
+      margin-top: 10px;
+    }
+
+    .learning-fix {
+      color: var(--pass);
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .learning-count {
+      color: var(--text-secondary);
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .learning-example {
+      color: var(--text-primary);
+      font-size: 13px;
+      line-height: 1.4;
+      margin-top: 4px;
+    }
+
+    .chat-messages {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 340px;
+      max-height: 560px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .chat-msg {
+      border-radius: 12px;
+      padding: 12px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      font-size: 14px;
+    }
+
+    .chat-user {
+      background: rgba(0, 200, 212, 0.08);
+      border: 1px solid rgba(0, 200, 212, 0.15);
+      color: var(--text-primary);
+    }
+
+    .chat-assistant {
+      background: rgba(9, 21, 33, 0.96);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+    }
+
+    .chat-role {
+      display: block;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 6px;
+      color: var(--cyan);
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+    }
+
+    .allie-meta {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(0, 200, 212, 0.10);
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .allie-confidence {
+      margin-bottom: 4px;
+    }
+
+    .allie-web-badge {
+      display: inline-block;
+      background: rgba(0, 200, 212, 0.10);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 2px 10px;
+      font-size: 11px;
+      color: var(--cyan-bright);
+      margin-bottom: 6px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+
+    .allie-pinout {
+      margin-top: 8px;
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .allie-pinout th {
+      background: rgba(0, 200, 212, 0.10);
+      color: var(--cyan-bright);
+      padding: 8px 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      white-space: nowrap;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+    }
+
+    .allie-pinout td {
+      padding: 7px 10px;
+      color: var(--text-primary);
+      border-bottom: 1px solid rgba(0, 200, 212, 0.06);
+      font-size: 13px;
+      vertical-align: top;
+    }
+
+    .allie-pinout tr:last-child td {
+      border-bottom: none;
+    }
+
+    .allie-pinout tr:hover td {
+      background: rgba(0, 200, 212, 0.04);
+    }
+
+    .allie-pinout-wrap {
+      margin-top: 10px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      overflow-x: auto;
+    }
+
+    .allie-pinout-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--cyan);
+      margin-top: 12px;
+      margin-bottom: 6px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+    }
+
+    .allie-next-steps {
+      margin-top: 8px;
+      padding-left: 16px;
+      color: var(--text-secondary);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .allie-warning {
+      margin-top: 6px;
+      color: var(--warn);
+      font-size: 12px;
+    }
+
+    #chatInput {
+      min-height: 90px;
+    }
+
+    .auth-result,
+    .admin-result {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: rgba(3, 11, 16, 0.80);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      min-height: 44px;
+      white-space: pre-wrap;
+      line-height: 1.45;
+      font-size: 13px;
+    }
+
+    .auth-disclaimer {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 170, 0, 0.20);
+      background: rgba(255, 170, 0, 0.06);
+      color: #ffd98a;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .locked-card {
+      text-align: center;
+      padding: 28px 18px;
+    }
+
+    .locked-title {
+      color: var(--cyan-bright);
+      font-size: 20px;
+      margin-bottom: 10px;
+      font-weight: 700;
+      font-family: 'Rajdhani', sans-serif;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .locked-text {
+      color: var(--text-secondary);
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    .request-card {
+      margin-bottom: 12px;
+    }
+
+    .request-email,
+    .user-email,
+    .online-user-email {
+      color: var(--cyan-bright);
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      word-break: break-word;
+      font-family: 'Rajdhani', sans-serif;
+      letter-spacing: 1px;
+    }
+
+    .request-meta,
+    .user-meta,
+    .online-user-meta {
+      color: var(--text-secondary);
+      font-size: 13px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .stats-card {
+      margin-bottom: 14px;
+    }
+
+    .stats-value {
+      color: var(--cyan-bright);
+      font-size: 34px;
+      font-weight: 700;
+      line-height: 1;
+      margin-top: 8px;
+      font-family: 'Rajdhani', sans-serif;
+    }
+
+    .stats-subtext {
+      color: var(--text-secondary);
+      font-size: 13px;
+      margin-top: 8px;
+      line-height: 1.4;
+    }
+
+    .user-role-badge,
+    .online-role-badge {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      border: 1px solid var(--border);
+      background: var(--steel);
+      color: var(--cyan);
+      font-family: 'Rajdhani', sans-serif;
+    }
+
+    .page-note {
+      color: var(--text-secondary);
+      font-size: 13px;
+      margin-bottom: 6px;
+      line-height: 1.5;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 18px;
+      color: var(--text-dim);
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+    }
+
+    @media (max-width: 1180px) {
+      .layout,
+      .users-grid,
+      .online-users-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 980px) {
+      .vehicle-grid,
+      .spec-grid,
+      .admin-stats-grid,
+      .users-grid,
+      .online-users-grid {
+        grid-template-columns: 1fr;
+      }
+      .title { font-size: 27px; }
+      .status { width: 100%; }
+      .status-area { width: 100%; justify-content: stretch; }
+    }
+
+    @media (max-width: 768px) {
+      .wrap { padding: 10px; }
+      .header { padding: 12px; border-radius: 16px; gap: 10px; }
+      .brand-block { min-width: unset; gap: 10px; }
+      .logo-box { width: 56px; height: 56px; flex: 0 0 56px; border-radius: 12px; }
+      .title { font-size: 20px; }
+      .motto { display: none; }
+      .eyebrow { font-size: 10px; }
+      .status { font-size: 12px; padding: 8px 10px; min-width: unset; width: 100%; border-radius: 12px; }
+      .status-area { width: 100%; flex-direction: column; gap: 8px; }
+      .admin-top-btn, .logout-btn { width: 100%; padding: 12px; font-size: 14px; border-radius: 12px; }
+      .layout { grid-template-columns: 1fr; gap: 12px; }
+      .panel, .admin-dashboard-panel, .admin-users-panel { border-radius: 16px; padding: 14px; }
+      .panel h2, .admin-dashboard-panel h2, .admin-users-panel h2 { font-size: 20px; margin-bottom: 10px; }
+      input, textarea { font-size: 16px; padding: 14px; border-radius: 10px; }
+      textarea { min-height: 90px; }
+      #chatInput { min-height: 70px; font-size: 16px; }
+      button { padding: 14px 16px; font-size: 15px; border-radius: 12px; min-height: 48px; }
+      .button-row, .result-buttons, .final-row, .chat-input-row, .chat-action-row, .auth-action-row, .admin-action-row { gap: 8px; margin-top: 10px; }
+      .result-buttons { flex-direction: column; }
+      .result-buttons button { width: 100%; font-size: 16px; padding: 16px; min-height: 54px; }
+      .button-row { flex-direction: column; }
+      .button-row button { width: 100%; }
+      .vehicle-card, .step-card, .summary-card, .final-card, .learning-card, .chat-card, .auth-card, .locked-card, .admin-card, .request-card, .stats-card, .user-card, .online-user-card { border-radius: 12px; padding: 12px; margin-top: 10px; }
+      .vehicle-grid, .spec-grid, .admin-stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .field-value { font-size: 14px; }
+      .field-label { font-size: 10px; }
+      .step-title, .chat-title, .auth-title, .admin-title, .learning-title { font-size: 18px; }
+      .step-section-body { font-size: 14px; }
+      .step-section-title { font-size: 11px; }
+      .chat-messages { min-height: 200px; max-height: 340px; }
+      .chat-msg { font-size: 13px; padding: 10px; border-radius: 12px; }
+      .chat-input-row { flex-direction: column; }
+      .chat-send { width: 100%; min-height: 48px; font-size: 15px; }
+      .chat-action-row { flex-direction: row; flex-wrap: wrap; }
+      .chat-note-btn, .chat-step-btn { flex: 1; min-width: 120px; font-size: 13px; padding: 10px 12px; }
+      .allie-pinout-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .allie-pinout th, .allie-pinout td { font-size: 12px; padding: 6px 8px; white-space: nowrap; }
+      .allie-next-steps { font-size: 12px; }
+      .auth-result, .admin-result { font-size: 12px; }
+      .learning-fix { font-size: 14px; }
+      .learning-example { font-size: 12px; }
+      .stats-value { font-size: 28px; }
+      .locked-card { padding: 20px 14px; }
+      .locked-title { font-size: 18px; }
+      .locked-text { font-size: 14px; }
+      .footer { font-size: 11px; margin-top: 12px; }
+      .admin-back-btn { width: 100%; margin-bottom: 4px; }
+    }
+
+    @media (max-width: 480px) {
+      .title { font-size: 17px; }
+      .vehicle-grid, .spec-grid { grid-template-columns: 1fr; }
+      .admin-stats-grid { grid-template-columns: 1fr; }
+      .chat-messages { max-height: 280px; }
+      .step-title { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <div class="header">
+      <div class="brand-block">
+        <div class="logo-box">
+          <img src="./logo.png" alt="Allie-Kat Logo" onerror="this.style.display='none';" />
+        </div>
+
+        <div class="brand-copy">
+          <div class="eyebrow">Powered by Allie-Kat Automations</div>
+          <h1 class="title">ALLIE-KAT <span>TECH ASSISTANT</span></h1>
+          <div class="motto">
+            AI-powered diagnostic intelligence for serious mechanics. Built from the shop floor up.
+          </div>
+        </div>
+      </div>
+
+      <div class="status-area">
+        <button id="adminTopBtn" class="admin-top-btn" onclick="openAdminDashboard()">Admin Dashboard</button>
+        <button id="jobHistoryBtn" class="admin-top-btn" style="display:none;" onclick="openJobHistory()">Job History</button>
+        <button id="fleetBtn" class="admin-top-btn" style="display:none;" onclick="openFleetView()">Fleet</button>
+        <button id="logoutBtn" class="logout-btn" onclick="logoutUser()">Logout</button>
+        <div id="status" class="status">System Status: Ready</div>
+      </div>
+    </div>
+
+    <div id="mainAppView">
+      <div class="layout">
+        <div class="panel">
+          <div id="authWrap">
+            <h2>User Access</h2>
+
+            <div class="auth-card">
+              <div id="loginView">
+                <div class="auth-title">Login</div>
+
+                <div class="field-group">
+                  <label for="loginEmail">Email</label>
+                  <input id="loginEmail" placeholder="Enter email" />
+                </div>
+
+                <div class="field-group">
+                  <label for="loginPassword">Password</label>
+                  <input id="loginPassword" type="password" placeholder="Enter password" />
+                </div>
+
+                <div class="auth-action-row">
+                  <button class="primary" onclick="loginUser()">Login</button>
+                  <button class="secondary" onclick="showSignup()">Create Account</button>
+                </div>
+
+                <div class="field-group" style="margin-top: 14px;">
+                  <div class="field-label">Current User</div>
+                  <div class="field-value" id="currentUserBox">Not logged in</div>
+                </div>
+
+                <div id="loginResult" class="auth-result">No login attempt yet.</div>
+              </div>
+
+              <div id="signupView" class="hidden">
+                <div class="auth-title">Create Account</div>
+
+                <div class="field-group">
+                  <label for="signupName">Name</label>
+                  <input id="signupName" placeholder="Enter your name" />
+                </div>
+
+                <div class="field-group">
+                  <label for="signupCompany">Shop / Company Name</label>
+                  <input id="signupCompany" placeholder="Enter your shop or company name" />
+                </div>
+
+                <div class="field-group">
+                  <label for="signupEmail">Email</label>
+                  <input id="signupEmail" placeholder="Enter email" />
+                </div>
+
+                <div class="field-group">
+                  <label for="signupPassword">Password</label>
+                  <input id="signupPassword" type="password" placeholder="Enter password" />
+                </div>
+
+                <div class="auth-action-row">
+                  <button class="secondary" onclick="signupUser()">Sign Up</button>
+                  <button class="back" onclick="showLogin()">Back to Login</button>
+                </div>
+
+                <div class="auth-disclaimer">
+                  By creating an account, you understand this tool provides technician support information only. Final diagnosis, testing, and repair decisions remain the responsibility of the user or technician.
+                </div>
+
+                <div id="signupResult" class="auth-result">No signup attempt yet.</div>
+              </div>
+            </div>
+          </div>
+
+          <div id="diagLockedCard" class="locked-card">
+            <div class="locked-title">Diagnosis Locked</div>
+            <div class="locked-text">Log in to start diagnosis, view flow, and use Ask Allie.</div>
+          </div>
+
+          <div id="diagPanelContent" class="hidden">
+            <h2 style="margin-top: 18px;">Start Diagnosis</h2>
+
+            <div class="field-group">
+              <label for="vin">VIN</label>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <input id="vin" placeholder="Enter VIN or scan" style="flex:1;" />
+                <button class="secondary" onclick="openVinScanner()" style="flex:0 0 auto; padding:12px 14px; white-space:nowrap;" title="Scan VIN">📷 Scan</button>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <label for="code">DTC Code</label>
+              <input id="code" placeholder="Example: P2135" />
+            </div>
+
+            <div class="field-group">
+              <label for="symptom">Symptom / Complaint</label>
+              <input id="symptom" placeholder="Describe complaint" />
+            </div>
+
+            <div class="field-group">
+              <label for="notes">Completed Tests / Notes</label>
+              <textarea id="notes" placeholder="Enter voltage checks, ohm checks, visual findings, and technician notes"></textarea>
+            </div>
+
+            <div class="button-row">
+              <button class="primary" onclick="startDiag('standard')">Start Diagnosis</button>
+              <button class="expert" onclick="startDiag('expert')">Expert Diagnosis</button>
+              <button class="secondary" onclick="clearAll()">Clear</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="flowPanel" class="panel hidden">
+          <h2>Vehicle / Flow</h2>
+
+          <div class="vehicle-card">
+            <div class="vehicle-grid">
+              <div>
+                <div class="field-label">VIN</div>
+                <div class="field-value" id="vehicleVin">-</div>
+              </div>
+              <div>
+                <div class="field-label">Year</div>
+                <div class="field-value" id="vehicleYear">-</div>
+              </div>
+              <div>
+                <div class="field-label">Make</div>
+                <div class="field-value" id="vehicleMake">-</div>
+              </div>
+              <div>
+                <div class="field-label">Model</div>
+                <div class="field-value" id="vehicleModel">-</div>
+              </div>
+              <div>
+                <div class="field-label">Engine</div>
+                <div class="field-value" id="vehicleEngine">-</div>
+              </div>
+              <div>
+                <div class="field-label">Current Position</div>
+                <div class="field-value" id="currentPosition">Waiting for diagnosis...</div>
+              </div>
+            </div>
+          </div>
+
+          <div id="learningContainer"></div>
+
+          <div id="stepContainer">
+            <div class="step-card">
+              <div class="field-value">No diagnostic step loaded yet.</div>
+            </div>
+          </div>
+
+          <div class="summary-card">
+            <div class="field-label">Step History</div>
+            <div id="historyBox" class="field-value">No steps taken yet.</div>
+          </div>
+        </div>
+
+        <div id="chatPanel" class="panel hidden">
+          <h2>Ask Allie</h2>
+
+          <div class="chat-card">
+            <div class="chat-title">Ask Allie</div>
+            <div class="chat-subtitle">Spitball the problem, test ideas, and build the next step.</div>
+            <div id="chatMessages" class="chat-messages"></div>
+
+            <div class="chat-input-row">
+              <textarea id="chatInput" placeholder="Ask Allie about the current job..."></textarea>
+            </div>
+
+            <div class="chat-input-row">
+              <button class="chat-send" onclick="sendChat()">Send</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="adminDashboardView" class="hidden">
+      <div class="admin-dashboard-panel">
+        <div class="admin-action-row" style="margin-top: 0; margin-bottom: 14px;">
+          <button class="admin-back-btn" onclick="closeAdminDashboard()">Back to App</button>
+          <button class="users-page-btn" style="display:inline-block;" onclick="openAdminUsersPage()">View Users</button>
+          <button class="secondary" onclick="loadAdminDashboardData()">Refresh Dashboard</button>
+          <button class="secondary" onclick="loadAccessRequests()">Refresh Requests</button>
+        </div>
+
+        <h2>Admin Dashboard</h2>
+
+        <div class="admin-card">
+          <div class="admin-title">User Activity</div>
+
+          <div class="admin-stats-grid">
+            <div class="stats-card">
+              <div class="field-label">Total Registered Users</div>
+              <div id="totalRegisteredUsers" class="stats-value">0</div>
+              <div class="stats-subtext">All users currently registered in the app.</div>
+            </div>
+
+            <div class="stats-card">
+              <div class="field-label">Online Registered Users</div>
+              <div id="onlineRegisteredUsers" class="stats-value">0</div>
+              <div class="stats-subtext">Users active inside the current online window.</div>
+            </div>
+          </div>
+
+          <div id="adminUserStatsResult" class="admin-result">User stats not loaded yet.</div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-title">Online Users</div>
+          <div class="page-note">Quick live snapshot of who is active right now.</div>
+          <div id="onlineUsersResult" class="admin-result">Online users not loaded yet.</div>
+          <div id="onlineUsersList" class="online-users-grid"></div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-title">Registered Users</div>
+          <div class="page-note">Use the View Users button to open the dedicated user management page.</div>
+          <div id="adminUsersResult" class="admin-result">User page ready.</div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-title">Pending Access Requests</div>
+          <div id="adminResult" class="admin-result">No admin actions yet.</div>
+          <div id="accessRequestsList"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="adminUsersView" class="hidden">
+      <div class="admin-users-panel">
+        <div class="admin-action-row" style="margin-top: 0; margin-bottom: 14px;">
+          <button class="admin-back-btn" onclick="closeAdminUsersPage()">Back to Dashboard</button>
+          <button class="secondary" onclick="loadAdminUsers()">Refresh Users</button>
+        </div>
+
+        <h2>Registered Users</h2>
+        <div class="page-note">Detailed view of all users currently in the system.</div>
+
+        <div class="admin-card">
+          <div id="adminUsersPageResult" class="admin-result">User list not loaded yet.</div>
+          <div id="adminUsersList" class="users-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- JOB HISTORY VIEW -->
+    <div id="jobHistoryView" class="hidden">
+      <div class="admin-dashboard-panel">
+        <div class="admin-action-row" style="margin-top: 0; margin-bottom: 14px;">
+          <button class="admin-back-btn" onclick="closeJobHistory()">Back to App</button>
+          <button class="secondary" onclick="loadJobHistory()">Refresh</button>
+        </div>
+        <h2>Job History</h2>
+        <div class="page-note">All diagnostic jobs saved by your shop.</div>
+        <div class="admin-card">
+          <div id="jobHistoryResult" class="admin-result">Loading jobs...</div>
+          <div id="jobHistoryList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FLEET MANAGEMENT VIEW -->
+    <div id="fleetView" class="hidden">
+      <div class="admin-dashboard-panel">
+        <div class="admin-action-row" style="margin-top: 0; margin-bottom: 14px;">
+          <button class="admin-back-btn" onclick="closeFleetView()">Back to App</button>
+          <button class="secondary" onclick="loadFleetView()">Refresh</button>
+        </div>
+        <h2>Fleet Management</h2>
+
+        <!-- YARDS -->
+        <div class="admin-card">
+          <div class="admin-title">Yards</div>
+          <div class="page-note">Physical locations where units operate.</div>
+          <div class="admin-action-row" style="margin-top: 10px;">
+            <input id="newYardName" placeholder="Yard name" style="flex:1; min-width:160px;" />
+            <input id="newYardAddress" placeholder="Address (optional)" style="flex:1; min-width:160px;" />
+            <input id="newYardContact" placeholder="Contact name (optional)" style="flex:1; min-width:160px;" />
+            <button class="primary" onclick="createYard()">Add Yard</button>
+          </div>
+          <div id="yardResult" class="admin-result" style="margin-top:8px;"></div>
+          <div id="yardsList" style="margin-top:10px;"></div>
+        </div>
+
+        <!-- FLEETS -->
+        <div class="admin-card">
+          <div class="admin-title">Fleets</div>
+          <div class="page-note">Fleet companies you service.</div>
+          <div class="admin-action-row" style="margin-top: 10px;">
+            <input id="newFleetName" placeholder="Fleet name" style="flex:1; min-width:160px;" />
+            <input id="newFleetCompany" placeholder="Company name" style="flex:1; min-width:160px;" />
+            <select id="newFleetYard" style="flex:1; min-width:160px; padding:12px 14px; border-radius:12px; border:1px solid rgba(76,229,255,0.18); background:#0b1d2a; color:#fff; font-size:15px;">
+              <option value="">No yard assigned</option>
+            </select>
+            <button class="primary" onclick="createFleet()">Add Fleet</button>
+          </div>
+          <div id="fleetResult" class="admin-result" style="margin-top:8px;"></div>
+          <div id="fleetsList" style="margin-top:10px;"></div>
+        </div>
+
+        <!-- UNITS -->
+        <div class="admin-card">
+          <div class="admin-title">Units</div>
+          <div class="page-note">Individual vehicles in your fleets.</div>
+          <div class="admin-action-row" style="margin-top: 10px; flex-wrap:wrap;">
+            <input id="newUnitVin" placeholder="VIN (auto-decodes)" style="flex:1; min-width:160px;" />
+            <input id="newUnitNumber" placeholder="Unit # (e.g. T-101)" style="flex:1; min-width:120px;" />
+            <select id="newUnitFleet" style="flex:1; min-width:160px; padding:12px 14px; border-radius:12px; border:1px solid rgba(76,229,255,0.18); background:#0b1d2a; color:#fff; font-size:15px;">
+              <option value="">Select fleet</option>
+            </select>
+            <button class="primary" onclick="createUnit()">Add Unit</button>
+          </div>
+          <div id="unitResult" class="admin-result" style="margin-top:8px;"></div>
+          <div id="unitsList" style="margin-top:10px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIN SCANNER MODAL -->
+    <div id="vinScannerModal" style="
+      display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+      background:rgba(0,0,0,0.92); z-index:9999;
+      flex-direction:column; align-items:center; justify-content:center;
+    ">
+      <div style="width:100%; max-width:500px; padding:16px;">
+        <div style="color:#4ce5ff; font-size:20px; font-weight:700; margin-bottom:8px; text-align:center;">📷 VIN Scanner</div>
+        <div id="vinScanStatus" style="color:#9fd9e6; font-size:13px; text-align:center; margin-bottom:12px;">Point camera at VIN barcode or VIN plate text</div>
+
+        <!-- Camera feed -->
+        <div style="position:relative; width:100%; border-radius:16px; overflow:hidden; border:2px solid rgba(76,229,255,0.3); background:#000;">
+          <video id="vinVideo" autoplay playsinline muted style="width:100%; display:block; max-height:340px; object-fit:cover;"></video>
+          <canvas id="vinCanvas" style="display:none;"></canvas>
+          <!-- Aim overlay -->
+          <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+            width:80%; height:60px; border:2px solid rgba(76,229,255,0.6);
+            border-radius:8px; pointer-events:none;">
+            <div style="position:absolute; top:-1px; left:-1px; width:16px; height:16px; border-top:3px solid #4ce5ff; border-left:3px solid #4ce5ff; border-radius:2px 0 0 0;"></div>
+            <div style="position:absolute; top:-1px; right:-1px; width:16px; height:16px; border-top:3px solid #4ce5ff; border-right:3px solid #4ce5ff; border-radius:0 2px 0 0;"></div>
+            <div style="position:absolute; bottom:-1px; left:-1px; width:16px; height:16px; border-bottom:3px solid #4ce5ff; border-left:3px solid #4ce5ff; border-radius:0 0 0 2px;"></div>
+            <div style="position:absolute; bottom:-1px; right:-1px; width:16px; height:16px; border-bottom:3px solid #4ce5ff; border-right:3px solid #4ce5ff; border-radius:0 0 2px 0;"></div>
+          </div>
+        </div>
+
+        <!-- Scanned result -->
+        <div id="vinScanResult" style="
+          margin-top:12px; padding:12px; border-radius:12px;
+          background:rgba(76,229,255,0.08); border:1px solid rgba(76,229,255,0.18);
+          color:#4ce5ff; font-size:18px; font-weight:700; text-align:center;
+          min-height:48px; letter-spacing:2px;
+        "></div>
+
+        <div style="display:flex; gap:10px; margin-top:12px;">
+          <button class="primary" style="flex:1;" onclick="confirmScannedVin()">✅ Use This VIN</button>
+          <button class="secondary" style="flex:1;" onclick="retryVinScan()">🔄 Retry</button>
+          <button class="back" style="flex:1;" onclick="closeVinScanner()">✕ Cancel</button>
+        </div>
+
+        <div style="margin-top:10px; text-align:center; color:#6f93a3; font-size:12px;">
+          Works with door jamb barcodes and VIN plate text.<br>For Class 8 trucks — aim at the VIN plate on the door pillar.
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">Allie-Kat Automations</div>
+  </div>
+
+  <script>
+    const backend = "https://alliekat-app.onrender.com";
+
+    let tree = null;
+    let currentStep = null;
+    let historyLog = [];
+    let stepStack = [];
+    let vehicleData = {};
+    let runToken = 0;
+    let currentMode = "standard";
+    let chatHistory = [];
+    let currentUser = null;
+    let currentSession = null;
+    let currentProfile = null;
+    let heartbeatTimer = null;
+    let cachedAdminUsers = [];
+    let askAllieSessionId = null;
+    let cachedYards = [];
+    let cachedFleets = [];
+
+    function setStatus(text) {
+      document.getElementById("status").innerText = text;
+    }
+
+    function showSignup() {
+      document.getElementById("loginView").classList.add("hidden");
+      document.getElementById("signupView").classList.remove("hidden");
+    }
+
+    function showLogin() {
+      document.getElementById("signupView").classList.add("hidden");
+      document.getElementById("loginView").classList.remove("hidden");
+    }
+
+    function saveAuthToStorage() {
+      localStorage.setItem("alliekat_current_user", JSON.stringify(currentUser || null));
+      localStorage.setItem("alliekat_current_session", JSON.stringify(currentSession || null));
+      localStorage.setItem("alliekat_current_profile", JSON.stringify(currentProfile || null));
+    }
+
+    function loadAuthFromStorage() {
+      try {
+        currentUser = JSON.parse(localStorage.getItem("alliekat_current_user") || "null");
+        currentSession = JSON.parse(localStorage.getItem("alliekat_current_session") || "null");
+        currentProfile = JSON.parse(localStorage.getItem("alliekat_current_profile") || "null");
+      } catch (err) {
+        currentUser = null;
+        currentSession = null;
+        currentProfile = null;
+      }
+    }
+
+    function clearAuthFromStorage() {
+      localStorage.removeItem("alliekat_current_user");
+      localStorage.removeItem("alliekat_current_session");
+      localStorage.removeItem("alliekat_current_profile");
+    }
+
+    async function sendHeartbeat() {
+      if (!currentUser || !currentUser.id) return;
+      try {
+        await fetch(`${backend}/heartbeat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: currentUser.id })
+        });
+      } catch (err) {
+        console.log("heartbeat failed:", err.message);
+      }
+    }
+
+    function startHeartbeat() {
+      stopHeartbeat();
+      if (!currentUser || !currentUser.id) return;
+      sendHeartbeat();
+      heartbeatTimer = setInterval(sendHeartbeat, 60000);
+    }
+
+    function stopHeartbeat() {
+      if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+      }
+    }
+
+    async function loadUserProfile(userId) {
+      if (!userId) return null;
+      try {
+        const res = await fetch(`${backend}/user-profile/${userId}`);
+        const data = await res.json();
+        if (data.success && data.profile) return data.profile;
+        return null;
+      } catch (err) {
+        return null;
+      }
+    }
+
+    function isUserOnline(lastSeenValue, windowMinutes = 15) {
+      if (!lastSeenValue) return false;
+      const seenTime = new Date(lastSeenValue).getTime();
+      if (Number.isNaN(seenTime)) return false;
+      const cutoff = Date.now() - (windowMinutes * 60 * 1000);
+      return seenTime >= cutoff;
+    }
+
+    async function loadAdminUserStats() {
+      const resultBox = document.getElementById("adminUserStatsResult");
+      const totalBox = document.getElementById("totalRegisteredUsers");
+      const onlineBox = document.getElementById("onlineRegisteredUsers");
+      if ((currentProfile?.role || "") !== "admin" && (currentProfile?.role || "") !== "super_admin") return;
+      resultBox.innerText = "Loading user stats...";
+      try {
+        const res = await fetch(`${backend}/admin-user-stats`);
+        const data = await res.json();
+        if (data.success) {
+          totalBox.innerText = data.total_registered_users ?? 0;
+          onlineBox.innerText = data.online_registered_users ?? 0;
+          resultBox.innerText = `Loaded user stats. Online window: ${data.online_window_minutes ?? 15} minute(s).`;
+          return;
+        }
+        totalBox.innerText = "0";
+        onlineBox.innerText = "0";
+        resultBox.innerText = data.error || "Failed to load user stats.";
+      } catch (err) {
+        totalBox.innerText = "0";
+        onlineBox.innerText = "0";
+        resultBox.innerText = `User stats error: ${err.message}`;
+      }
+    }
+
+    function renderAdminUsers(users) {
+      const container = document.getElementById("adminUsersList");
+      if (!users || !users.length) {
+        container.innerHTML = `<div class="user-card"><div class="field-value">No registered users found.</div></div>`;
+        return;
+      }
+      container.innerHTML = users.map(user => `
+        <div class="user-card">
+          <div class="user-email">${user.email || "-"}</div>
+          <div class="user-meta">
+Name: ${user.name || "-"}
+Role: ${user.role || "-"}
+Created: ${user.created_at || "-"}
+Last Seen: ${user.last_seen || "-"}
+          </div>
+          <div class="user-role-badge">${user.role || "tech"}</div>
+        </div>
+      `).join("");
+    }
+
+    function renderOnlineUsers(users) {
+      const container = document.getElementById("onlineUsersList");
+      const resultBox = document.getElementById("onlineUsersResult");
+      const onlineUsers = (users || []).filter(user => isUserOnline(user.last_seen, 15));
+      if (!onlineUsers.length) {
+        container.innerHTML = `<div class="online-user-card"><div class="field-value">No users are currently online.</div></div>`;
+        resultBox.innerText = "Loaded 0 online user(s).";
+        return;
+      }
+      container.innerHTML = onlineUsers.map(user => `
+        <div class="online-user-card">
+          <div class="online-user-email">${user.email || "-"}</div>
+          <div class="online-user-meta">
+Name: ${user.name || "-"}
+Role: ${user.role || "-"}
+Last Seen: ${user.last_seen || "-"}
+          </div>
+          <div class="online-role-badge">${user.role || "tech"}</div>
+        </div>
+      `).join("");
+      resultBox.innerText = `Loaded ${onlineUsers.length} online user(s).`;
+    }
+
+    async function loadAdminUsers() {
+      const dashboardBox = document.getElementById("adminUsersResult");
+      const pageBox = document.getElementById("adminUsersPageResult");
+      if ((currentProfile?.role || "") !== "admin" && (currentProfile?.role || "") !== "super_admin") return;
+      dashboardBox.innerText = "Loading registered users...";
+      pageBox.innerText = "Loading registered users...";
+      try {
+        const res = await fetch(`${backend}/admin-users`);
+        const data = await res.json();
+        if (data.success) {
+          cachedAdminUsers = data.users || [];
+          renderAdminUsers(cachedAdminUsers);
+          renderOnlineUsers(cachedAdminUsers);
+          dashboardBox.innerText = `Loaded ${cachedAdminUsers.length} registered user(s). Open the dedicated user page to view them.`;
+          pageBox.innerText = `Loaded ${cachedAdminUsers.length} registered user(s).`;
+          return;
+        }
+        cachedAdminUsers = [];
+        renderAdminUsers([]);
+        renderOnlineUsers([]);
+        dashboardBox.innerText = data.error || "Failed to load registered users.";
+        pageBox.innerText = data.error || "Failed to load registered users.";
+      } catch (err) {
+        cachedAdminUsers = [];
+        renderAdminUsers([]);
+        renderOnlineUsers([]);
+        dashboardBox.innerText = `User list error: ${err.message}`;
+        pageBox.innerText = `User list error: ${err.message}`;
+      }
+    }
+
+    async function loadAdminDashboardData() {
+      const role = currentProfile?.role || "";
+      if (role !== "admin" && role !== "super_admin") return;
+      await loadAdminUserStats();
+      await loadAdminUsers();
+      await loadAccessRequests();
+    }
+
+    function openAdminDashboard() {
+      const role = currentProfile?.role || "";
+      if (role !== "admin" && role !== "super_admin") return;
+      document.getElementById("mainAppView").classList.add("hidden");
+      document.getElementById("adminUsersView").classList.add("hidden");
+      document.getElementById("jobHistoryView").classList.add("hidden");
+      document.getElementById("fleetView").classList.add("hidden");
+      document.getElementById("adminDashboardView").classList.remove("hidden");
+      setStatus("System Status: Admin dashboard open");
+      loadAdminDashboardData();
+    }
+
+    function closeAdminDashboard() {
+      document.getElementById("adminDashboardView").classList.add("hidden");
+      document.getElementById("adminUsersView").classList.add("hidden");
+      document.getElementById("mainAppView").classList.remove("hidden");
+      const role = currentProfile?.role || "tech";
+      setStatus(`System Status: Ready (${role})`);
+    }
+
+    function openAdminUsersPage() {
+      if ((currentProfile?.role || "") !== "admin" && (currentProfile?.role || "") !== "super_admin") return;
+      document.getElementById("adminDashboardView").classList.add("hidden");
+      document.getElementById("adminUsersView").classList.remove("hidden");
+      setStatus("System Status: User page open");
+      loadAdminUsers();
+    }
+
+    function closeAdminUsersPage() {
+      if ((currentProfile?.role || "") !== "admin" && (currentProfile?.role || "") !== "super_admin") return;
+      document.getElementById("adminUsersView").classList.add("hidden");
+      document.getElementById("adminDashboardView").classList.remove("hidden");
+      setStatus("System Status: Admin dashboard open");
+    }
+
+    function updateAuthView() {
+      const loggedIn = !!currentUser;
+      const role = currentProfile?.role || "tech";
+      const isAdmin = role === "admin" || role === "super_admin";
+      const isSuperAdmin = role === "super_admin";
+
+      document.getElementById("authWrap").style.display = loggedIn ? "none" : "block";
+      document.getElementById("diagLockedCard").style.display = loggedIn ? "none" : "block";
+      document.getElementById("diagPanelContent").classList.toggle("hidden", !loggedIn);
+      document.getElementById("flowPanel").classList.toggle("hidden", !loggedIn);
+      document.getElementById("chatPanel").classList.toggle("hidden", !loggedIn);
+      document.getElementById("logoutBtn").style.display = loggedIn ? "inline-block" : "none";
+      document.getElementById("adminTopBtn").style.display = loggedIn && isAdmin ? "inline-block" : "none";
+      document.getElementById("jobHistoryBtn").style.display = loggedIn ? "inline-block" : "none";
+      document.getElementById("fleetBtn").style.display = loggedIn && isAdmin ? "inline-block" : "none";
+
+      if (!loggedIn) {
+        document.getElementById("adminDashboardView").classList.add("hidden");
+        document.getElementById("adminUsersView").classList.add("hidden");
+        document.getElementById("jobHistoryView").classList.add("hidden");
+        document.getElementById("fleetView").classList.add("hidden");
+        document.getElementById("mainAppView").classList.remove("hidden");
+      }
+    }
+
+    function setVehicle(vehicle, currentPositionText) {
+      vehicleData = vehicle || {};
+      document.getElementById("vehicleVin").innerText = vehicleData.vin || document.getElementById("vin").value || "-";
+      document.getElementById("vehicleYear").innerText = vehicleData.year || "-";
+      document.getElementById("vehicleMake").innerText = vehicleData.make || "-";
+      document.getElementById("vehicleModel").innerText = vehicleData.model || "-";
+      document.getElementById("vehicleEngine").innerText = vehicleData.engine || "-";
+      document.getElementById("currentPosition").innerText = currentPositionText || "Diagnosis loaded";
+    }
+
+    function renderCurrentUser() {
+      const box = document.getElementById("currentUserBox");
+      if (!currentUser) {
+        box.innerText = "Not logged in";
+        return;
+      }
+      const email = currentUser.email || "Unknown email";
+      const role = currentProfile?.role || "tech";
+      box.innerText = `${email} | role: ${role}`;
+    }
+
+    function renderHistory() {
+      const historyBox = document.getElementById("historyBox");
+      if (!historyLog.length) {
+        historyBox.innerText = "No steps taken yet.";
+        return;
+      }
+      historyBox.innerHTML = historyLog.map(item => `<div class="history-line">${item}</div>`).join("");
+    }
+
+    function renderLoadingCard(modeLabel) {
+      document.getElementById("stepContainer").innerHTML = `
+        <div class="step-card loading-card">
+          <div class="loading-title">Building ${modeLabel} Tree...</div>
+          <div class="loading-text">VIN is decoded and the system is building the richer troubleshooting path now.</div>
+        </div>
+      `;
+    }
+
+    function renderLearningPanel(suggestedFixes, learningMatches) {
+      if (!suggestedFixes || !suggestedFixes.length) {
+        document.getElementById("learningContainer").innerHTML = "";
+        return;
+      }
+      const fixesHtml = suggestedFixes.map(fix => {
+        const examples = (fix.examples || []).map(example => `
+          <div class="learning-example">
+            ${example.make || ""} ${example.model || ""} ${example.engine || ""} | ${example.fault_code || ""}<br>
+            ${example.complaint || ""}
+          </div>
+        `).join("");
+        return `
+          <div class="learning-item">
+            <div class="learning-fix">${fix.final_fix}</div>
+            <div class="learning-count">Seen ${fix.count} time(s)</div>
+            ${examples}
+          </div>
+        `;
+      }).join("");
+      document.getElementById("learningContainer").innerHTML = `
+        <div class="learning-card">
+          <h3 class="learning-title">Known Fixes</h3>
+          <div class="learning-subtitle">${learningMatches || suggestedFixes.length} learning match(es) found</div>
+          ${fixesHtml}
+        </div>
+      `;
+    }
+
+    function renderCompleteCard() {
+      document.getElementById("stepContainer").innerHTML = `
+        <div class="final-card">
+          <h3 class="step-title">Diagnosis Complete</h3>
+          <div class="step-section">
+            <div class="step-section-title">Likely Fault Path</div>
+            <div class="step-section-body">${tree?.likely_fault_path || "No likely fault path returned."}</div>
+          </div>
+          <div class="step-section">
+            <div class="step-section-title">Final Recommendation</div>
+            <div class="step-section-body">${tree?.final_recommendation || "No final recommendation returned."}</div>
+          </div>
+          <div class="field-group">
+            <label for="finalFix">Final Fix Performed</label>
+            <textarea id="finalFix" placeholder="Enter actual repair performed"></textarea>
+          </div>
+          <div class="final-row">
+            <button class="back" onclick="goBack()">⬅ Back</button>
+            <button class="complete" onclick="saveFinal()">Save Final Fix</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderStep() {
+      if (!currentStep) {
+        renderCompleteCard();
+        return;
+      }
+      const buttonsHtml = (currentStep.result_buttons || []).map(btn => {
+        let cls = "skip";
+        if (btn.label === "PASS") cls = "pass";
+        if (btn.label === "FAIL") cls = "fail";
+        return `<button class="${cls}" onclick="nextStep('${btn.next_step_id}', '${btn.label.replace(/'/g, "\\'")}')">${btn.label}</button>`;
+      }).join("");
+      const backButtonHtml = stepStack.length > 0
+        ? `<button class="back" onclick="goBack()">⬅ Back</button>`
+        : "";
+      document.getElementById("stepContainer").innerHTML = `
+        <div class="step-card">
+          <h3 class="step-title">${currentStep.title || "Diagnostic Step"}</h3>
+          <div class="step-section">
+            <div class="step-section-title">Instruction</div>
+            <div class="step-section-body">${currentStep.instruction || "-"}</div>
+          </div>
+          <div class="step-section">
+            <div class="step-section-title">Where To Test</div>
+            <div class="step-section-body">${currentStep.where_to_test || "-"}</div>
+          </div>
+          <div class="step-section">
+            <div class="step-section-title">Expected Specs</div>
+            <div class="spec-grid">
+              <div><div class="field-label">Expected Voltage</div><div class="field-value">${currentStep.expected_specs?.voltage || "-"}</div></div>
+              <div><div class="field-label">Expected Ohms</div><div class="field-value">${currentStep.expected_specs?.ohms || "-"}</div></div>
+              <div><div class="field-label">Expected Pressure</div><div class="field-value">${currentStep.expected_specs?.pressure || "-"}</div></div>
+              <div><div class="field-label">Expected Signal</div><div class="field-value">${currentStep.expected_specs?.signal || "-"}</div></div>
+              <div><div class="field-label">Expected Voltage Drop</div><div class="field-value">${currentStep.expected_specs?.voltage_drop || "-"}</div></div>
+            </div>
+          </div>
+          <div class="step-section">
+            <div class="step-section-title">How To Test</div>
+            <div class="step-section-body">${currentStep.how_to_test || "-"}</div>
+          </div>
+          <div class="result-buttons">
+            ${buttonsHtml}
+            ${backButtonHtml}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAccessRequests(requests) {
+      const container = document.getElementById("accessRequestsList");
+      if (!requests || !requests.length) {
+        container.innerHTML = `<div class="request-card"><div class="field-value">No pending access requests.</div></div>`;
+        return;
+      }
+      container.innerHTML = requests.map(request => `
+        <div class="request-card">
+          <div class="request-email">${request.email || ""}</div>
+          <div class="request-meta">
+Name: ${request.name || "-"}
+Status: ${request.status || "-"}
+Created: ${request.created_at || "-"}
+Company: ${request.company || "-"}
+Reason: ${request.reason || "-"}
+          </div>
+          <div class="admin-action-row">
+            <button class="approve-btn" onclick="approveRequest('${request.id}')">Approve</button>
+            <button class="deny-btn" onclick="denyRequest('${request.id}')">Deny</button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    async function loadAccessRequests() {
+      if ((currentProfile?.role || "") !== "admin" && (currentProfile?.role || "") !== "super_admin") return;
+      const resultBox = document.getElementById("adminResult");
+      resultBox.innerText = "Loading pending requests...";
+      try {
+        const res = await fetch(`${backend}/access-requests?status=pending`);
+        const data = await res.json();
+        if (data.success) {
+          renderAccessRequests(data.requests || []);
+          resultBox.innerText = `Loaded ${(data.requests || []).length} pending request(s).`;
+          return;
+        }
+        resultBox.innerText = data.error || "Failed to load requests.";
+      } catch (err) {
+        resultBox.innerText = `Request load error: ${err.message}`;
+      }
+    }
+
+    async function approveRequest(requestId) {
+      const resultBox = document.getElementById("adminResult");
+      resultBox.innerText = "Approving request...";
+      try {
+        const res = await fetch(`${backend}/approve-request`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ request_id: requestId })
+        });
+        const data = await res.json();
+        if (data.success) {
+          resultBox.innerText = "Request approved.";
+          await loadAdminDashboardData();
+          return;
+        }
+        resultBox.innerText = data.error || "Approve failed.";
+      } catch (err) {
+        resultBox.innerText = `Approve error: ${err.message}`;
+      }
+    }
+
+    async function denyRequest(requestId) {
+      const resultBox = document.getElementById("adminResult");
+      resultBox.innerText = "Denying request...";
+      try {
+        const res = await fetch(`${backend}/deny-request`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ request_id: requestId })
+        });
+        const data = await res.json();
+        if (data.success) {
+          resultBox.innerText = "Request denied.";
+          await loadAdminDashboardData();
+          return;
+        }
+        resultBox.innerText = data.error || "Deny failed.";
+      } catch (err) {
+        resultBox.innerText = `Deny error: ${err.message}`;
+      }
+    }
+
+    function addToNotes(text) {
+      const notesBox = document.getElementById("notes");
+      const cleanText = (text || "").trim();
+      if (!cleanText) return;
+      const prefix = notesBox.value.trim() ? "\n\n" : "";
+      notesBox.value = `${notesBox.value}${prefix}[CHAT INSIGHT]\n${cleanText}`;
+      setStatus("System Status: Added to notes");
+    }
+
+    function buildStepFromAssistantText(text) {
+      return {
+        id: `chat_step_${Date.now()}`,
+        title: "Chat-Suggested Next Step",
+        instruction: text || "No instruction provided.",
+        where_to_test: "Use current job context and affected circuit/component.",
+        expected_specs: {
+          voltage: "Verify exact OEM spec/pinout for this platform",
+          ohms: "Verify exact OEM spec/pinout for this platform",
+          pressure: "Verify exact OEM spec/pinout for this platform",
+          signal: "Verify exact OEM spec/pinout for this platform",
+          voltage_drop: "Verify exact OEM spec/pinout for this platform"
+        },
+        how_to_test: "Use the assistant guidance and current job evidence to perform the next test.",
+        result_buttons: [
+          { label: "PASS", next_step_id: "" },
+          { label: "FAIL", next_step_id: "" },
+          { label: "NOT TESTED", next_step_id: "" }
+        ]
+      };
+    }
+
+    // =============================================
+    // RENDER CHAT — shows full Allie response
+    // including pinout tables, next steps, sources
+    // =============================================
+    function renderChat() {
+      const box = document.getElementById("chatMessages");
+
+      if (!chatHistory.length) {
+        box.innerHTML = `
+          <div class="chat-msg chat-assistant">
+            <span class="chat-role">Allie</span>
+            Start a diagnosis, then ask things like:
+            - What should I check next?
+            - What does this voltage mean?
+            - Can I skip this step?
+            - Why am I checking this wire?
+            - What's the pinout for the TPS connector?
+          </div>
+        `;
+        return;
+      }
+
+      box.innerHTML = chatHistory.map((msg, index) => {
+        if (msg.role === "assistant") {
+          const meta = msg.meta || {};
+
+          // Pinout table HTML
+          let pinoutHtml = "";
+          if (meta.pinout_table && meta.pinout_table.length) {
+            const rows = meta.pinout_table.map(pin => `
+              <tr>
+                <td><strong>${pin.pin_label || "-"}</strong></td>
+                <td>${pin.wire_color || "-"}</td>
+                <td>${pin.circuit_function || "-"}</td>
+                <td>${pin.expected_value || "-"}</td>
+                <td>${pin.notes || "-"}</td>
+              </tr>
+            `).join("");
+            pinoutHtml = `
+              <div class="allie-pinout-title">📌 Connector Pinout</div>
+              <div class="allie-pinout-wrap">
+                <table class="allie-pinout">
+                  <thead><tr><th>Pin</th><th>Wire Color</th><th>Function</th><th>Expected</th><th>Notes</th></tr></thead>
+                  <tbody>${rows}</tbody>
+                </table>
+              </div>
+            `;
+          }
+
+          // Next steps HTML
+          let nextStepsHtml = "";
+          if (meta.next_steps && meta.next_steps.length) {
+            nextStepsHtml = `
+              <div style="margin-top:8px; font-size:12px; color:#7fb8cd; text-transform:uppercase; letter-spacing:1px;">Next Steps</div>
+              <ol class="allie-next-steps">
+                ${meta.next_steps.map(s => `<li>${s}</li>`).join("")}
+              </ol>
+            `;
+          }
+
+          // Warnings HTML
+          let warningsHtml = "";
+          if (meta.warnings && meta.warnings.length) {
+            warningsHtml = meta.warnings.map(w => `<div class="allie-warning">⚠ ${w}</div>`).join("");
+          }
+
+          // Meta bar
+          const confidenceScore = meta.confidence_score != null ? meta.confidence_score : "";
+          const matchLevel = meta.match_level || "";
+          const usedWeb = meta.used_web ? `<span class="allie-web-badge">🌐 Web search used</span>` : "";
+
+          const metaHtml = (confidenceScore !== "" || matchLevel || usedWeb) ? `
+            <div class="allie-meta">
+              ${usedWeb}
+              ${confidenceScore !== "" ? `<div class="allie-confidence">Confidence: ${confidenceScore}% | Match: ${matchLevel}</div>` : ""}
+            </div>
+          ` : "";
+
+          return `
+            <div class="chat-msg chat-assistant">
+              <span class="chat-role">Allie</span>
+              ${msg.content}
+              ${pinoutHtml}
+              ${nextStepsHtml}
+              ${warningsHtml}
+              ${metaHtml}
+              <div class="chat-action-row">
+                <button class="chat-note-btn" onclick="addToNotes(chatHistory[${index}].content)">Add to Notes</button>
+                <button class="chat-step-btn" onclick="makeNextStep(${index})">Make Next Step</button>
+              </div>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="chat-msg chat-user">
+            <span class="chat-role">You</span>
+            ${msg.content}
+          </div>
+        `;
+      }).join("");
+
+      box.scrollTop = box.scrollHeight;
+    }
+
+    async function signupUser() {
+      const name = (document.getElementById("signupName").value || "").trim();
+      const company = (document.getElementById("signupCompany").value || "").trim();
+      const email = (document.getElementById("signupEmail").value || "").trim();
+      const password = document.getElementById("signupPassword").value || "";
+      const resultBox = document.getElementById("signupResult");
+      if (!email || !password) {
+        resultBox.innerText = "Email and password required.";
+        setStatus("System Status: Signup needs email and password");
+        return;
+      }
+      if (!company) {
+        resultBox.innerText = "Shop / Company name required.";
+        setStatus("System Status: Signup needs company name");
+        return;
+      }
+      setStatus("System Status: Creating request...");
+      try {
+        const res = await fetch(`${backend}/signup-v2`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, company, email, password })
+        });
+        const data = await res.json();
+        resultBox.innerText = JSON.stringify(data, null, 2);
+        if (data.success) {
+          document.getElementById("loginEmail").value = email;
+          document.getElementById("loginPassword").value = password;
+          showLogin();
+          setStatus("System Status: Access request submitted — awaiting approval");
+        } else {
+          setStatus("System Status: Request failed");
+        }
+      } catch (err) {
+        resultBox.innerText = `Signup error: ${err.message}`;
+        setStatus("System Status: Signup error");
+      }
+    }
+
+    async function loginUser() {
+      const email = (document.getElementById("loginEmail").value || "").trim();
+      const password = document.getElementById("loginPassword").value || "";
+      const resultBox = document.getElementById("loginResult");
+      if (!email || !password) {
+        resultBox.innerText = "Email and password required.";
+        setStatus("System Status: Login needs email and password");
+        return;
+      }
+      setStatus("System Status: Logging in...");
+      try {
+        const res = await fetch(`${backend}/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (data.success) {
+          currentUser = data.user || null;
+          currentSession = data.session || null;
+          currentProfile = await loadUserProfile(currentUser?.id);
+          saveAuthToStorage();
+          renderCurrentUser();
+          updateAuthView();
+          startHeartbeat();
+          const role = currentProfile?.role || "tech";
+          resultBox.innerText = JSON.stringify({
+            success: data.success,
+            email: data.user?.email || "",
+            user_id: data.user?.id || "",
+            role,
+            access_token_found: !!data.session?.access_token
+          }, null, 2);
+          if (role === "admin") await loadAdminDashboardData();
+          setStatus(`System Status: Login successful (${role})`);
+          return;
+        }
+        currentUser = null;
+        currentSession = null;
+        currentProfile = null;
+        stopHeartbeat();
+        clearAuthFromStorage();
+        renderCurrentUser();
+        updateAuthView();
+        resultBox.innerText = JSON.stringify(data, null, 2);
+        setStatus("System Status: Login failed");
+      } catch (err) {
+        currentUser = null;
+        currentSession = null;
+        currentProfile = null;
+        stopHeartbeat();
+        clearAuthFromStorage();
+        renderCurrentUser();
+        updateAuthView();
+        resultBox.innerText = `Login error: ${err.message}`;
+        setStatus("System Status: Login error");
+      }
+    }
+
+    function logoutUser() {
+      stopHeartbeat();
+      currentUser = null;
+      currentSession = null;
+      currentProfile = null;
+      cachedAdminUsers = [];
+      cachedYards = [];
+      cachedFleets = [];
+      askAllieSessionId = null;
+      clearAuthFromStorage();
+      renderCurrentUser();
+      updateAuthView();
+      clearAll();
+      showLogin();
+      closeAdminDashboard();
+      document.getElementById("jobHistoryView").classList.add("hidden");
+      document.getElementById("fleetView").classList.add("hidden");
+      document.getElementById("accessRequestsList").innerHTML = "";
+      document.getElementById("adminUsersList").innerHTML = "";
+      document.getElementById("onlineUsersList").innerHTML = "";
+      document.getElementById("adminResult").innerText = "No admin actions yet.";
+      document.getElementById("adminUsersResult").innerText = "User page ready.";
+      document.getElementById("adminUsersPageResult").innerText = "User list not loaded yet.";
+      document.getElementById("onlineUsersResult").innerText = "Online users not loaded yet.";
+      document.getElementById("adminUserStatsResult").innerText = "User stats not loaded yet.";
+      document.getElementById("totalRegisteredUsers").innerText = "0";
+      document.getElementById("onlineRegisteredUsers").innerText = "0";
+      setStatus("System Status: Logged out");
+    }
+
+    async function startDiag(mode) {
+      if (!currentUser) {
+        setStatus("System Status: Login required");
+        return;
+      }
+      currentMode = mode || "standard";
+      runToken += 1;
+      const localRunToken = runToken;
+      historyLog = [];
+      stepStack = [];
+      tree = null;
+      currentStep = null;
+      chatHistory = [];
+      askAllieSessionId = null;
+      renderHistory();
+      renderChat();
+      document.getElementById("learningContainer").innerHTML = "";
+      const enteredVin = document.getElementById("vin").value || "";
+      setVehicle({ vin: enteredVin }, "Decoding VIN...");
+      setStatus(`System Status: Decoding VIN for ${currentMode} mode...`);
+      renderLoadingCard(currentMode === "expert" ? "Expert" : "Detailed");
+      try {
+        const vinRes = await fetch(`${backend}/decode-vin`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ vin: enteredVin })
+        });
+        const vinData = await vinRes.json();
+        if (localRunToken !== runToken) return;
+        if (vinData.success) setVehicle(vinData.vehicle || { vin: enteredVin }, "VIN decoded");
+        const diagnosisEndpoint = currentMode === "expert"
+          ? `${backend}/diagnose-expert`
+          : `${backend}/diagnose-detailed`;
+        setStatus(`System Status: Building ${currentMode} tree...`);
+        document.getElementById("currentPosition").innerText = `Building ${currentMode} tree...`;
+        const diagRes = await fetch(diagnosisEndpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            vin: enteredVin,
+            code: document.getElementById("code").value || "",
+            symptom: document.getElementById("symptom").value || "",
+            notes: document.getElementById("notes").value || ""
+          })
+        });
+        const data = await diagRes.json();
+        if (localRunToken !== runToken) return;
+        if (!data.success || !data.tree || !Array.isArray(data.tree.steps)) {
+          setStatus("System Status: Diagnosis failed");
+          document.getElementById("stepContainer").innerHTML = `
+            <div class="step-card"><div class="field-value">No valid tree returned.</div></div>
+          `;
+          return;
+        }
+        tree = data.tree;
+        currentStep = tree.steps.find(step => step.id === tree.current_step_id) || tree.steps[0] || null;
+        stepStack = [];
+        if (data.vehicle) {
+          setVehicle(data.vehicle, tree.current_position || `${currentMode} diagnosis loaded`);
+        } else {
+          document.getElementById("currentPosition").innerText = tree.current_position || `${currentMode} diagnosis loaded`;
+        }
+        renderLearningPanel(data.suggested_fixes || [], data.learning_matches || 0);
+        historyLog = [`Started ${currentMode} tree: ${tree.issue_summary || "Diagnostic flow started"}`];
+        renderHistory();
+        renderStep();
+        setStatus(`System Status: ${currentMode} tree ready`);
+      } catch (err) {
+        if (localRunToken !== runToken) return;
+        setStatus("System Status: Error loading diagnosis");
+        document.getElementById("stepContainer").innerHTML = `
+          <div class="step-card"><div class="field-value">Error: ${err.message}</div></div>
+        `;
+      }
+    }
+
+    async function nextStep(nextId, resultLabel) {
+      if (!currentStep || !currentUser) return;
+      stepStack.push(currentStep);
+      historyLog.push(`${currentStep.title} → ${resultLabel}`);
+      renderHistory();
+      try {
+        await fetch(`${backend}/record-step-result`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            vin: document.getElementById("vin").value || "",
+            year: vehicleData.year || "",
+            make: vehicleData.make || "",
+            model: vehicleData.model || "",
+            engine: vehicleData.engine || "",
+            fault_code: document.getElementById("code").value || "",
+            complaint: document.getElementById("symptom").value || "",
+            notes: document.getElementById("notes").value || "",
+            step_title: currentStep.title || "",
+            step_id: currentStep.id || "",
+            button_result: resultLabel || "",
+            next_step_id: nextId || "",
+            ai_diagnosis: tree?.issue_summary || "",
+            status: "in_progress"
+          })
+        });
+      } catch (err) {
+        console.log("record-step-result failed:", err.message);
+      }
+      if (!nextId) {
+        currentStep = null;
+        setStatus("System Status: Flow complete");
+        renderStep();
+        return;
+      }
+      currentStep = (tree.steps || []).find(step => step.id === nextId) || null;
+      setStatus(`System Status: ${currentMode} step advanced`);
+      renderStep();
+    }
+
+    function goBack() {
+      if (stepStack.length === 0 || !currentUser) return;
+      currentStep = stepStack.pop();
+      historyLog.push("Went back one step");
+      renderHistory();
+      setStatus("System Status: Returned to previous step");
+      renderStep();
+    }
+
+    // =============================================
+    // SEND CHAT — now calls /ask-allie with full
+    // job context. Returns rich Allie response
+    // including pinouts, next steps, web data.
+    // =============================================
+    async function sendChat() {
+      if (!currentUser) {
+        setStatus("System Status: Login required");
+        return;
+      }
+
+      const input = document.getElementById("chatInput");
+      const question = (input.value || "").trim();
+      if (!question) return;
+
+      chatHistory.push({ role: "user", content: question });
+      renderChat();
+      input.value = "";
+      setStatus("System Status: Allie is thinking...");
+
+      try {
+        const res = await fetch(`${backend}/ask-allie`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            question,
+            session_id: askAllieSessionId || undefined,
+            job_context: {
+              vin: document.getElementById("vin").value || "",
+              year: vehicleData.year || "",
+              make: vehicleData.make || "",
+              model: vehicleData.model || "",
+              engine: vehicleData.engine || "",
+              complaint: document.getElementById("symptom").value || "",
+              dtcs: [document.getElementById("code").value || ""].filter(Boolean),
+              symptoms: [document.getElementById("symptom").value || ""].filter(Boolean),
+              prior_tests: historyLog || [],
+              notes: document.getElementById("notes").value || ""
+            }
+          })
+        });
+
+        const data = await res.json();
+
+        if (!data.success) {
+          chatHistory.push({ role: "assistant", content: `Allie error: ${data.error || "Unknown error"}`, meta: {} });
+          renderChat();
+          setStatus("System Status: Ask Allie error");
+          return;
+        }
+
+        // Save session ID for conversation continuity
+        if (data.session_id) askAllieSessionId = data.session_id;
+
+        const answer = data.data?.answer || "No reply returned.";
+        const meta = {
+          confidence_score: data.data?.confidence_score,
+          match_level: data.data?.match_level,
+          pinout_table: data.data?.pinout_table || [],
+          next_steps: data.data?.next_steps || [],
+          warnings: data.data?.warnings || [],
+          best_image_urls: data.data?.best_image_urls || [],
+          used_web: data.data?.used_web || false,
+          web_query: data.data?.web_query || ""
+        };
+
+        chatHistory.push({ role: "assistant", content: answer, meta });
+        renderChat();
+        setStatus("System Status: Ready");
+      } catch (err) {
+        chatHistory.push({ role: "assistant", content: `Chat error: ${err.message}`, meta: {} });
+        renderChat();
+        setStatus("System Status: Chat error");
+      }
+    }
+
+    async function makeNextStep(chatIndex) {
+      if (!currentUser) {
+        setStatus("System Status: Login required");
+        return;
+      }
+      const msg = chatHistory[chatIndex];
+      if (!msg || msg.role !== "assistant") return;
+      setStatus("System Status: Building next step from chat...");
+      try {
+        const res = await fetch(`${backend}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "make_next_step",
+            question: msg.content,
+            vin: document.getElementById("vin").value || "",
+            code: document.getElementById("code").value || "",
+            symptom: document.getElementById("symptom").value || "",
+            notes: document.getElementById("notes").value || "",
+            vehicle: vehicleData || {},
+            current_mode: currentMode,
+            current_step: currentStep || null,
+            tree_issue_summary: tree?.issue_summary || "",
+            tree_likely_fault_path: tree?.likely_fault_path || "",
+            tree_final_recommendation: tree?.final_recommendation || "",
+            step_history: historyLog || [],
+            chat_history: chatHistory || []
+          })
+        });
+        const data = await res.json();
+        let nextStep = data.next_step || null;
+        if (!nextStep) nextStep = buildStepFromAssistantText(msg.content);
+        if (currentStep) stepStack.push(currentStep);
+        currentStep = nextStep;
+        if (tree && Array.isArray(tree.steps)) {
+          const exists = tree.steps.find(step => step.id === nextStep.id);
+          if (!exists) tree.steps.unshift(nextStep);
+        } else {
+          tree = {
+            steps: [nextStep],
+            issue_summary: "Chat-generated next step",
+            likely_fault_path: "",
+            final_recommendation: ""
+          };
+        }
+        historyLog.push(`Chat created next step: ${nextStep.title || "Chat-Suggested Next Step"}`);
+        renderHistory();
+        renderStep();
+        setStatus("System Status: Chat next step loaded");
+      } catch (err) {
+        const fallbackStep = buildStepFromAssistantText(msg.content);
+        if (currentStep) stepStack.push(currentStep);
+        currentStep = fallbackStep;
+        if (!tree || !Array.isArray(tree.steps)) {
+          tree = {
+            steps: [fallbackStep],
+            issue_summary: "Chat-generated next step",
+            likely_fault_path: "",
+            final_recommendation: ""
+          };
+        }
+        historyLog.push("Chat next step fallback loaded");
+        renderHistory();
+        renderStep();
+        setStatus("System Status: Chat next step loaded");
+      }
+    }
+
+    async function saveFinal() {
+      if (!currentUser) {
+        setStatus("System Status: Login required");
+        return;
+      }
+      const finalFix = document.getElementById("finalFix")?.value?.trim() || "";
+      if (!finalFix) {
+        setStatus("System Status: Enter final fix first");
+        return;
+      }
+      setStatus("System Status: Saving final fix...");
+      try {
+        const res = await fetch(`${backend}/save-repair`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            vin: document.getElementById("vin").value || "",
+            year: vehicleData.year || "",
+            make: vehicleData.make || "",
+            model: vehicleData.model || "",
+            engine: vehicleData.engine || "",
+            fault_code: document.getElementById("code").value || "",
+            complaint: document.getElementById("symptom").value || "",
+            ai_diagnosis: tree?.issue_summary || "",
+            recommended_tests: tree?.final_recommendation || "",
+            final_fix: finalFix,
+            tech_name: currentUser?.email || "",
+            status: "fixed",
+            notes: document.getElementById("notes").value || ""
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          historyLog.push(`Final fix saved: ${finalFix}`);
+          renderHistory();
+          setStatus("System Status: Final fix saved");
+          setTimeout(() => clearAll(), 1200);
+        } else {
+          setStatus("System Status: Save failed");
+        }
+      } catch (err) {
+        setStatus("System Status: Save error");
+      }
+    }
+
+    function clearAll() {
+      runToken += 1;
+      document.getElementById("vin").value = "";
+      document.getElementById("code").value = "";
+      document.getElementById("symptom").value = "";
+      document.getElementById("notes").value = "";
+      document.getElementById("chatInput").value = "";
+      tree = null;
+      currentStep = null;
+      historyLog = [];
+      stepStack = [];
+      vehicleData = {};
+      currentMode = "standard";
+      chatHistory = [];
+      askAllieSessionId = null;
+      document.getElementById("vehicleVin").innerText = "-";
+      document.getElementById("vehicleYear").innerText = "-";
+      document.getElementById("vehicleMake").innerText = "-";
+      document.getElementById("vehicleModel").innerText = "-";
+      document.getElementById("vehicleEngine").innerText = "-";
+      document.getElementById("currentPosition").innerText = "Waiting for diagnosis...";
+      document.getElementById("learningContainer").innerHTML = "";
+      document.getElementById("stepContainer").innerHTML = `
+        <div class="step-card">
+          <div class="field-value">No diagnostic step loaded yet.</div>
+        </div>
+      `;
+      renderHistory();
+      renderChat();
+      if (currentUser) {
+        const role = currentProfile?.role || "tech";
+        setStatus(`System Status: Ready (${role})`);
+      }
+    }
+
+    // =============================================
+    // JOB HISTORY
+    // =============================================
+
+    function openJobHistory() {
+      document.getElementById("mainAppView").classList.add("hidden");
+      document.getElementById("adminDashboardView").classList.add("hidden");
+      document.getElementById("adminUsersView").classList.add("hidden");
+      document.getElementById("fleetView").classList.add("hidden");
+      document.getElementById("jobHistoryView").classList.remove("hidden");
+      setStatus("System Status: Job history");
+      loadJobHistory();
+    }
+
+    function closeJobHistory() {
+      document.getElementById("jobHistoryView").classList.add("hidden");
+      document.getElementById("mainAppView").classList.remove("hidden");
+      const role = currentProfile?.role || "tech";
+      setStatus(`System Status: Ready (${role})`);
+    }
+
+    async function loadJobHistory() {
+      const resultBox = document.getElementById("jobHistoryResult");
+      const listBox = document.getElementById("jobHistoryList");
+      resultBox.innerText = "Loading jobs...";
+      listBox.innerHTML = "";
+
+      try {
+        const role = currentProfile?.role || "tech";
+        const shopId = currentProfile?.shop_id || "";
+        const fleetId = currentProfile?.fleet_id || "";
+        const params = new URLSearchParams({ role, limit: 100 });
+        if (shopId) params.append("shop_id", shopId);
+        if (fleetId) params.append("fleet_id", fleetId);
+
+        const res = await fetch(`${backend}/job-history?${params.toString()}`);
+        const data = await res.json();
+
+        if (!data.success) {
+          resultBox.innerText = data.error || "Failed to load jobs.";
+          return;
+        }
+
+        const jobs = data.jobs || [];
+        resultBox.innerText = `${jobs.length} job(s) found.`;
+
+        if (!jobs.length) {
+          listBox.innerHTML = `<div class="admin-card"><div class="field-value">No jobs saved yet. Complete a diagnosis and save the final fix to start building history.</div></div>`;
+          return;
+        }
+
+        listBox.innerHTML = jobs.map(job => `
+          <div class="admin-card" style="margin-bottom:12px; cursor:pointer;" onclick="toggleJobDetail('job-${job.id}')">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+              <div>
+                <div style="color:#4ce5ff; font-weight:700; font-size:15px;">${job.year || "-"} ${job.make || "-"} ${job.model || "-"} ${job.engine || ""}</div>
+                <div style="color:#9fd9e6; font-size:13px; margin-top:4px;">VIN: ${job.vin || "-"} &nbsp;|&nbsp; DTC: ${job.fault_code || "-"}</div>
+                <div style="color:#eefcff; font-size:14px; margin-top:4px;">${job.complaint || "-"}</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="color:${job.status === 'fixed' ? '#00d878' : '#ffaa00'}; font-weight:700; font-size:13px; text-transform:uppercase;">${job.status || "unknown"}</div>
+                <div style="color:#7fb8cd; font-size:12px; margin-top:4px;">${job.tech_name || "-"}</div>
+                <div style="color:#6f93a3; font-size:11px; margin-top:2px;">${job.created_at ? new Date(job.created_at).toLocaleDateString() : "-"}</div>
+              </div>
+            </div>
+            <div id="job-${job.id}" class="hidden" style="margin-top:12px; border-top:1px solid rgba(76,229,255,0.12); padding-top:12px;">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div><div class="field-label">Final Fix</div><div class="field-value" style="color:#00d878;">${job.final_fix || "Not saved"}</div></div>
+                <div><div class="field-label">AI Diagnosis</div><div class="field-value">${job.ai_diagnosis || "-"}</div></div>
+                <div><div class="field-label">Recommended Tests</div><div class="field-value">${job.recommended_tests || "-"}</div></div>
+                <div><div class="field-label">Notes</div><div class="field-value">${job.notes || "-"}</div></div>
+              </div>
+            </div>
+          </div>
+        `).join("");
+
+      } catch (err) {
+        resultBox.innerText = `Error: ${err.message}`;
+      }
+    }
+
+    function toggleJobDetail(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.toggle("hidden");
+    }
+
+    // =============================================
+    // FLEET MANAGEMENT
+    // =============================================
+
+    function openFleetView() {
+      document.getElementById("mainAppView").classList.add("hidden");
+      document.getElementById("adminDashboardView").classList.add("hidden");
+      document.getElementById("adminUsersView").classList.add("hidden");
+      document.getElementById("jobHistoryView").classList.add("hidden");
+      document.getElementById("fleetView").classList.remove("hidden");
+      setStatus("System Status: Fleet management");
+      loadFleetView();
+    }
+
+    function closeFleetView() {
+      document.getElementById("fleetView").classList.add("hidden");
+      document.getElementById("mainAppView").classList.remove("hidden");
+      const role = currentProfile?.role || "tech";
+      setStatus(`System Status: Ready (${role})`);
+    }
+
+    async function loadFleetView() {
+      const shopId = currentProfile?.shop_id || "";
+      if (!shopId) return;
+      await loadYards(shopId);
+      await loadFleets(shopId);
+      await loadUnits(shopId);
+    }
+
+    async function loadYards(shopId) {
+      try {
+        const res = await fetch(`${backend}/yards?shop_id=${shopId}`);
+        const data = await res.json();
+        cachedYards = data.yards || [];
+        renderYards(cachedYards);
+        populateYardDropdowns(cachedYards);
+      } catch (err) {
+        document.getElementById("yardResult").innerText = `Error: ${err.message}`;
+      }
+    }
+
+    function renderYards(yards) {
+      const box = document.getElementById("yardsList");
+      if (!yards.length) {
+        box.innerHTML = `<div class="field-value" style="color:#7fb8cd; font-size:13px; margin-top:8px;">No yards yet. Add your first yard above.</div>`;
+        return;
+      }
+      box.innerHTML = yards.map(y => `
+        <div class="user-card" style="margin-bottom:8px;">
+          <div style="color:#ffffff; font-weight:700;">${y.yard_name}</div>
+          <div style="color:#9fd9e6; font-size:13px;">${y.address || ""} ${y.contact_name ? "| Contact: " + y.contact_name : ""}</div>
+        </div>
+      `).join("");
+    }
+
+    function populateYardDropdowns(yards) {
+      const fleetYardSelect = document.getElementById("newFleetYard");
+      if (fleetYardSelect) {
+        fleetYardSelect.innerHTML = `<option value="">No yard assigned</option>` +
+          yards.map(y => `<option value="${y.id}">${y.yard_name}</option>`).join("");
+      }
+    }
+
+    async function createYard() {
+      const shopId = currentProfile?.shop_id || "";
+      const yardName = (document.getElementById("newYardName").value || "").trim();
+      const address = (document.getElementById("newYardAddress").value || "").trim();
+      const contactName = (document.getElementById("newYardContact").value || "").trim();
+      const resultBox = document.getElementById("yardResult");
+      if (!yardName) { resultBox.innerText = "Yard name required."; return; }
+      resultBox.innerText = "Creating yard...";
+      try {
+        const res = await fetch(`${backend}/create-yard`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ shop_id: shopId, yard_name: yardName, address, contact_name: contactName })
+        });
+        const data = await res.json();
+        if (data.success) {
+          resultBox.innerText = `Yard "${yardName}" created.`;
+          document.getElementById("newYardName").value = "";
+          document.getElementById("newYardAddress").value = "";
+          document.getElementById("newYardContact").value = "";
+          await loadYards(shopId);
+        } else {
+          resultBox.innerText = data.error || "Failed to create yard.";
+        }
+      } catch (err) {
+        resultBox.innerText = `Error: ${err.message}`;
+      }
+    }
+
+    async function loadFleets(shopId) {
+      try {
+        const res = await fetch(`${backend}/fleets?shop_id=${shopId}`);
+        const data = await res.json();
+        cachedFleets = data.fleets || [];
+        renderFleets(cachedFleets);
+        populateFleetDropdowns(cachedFleets);
+      } catch (err) {
+        document.getElementById("fleetResult").innerText = `Error: ${err.message}`;
+      }
+    }
+
+    function renderFleets(fleets) {
+      const box = document.getElementById("fleetsList");
+      if (!fleets.length) {
+        box.innerHTML = `<div class="field-value" style="color:#7fb8cd; font-size:13px; margin-top:8px;">No fleets yet. Add your first fleet above.</div>`;
+        return;
+      }
+      box.innerHTML = fleets.map(f => `
+        <div class="user-card" style="margin-bottom:8px;">
+          <div style="color:#ffffff; font-weight:700;">${f.fleet_name}</div>
+          <div style="color:#9fd9e6; font-size:13px;">${f.company_name || ""} ${f.contact_name ? "| Contact: " + f.contact_name : ""}</div>
+        </div>
+      `).join("");
+    }
+
+    function populateFleetDropdowns(fleets) {
+      const unitFleetSelect = document.getElementById("newUnitFleet");
+      if (unitFleetSelect) {
+        unitFleetSelect.innerHTML = `<option value="">Select fleet</option>` +
+          fleets.map(f => `<option value="${f.id}">${f.fleet_name}${f.company_name ? " — " + f.company_name : ""}</option>`).join("");
+      }
+    }
+
+    async function createFleet() {
+      const shopId = currentProfile?.shop_id || "";
+      const fleetName = (document.getElementById("newFleetName").value || "").trim();
+      const companyName = (document.getElementById("newFleetCompany").value || "").trim();
+      const yardId = document.getElementById("newFleetYard").value || "";
+      const resultBox = document.getElementById("fleetResult");
+      if (!fleetName) { resultBox.innerText = "Fleet name required."; return; }
+      resultBox.innerText = "Creating fleet...";
+      try {
+        const res = await fetch(`${backend}/create-fleet`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ shop_id: shopId, yard_id: yardId || null, fleet_name: fleetName, company_name: companyName })
+        });
+        const data = await res.json();
+        if (data.success) {
+          resultBox.innerText = `Fleet "${fleetName}" created.`;
+          document.getElementById("newFleetName").value = "";
+          document.getElementById("newFleetCompany").value = "";
+          await loadFleets(shopId);
+        } else {
+          resultBox.innerText = data.error || "Failed to create fleet.";
+        }
+      } catch (err) {
+        resultBox.innerText = `Error: ${err.message}`;
+      }
+    }
+
+    async function loadUnits(shopId) {
+      try {
+        const res = await fetch(`${backend}/units?shop_id=${shopId}`);
+        const data = await res.json();
+        renderUnits(data.units || []);
+      } catch (err) {
+        document.getElementById("unitResult").innerText = `Error: ${err.message}`;
+      }
+    }
+
+    function renderUnits(units) {
+      const box = document.getElementById("unitsList");
+      if (!units.length) {
+        box.innerHTML = `<div class="field-value" style="color:#7fb8cd; font-size:13px; margin-top:8px;">No units yet. Add your first unit above.</div>`;
+        return;
+      }
+      box.innerHTML = units.map(u => `
+        <div class="user-card" style="margin-bottom:8px;">
+          <div style="color:#ffffff; font-weight:700;">${u.unit_number ? "Unit " + u.unit_number + " — " : ""}${u.year || ""} ${u.make || ""} ${u.model || ""} ${u.engine || ""}</div>
+          <div style="color:#9fd9e6; font-size:13px;">VIN: ${u.vin || "-"} ${u.mileage ? "| Miles: " + u.mileage : ""}</div>
+        </div>
+      `).join("");
+    }
+
+    async function createUnit() {
+      const shopId = currentProfile?.shop_id || "";
+      const vin = (document.getElementById("newUnitVin").value || "").trim();
+      const unitNumber = (document.getElementById("newUnitNumber").value || "").trim();
+      const fleetId = document.getElementById("newUnitFleet").value || "";
+      const resultBox = document.getElementById("unitResult");
+      if (!fleetId) { resultBox.innerText = "Select a fleet first."; return; }
+      if (!vin && !unitNumber) { resultBox.innerText = "VIN or unit number required."; return; }
+      resultBox.innerText = "Creating unit...";
+      try {
+        const res = await fetch(`${backend}/create-unit`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ shop_id: shopId, fleet_id: fleetId, vin, unit_number: unitNumber })
+        });
+        const data = await res.json();
+        if (data.success) {
+          const unit = data.unit;
+          resultBox.innerText = `Unit added: ${unit.year || ""} ${unit.make || ""} ${unit.model || ""} ${unit.unit_number ? "| #" + unit.unit_number : ""}`.trim();
+          document.getElementById("newUnitVin").value = "";
+          document.getElementById("newUnitNumber").value = "";
+          await loadUnits(shopId);
+        } else {
+          resultBox.innerText = data.error || "Failed to create unit.";
+        }
+      } catch (err) {
+        resultBox.innerText = `Error: ${err.message}`;
+      }
+    }
+
+    // =============================================
+    // VIN SCANNER
+    // Barcode scan for light duty (ZXing)
+    // OCR text read for Class 8 trucks (Tesseract)
+    // =============================================
+
+    let vinScanStream = null;
+    let vinScanInterval = null;
+    let scannedVin = "";
+    let tesseractWorker = null;
+    let zxingReader = null;
+
+    async function openVinScanner() {
+      const modal = document.getElementById("vinScannerModal");
+      modal.style.display = "flex";
+      document.getElementById("vinScanResult").innerText = "";
+      document.getElementById("vinScanStatus").innerText = "Starting camera...";
+      scannedVin = "";
+
+      try {
+        vinScanStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
+        });
+        const video = document.getElementById("vinVideo");
+        video.srcObject = vinScanStream;
+        await video.play();
+        document.getElementById("vinScanStatus").innerText = "Point at VIN barcode or VIN plate — scanning...";
+        startVinScanLoop();
+      } catch (err) {
+        document.getElementById("vinScanStatus").innerText = `Camera error: ${err.message}. Please type VIN manually.`;
+      }
+    }
+
+    function closeVinScanner() {
+      stopVinScanLoop();
+      stopVinCamera();
+      document.getElementById("vinScannerModal").style.display = "none";
+      scannedVin = "";
+    }
+
+    function stopVinCamera() {
+      if (vinScanStream) {
+        vinScanStream.getTracks().forEach(t => t.stop());
+        vinScanStream = null;
+      }
+    }
+
+    function stopVinScanLoop() {
+      if (vinScanInterval) {
+        clearInterval(vinScanInterval);
+        vinScanInterval = null;
+      }
+    }
+
+    function retryVinScan() {
+      scannedVin = "";
+      document.getElementById("vinScanResult").innerText = "";
+      document.getElementById("vinScanStatus").innerText = "Point at VIN barcode or VIN plate — scanning...";
+      startVinScanLoop();
+    }
+
+    function confirmScannedVin() {
+      const vin = scannedVin || document.getElementById("vinScanResult").innerText.trim();
+      if (!vin || vin.length < 5) {
+        document.getElementById("vinScanStatus").innerText = "No VIN detected yet — try again or type manually.";
+        return;
+      }
+      document.getElementById("vin").value = vin;
+      closeVinScanner();
+      setStatus("System Status: VIN scanned — ready to diagnose");
+    }
+
+    function captureFrame() {
+      const video = document.getElementById("vinVideo");
+      const canvas = document.getElementById("vinCanvas");
+      if (!video || !canvas || video.readyState < 2) return null;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      return canvas;
+    }
+
+    function cleanVinText(raw) {
+      // Extract VIN pattern: 17 alphanumeric chars, no I O Q
+      const cleaned = raw.replace(/[^A-HJ-NPR-Z0-9]/gi, "").toUpperCase();
+      const match = cleaned.match(/[A-HJ-NPR-Z0-9]{17}/);
+      return match ? match[0] : "";
+    }
+
+    async function startVinScanLoop() {
+      stopVinScanLoop();
+
+      // Load ZXing for barcode scanning
+      if (!zxingReader) {
+        try {
+          if (typeof ZXing !== "undefined") {
+            const hints = new Map();
+            hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.CODE_128]);
+            zxingReader = new ZXing.BrowserMultiFormatReader(hints);
+          }
+        } catch (e) {
+          console.log("ZXing not loaded, using OCR only");
+        }
+      }
+
+      let frameCount = 0;
+      vinScanInterval = setInterval(async () => {
+        if (scannedVin) return;
+        frameCount++;
+
+        const canvas = captureFrame();
+        if (!canvas) return;
+
+        // Try barcode every frame
+        try {
+          if (zxingReader) {
+            const imageData = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height);
+            const luminanceSource = new ZXing.RGBLuminanceSource(imageData.data, canvas.width, canvas.height);
+            const binaryBitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource));
+            const result = zxingReader.decodeBitmap(binaryBitmap);
+            if (result && result.text) {
+              const vin = cleanVinText(result.text);
+              if (vin.length === 17) {
+                scannedVin = vin;
+                document.getElementById("vinScanResult").innerText = vin;
+                document.getElementById("vinScanStatus").innerText = "✅ Barcode scanned! Confirm or retry.";
+                stopVinScanLoop();
+                return;
+              }
+            }
+          }
+        } catch (e) { /* no barcode found this frame */ }
+
+        // Try OCR every 8 frames (less frequent — heavier)
+        if (frameCount % 8 === 0) {
+          try {
+            if (typeof Tesseract !== "undefined") {
+              document.getElementById("vinScanStatus").innerText = "Reading VIN plate text...";
+              const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+              const result = await Tesseract.recognize(dataUrl, "eng", {
+                tessedit_char_whitelist: "ABCDEFGHJKLMNPRSTUVWXYZ0123456789",
+                tessedit_pageseg_mode: "7"
+              });
+              const vin = cleanVinText(result.data.text);
+              if (vin.length === 17) {
+                scannedVin = vin;
+                document.getElementById("vinScanResult").innerText = vin;
+                document.getElementById("vinScanStatus").innerText = "✅ VIN plate read! Confirm or retry.";
+                stopVinScanLoop();
+                return;
+              } else if (vin.length >= 10) {
+                document.getElementById("vinScanResult").innerText = vin + " (partial — hold steady)";
+                document.getElementById("vinScanStatus").innerText = "Partial read — hold camera steady...";
+              } else {
+                document.getElementById("vinScanStatus").innerText = "Point at VIN barcode or VIN plate — scanning...";
+              }
+            }
+          } catch (e) {
+            console.log("OCR frame error:", e.message);
+          }
+        }
+      }, 300);
+    }
+
+    async function restoreSessionState() {
+      loadAuthFromStorage();
+      renderCurrentUser();
+      renderChat();
+      showLogin();
+      updateAuthView();
+      if (currentUser && currentUser.id) {
+        currentProfile = await loadUserProfile(currentUser.id);
+        saveAuthToStorage();
+        renderCurrentUser();
+        updateAuthView();
+        startHeartbeat();
+        const role = currentProfile?.role || "tech";
+        if (role === "admin") await loadAdminDashboardData();
+        setStatus(`System Status: Session restored (${role})`);
+      }
+    }
+
+    window.addEventListener("beforeunload", stopHeartbeat);
+
+    restoreSessionState();
+  </script>
+</body>
+</html>
