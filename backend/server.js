@@ -6,16 +6,6 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-/*
-  KEYS GO EXACTLY HERE:
-  line 12  -> SUPABASE URL
-  line 13  -> SUPABASE ANON KEY
-  line 18  -> SUPABASE URL
-  line 19  -> SUPABASE SERVICE ROLE KEY
-  search   -> PASTE_OPENAI_API_KEY_HERE
-  search   -> PASTE_TAVILY_API_KEY_HERE
-*/
-
 const supabase = createClient(
   'https://julpheuumolnwkthazdj.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1bHBoZXV1bW9sbndrdGhhemRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMzc5ODYsImV4cCI6MjA4OTYxMzk4Nn0.i3jI-PjdAUPnbgVn_EXctr0-F158Gbp-r6icrEdvOGM
