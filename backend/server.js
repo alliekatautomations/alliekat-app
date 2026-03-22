@@ -6,6 +6,12 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
+// =========================
+// READ KEYS FROM ENVIRONMENT
+// =========================
+const OPENAI_KEY = process.env.OPENAI_API_KEY || '';
+const TAVILY_KEY = process.env.TAVILY_API_KEY || '';
+
 const supabase = createClient(
   'https://julpheuumolnwkthazdj.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1bHBoZXV1bW9sbndrdGhhemRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMzc5ODYsImV4cCI6MjA4OTYxMzk4Nn0.i3jI-PjdAUPnbgVn_EXctr0-F158Gbp-r6icrEdvOGM'
@@ -13,7 +19,7 @@ const supabase = createClient(
 
 const supabaseAdmin = createClient(
   'https://julpheuumolnwkthazdj.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1bHBoZXV1bW9sbndrdGhhemRqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDAzNzk4NiwiZXhwIjoyMDg5NjEzOTg2fQ.eCDb9XAD02Pi8Ejl3vIz9ROJC80zBpAOW4svI7M9GR4',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
   {
     auth: {
       autoRefreshToken: false,
@@ -21,9 +27,6 @@ const supabaseAdmin = createClient(
     }
   }
 );
-
-const OPENAI_KEY = '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';
-const TAVILY_KEY = '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';
 
 /* =========================
    HELPERS
@@ -196,8 +199,6 @@ function scoreLearningRow(row, normalizedCode, make, model, engine) {
     if (rowEngine === targetEngine) score += 5;
     else if (rowEngine.includes(targetEngine) || targetEngine.includes(rowEngine)) score += 3;
   }
-  if (lower(row.complaint).includes('no throttle')) score += 1;
-  if (lower(row.notes).includes('harness')) score += 1;
   return score;
 }
 
@@ -434,6 +435,12 @@ Build the ${mode === 'expert' ? 'expert' : 'normal'} diagnostic tree now.`;
   });
 
   const data = await response.json();
+
+  if (data.error) {
+    console.error('OpenAI tree error:', data.error);
+    throw new Error(`OpenAI error: ${data.error.message}`);
+  }
+
   const content = data?.choices?.[0]?.message?.content || '';
   const parsed = cleanModelJson(content);
 
@@ -446,113 +453,128 @@ Build the ${mode === 'expert' ? 'expert' : 'normal'} diagnostic tree now.`;
 }
 
 async function tavilySearch(query) {
-  const response = await fetch('https://api.tavily.com/search', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      api_key: TAVILY_KEY,
-      query,
-      search_depth: 'advanced',
-      include_answer: false,
-      include_images: true,
-      include_raw_content: true,
-      max_results: 10
-    })
-  });
+  try {
+    const response = await fetch('https://api.tavily.com/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: TAVILY_KEY,
+        query,
+        search_depth: 'advanced',
+        include_answer: false,
+        include_images: true,
+        include_raw_content: true,
+        max_results: 10
+      })
+    });
 
-  const data = await response.json();
+    const data = await response.json();
 
-  const filteredResults = dedupeByUrl(
-    (Array.isArray(data?.results) ? data.results : []).filter(item => {
-      const url = safeString(item.url);
-      const title = safeString(item.title);
-      let host = '';
-      try { host = new URL(url).hostname; } catch { host = ''; }
-      if (!url || !title) return false;
-      if (isBlockedSearchDomain(host)) return false;
-      if (looksLikeWeakSource(url, title)) return false;
-      return true;
-    })
-  ).slice(0, 6);
-
-  const filteredImages = dedupeByUrl(
-    (Array.isArray(data?.images) ? data.images : [])
-      .filter(url => {
+    const filteredResults = dedupeByUrl(
+      (Array.isArray(data?.results) ? data.results : []).filter(item => {
+        const url = safeString(item.url);
+        const title = safeString(item.title);
         let host = '';
         try { host = new URL(url).hostname; } catch { host = ''; }
-        return !isBlockedSearchDomain(host);
+        if (!url || !title) return false;
+        if (isBlockedSearchDomain(host)) return false;
+        if (looksLikeWeakSource(url, title)) return false;
+        return true;
       })
-      .map(url => ({ url }))
-  ).map(x => x.url).slice(0, 5);
+    ).slice(0, 6);
 
-  return { query, results: filteredResults, images: filteredImages, used_web: true, warning: '' };
+    const filteredImages = dedupeByUrl(
+      (Array.isArray(data?.images) ? data.images : [])
+        .filter(url => {
+          let host = '';
+          try { host = new URL(url).hostname; } catch { host = ''; }
+          return !isBlockedSearchDomain(host);
+        })
+        .map(url => ({ url }))
+    ).map(x => x.url).slice(0, 5);
+
+    return { query, results: filteredResults, images: filteredImages, used_web: true, warning: '' };
+  } catch (err) {
+    console.error('Tavily search error:', err.message);
+    return { query, results: [], images: [], used_web: false, warning: `Tavily error: ${err.message}` };
+  }
 }
 
 async function saveAskAllieSource(sessionId, source) {
-  const { data, error } = await supabaseAdmin
-    .from('ask_allie_sources')
-    .insert([{
-      session_id: sessionId,
-      source_type: safeString(source.source_type),
-      title: safeString(source.title),
-      url: safeString(source.url),
-      domain: safeString(source.domain),
-      raw_content: safeString(source.raw_content),
-      extracted_summary: safeString(source.extracted_summary),
-      status: safeString(source.status) || 'unverified',
-      confidence_score: toNumber(source.confidence_score, 0)
-    }])
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message);
-  return data;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('ask_allie_sources')
+      .insert([{
+        session_id: sessionId,
+        source_type: safeString(source.source_type),
+        title: safeString(source.title),
+        url: safeString(source.url),
+        domain: safeString(source.domain),
+        raw_content: safeString(source.raw_content),
+        extracted_summary: safeString(source.extracted_summary),
+        status: safeString(source.status) || 'unverified',
+        confidence_score: toNumber(source.confidence_score, 0)
+      }])
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  } catch (err) {
+    console.log('saveAskAllieSource failed (table may not exist):', err.message);
+    return null;
+  }
 }
 
 async function saveAskAllieFacts(sessionId, sourceId, extracted, jobContext) {
-  const rows = [];
-  const pinoutTable = Array.isArray(extracted?.pinout_table) ? extracted.pinout_table : [];
-  for (const pin of pinoutTable) {
-    rows.push({
-      session_id: sessionId, source_id: sourceId || null, fact_type: 'pinout',
-      component_name: safeString(extracted?.component_name || 'Throttle Position Sensor'),
-      connector_name: safeString(extracted?.connector_name),
-      pin_label: safeString(pin.pin || pin.pin_label), wire_color: safeString(pin.wire_color),
-      circuit_function: safeString(pin.function || pin.circuit_function),
-      expected_value: safeString(pin.expected_voltage || pin.expected_value),
-      conditions: safeString(extracted?.conditions),
-      application_year: safeString(jobContext.year), application_make: safeString(jobContext.make),
-      application_model: safeString(jobContext.model), application_engine: safeString(jobContext.engine),
-      fact_json: pin, status: 'unverified', confidence_score: toNumber(extracted?.confidence, 0)
-    });
+  try {
+    const rows = [];
+    const pinoutTable = Array.isArray(extracted?.pinout_table) ? extracted.pinout_table : [];
+    for (const pin of pinoutTable) {
+      rows.push({
+        session_id: sessionId, source_id: sourceId || null, fact_type: 'pinout',
+        component_name: safeString(extracted?.component_name || ''),
+        connector_name: safeString(extracted?.connector_name),
+        pin_label: safeString(pin.pin || pin.pin_label), wire_color: safeString(pin.wire_color),
+        circuit_function: safeString(pin.function || pin.circuit_function),
+        expected_value: safeString(pin.expected_voltage || pin.expected_value),
+        conditions: safeString(extracted?.conditions),
+        application_year: safeString(jobContext.year), application_make: safeString(jobContext.make),
+        application_model: safeString(jobContext.model), application_engine: safeString(jobContext.engine),
+        fact_json: pin, status: 'unverified', confidence_score: toNumber(extracted?.confidence, 0)
+      });
+    }
+    const keySpecs = Array.isArray(extracted?.key_specs) ? extracted.key_specs : [];
+    for (const spec of keySpecs) {
+      rows.push({
+        session_id: sessionId, source_id: sourceId || null, fact_type: 'spec',
+        component_name: safeString(extracted?.component_name || ''),
+        connector_name: safeString(extracted?.connector_name), pin_label: '', wire_color: '',
+        circuit_function: 'Spec', expected_value: safeString(spec),
+        conditions: safeString(extracted?.conditions),
+        application_year: safeString(jobContext.year), application_make: safeString(jobContext.make),
+        application_model: safeString(jobContext.model), application_engine: safeString(jobContext.engine),
+        fact_json: { spec }, status: 'unverified', confidence_score: toNumber(extracted?.confidence, 0)
+      });
+    }
+    if (!rows.length) return [];
+    const { data, error } = await supabaseAdmin.from('ask_allie_facts').insert(rows).select();
+    if (error) throw new Error(error.message);
+    return data || [];
+  } catch (err) {
+    console.log('saveAskAllieFacts failed (table may not exist):', err.message);
+    return [];
   }
-  const keySpecs = Array.isArray(extracted?.key_specs) ? extracted.key_specs : [];
-  for (const spec of keySpecs) {
-    rows.push({
-      session_id: sessionId, source_id: sourceId || null, fact_type: 'spec',
-      component_name: safeString(extracted?.component_name || 'Throttle Position Sensor'),
-      connector_name: safeString(extracted?.connector_name), pin_label: '', wire_color: '',
-      circuit_function: 'Spec', expected_value: safeString(spec),
-      conditions: safeString(extracted?.conditions),
-      application_year: safeString(jobContext.year), application_make: safeString(jobContext.make),
-      application_model: safeString(jobContext.model), application_engine: safeString(jobContext.engine),
-      fact_json: { spec }, status: 'unverified', confidence_score: toNumber(extracted?.confidence, 0)
-    });
-  }
-  if (!rows.length) return [];
-  const { data, error } = await supabaseAdmin.from('ask_allie_facts').insert(rows).select();
-  if (error) throw new Error(error.message);
-  return data || [];
 }
 
 async function extractStructuredDataFromWeb(sources, jobContext, question) {
-  const combinedText = (sources || [])
-    .map(s => safeString(s.extracted_summary || s.raw_content || s.content))
-    .join('\n\n').slice(0, 15000);
+  try {
+    const combinedText = (sources || [])
+      .map(s => safeString(s.extracted_summary || s.raw_content || s.content))
+      .join('\n\n').slice(0, 15000);
 
-  if (!combinedText) return null;
+    if (!combinedText) return null;
 
-  const prompt = `You are a master automotive diagnostic data extractor.
+    const prompt = `You are a master automotive diagnostic data extractor.
 Extract only usable structured data from the source text below for this exact application.
 Question: ${question}
 Vehicle: ${jobContext.year} ${jobContext.make} ${jobContext.model} ${jobContext.engine}
@@ -564,69 +586,80 @@ Return ONLY valid JSON:
 {"component_name":"","connector_name":"","conditions":"","pinout_table":[{"pin":"","wire_color":"","function":"","expected_voltage":""}],"key_specs":[],"diagnostic_notes":[],"confidence":0}
 Rules: Prefer application-specific facts. Do not invent exact pin numbers. confidence must be 0 to 100.`;
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${OPENAI_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini', temperature: 0.05,
-      messages: [{ role: 'system', content: 'Return only valid JSON.' }, { role: 'user', content: prompt }]
-    })
-  });
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${OPENAI_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini', temperature: 0.05,
+        messages: [{ role: 'system', content: 'Return only valid JSON.' }, { role: 'user', content: prompt }]
+      })
+    });
 
-  const data = await response.json();
-  const content = data?.choices?.[0]?.message?.content || '';
-  const parsed = cleanModelJson(content);
-  if (!parsed || typeof parsed !== 'object') return null;
+    const data = await response.json();
+    if (data.error) return null;
 
-  return {
-    component_name: safeString(parsed.component_name), connector_name: safeString(parsed.connector_name),
-    conditions: safeString(parsed.conditions),
-    pinout_table: Array.isArray(parsed.pinout_table) ? parsed.pinout_table : [],
-    key_specs: Array.isArray(parsed.key_specs) ? parsed.key_specs : [],
-    diagnostic_notes: Array.isArray(parsed.diagnostic_notes) ? parsed.diagnostic_notes : [],
-    confidence: toNumber(parsed.confidence, 0)
-  };
+    const content = data?.choices?.[0]?.message?.content || '';
+    const parsed = cleanModelJson(content);
+    if (!parsed || typeof parsed !== 'object') return null;
+
+    return {
+      component_name: safeString(parsed.component_name), connector_name: safeString(parsed.connector_name),
+      conditions: safeString(parsed.conditions),
+      pinout_table: Array.isArray(parsed.pinout_table) ? parsed.pinout_table : [],
+      key_specs: Array.isArray(parsed.key_specs) ? parsed.key_specs : [],
+      diagnostic_notes: Array.isArray(parsed.diagnostic_notes) ? parsed.diagnostic_notes : [],
+      confidence: toNumber(parsed.confidence, 0)
+    };
+  } catch (err) {
+    console.log('extractStructuredDataFromWeb failed:', err.message);
+    return null;
+  }
 }
 
 async function searchAskAllieInternalKnowledge(question, ctx) {
-  const questionText = lower(question);
-  const componentHints = [
-    'throttle', 'pedal', 'accelerator', 'map', 'maf', 'cam', 'crank', 'abs',
-    'injector', 'fuel', 'egr', 'vgt', 'boost', 'temperature', 'pressure',
-    'sensor', 'switch', 'solenoid', 'connector', 'wiring'
-  ].filter(term => questionText.includes(term));
+  try {
+    const questionText = lower(question);
+    const componentHints = [
+      'throttle', 'pedal', 'accelerator', 'map', 'maf', 'cam', 'crank', 'abs',
+      'injector', 'fuel', 'egr', 'vgt', 'boost', 'temperature', 'pressure',
+      'sensor', 'switch', 'solenoid', 'connector', 'wiring'
+    ].filter(term => questionText.includes(term));
 
-  const { data: factsData } = await supabaseAdmin
-    .from('ask_allie_facts').select('*')
-    .eq('application_make', ctx.make || null).eq('application_model', ctx.model || null)
-    .eq('application_engine', ctx.engine || null)
-    .order('confidence_score', { ascending: false }).limit(50);
+    const { data: factsData } = await supabaseAdmin
+      .from('ask_allie_facts').select('*')
+      .eq('application_make', ctx.make || null).eq('application_model', ctx.model || null)
+      .eq('application_engine', ctx.engine || null)
+      .order('confidence_score', { ascending: false }).limit(50);
 
-  const filteredFacts = (factsData || []).filter(row => {
-    const haystack = lower([
-      row.fact_type, row.component_name, row.connector_name, row.pin_label,
-      row.wire_color, row.circuit_function, row.expected_value, JSON.stringify(row.fact_json || {})
-    ].join(' '));
-    if (componentHints.length === 0) return true;
-    return componentHints.some(term => haystack.includes(term));
-  });
+    const filteredFacts = (factsData || []).filter(row => {
+      const haystack = lower([
+        row.fact_type, row.component_name, row.connector_name, row.pin_label,
+        row.wire_color, row.circuit_function, row.expected_value, JSON.stringify(row.fact_json || {})
+      ].join(' '));
+      if (componentHints.length === 0) return true;
+      return componentHints.some(term => haystack.includes(term));
+    });
 
-  const dtcFilters = safeArray(ctx.dtcs).map(lower);
+    const dtcFilters = safeArray(ctx.dtcs).map(lower);
 
-  const { data: fixesData } = await supabaseAdmin
-    .from('ask_allie_known_fixes').select('*')
-    .eq('make', ctx.make || null).eq('model', ctx.model || null).eq('engine', ctx.engine || null)
-    .order('confidence_score', { ascending: false }).limit(25);
+    const { data: fixesData } = await supabaseAdmin
+      .from('ask_allie_known_fixes').select('*')
+      .eq('make', ctx.make || null).eq('model', ctx.model || null).eq('engine', ctx.engine || null)
+      .order('confidence_score', { ascending: false }).limit(25);
 
-  const filteredFixes = (fixesData || []).filter(row => {
-    const haystack = lower([row.symptom_pattern, row.root_cause, row.repair_performed, safeArray(row.dtcs).join(' ')].join(' '));
-    if (dtcFilters.length && dtcFilters.some(code => haystack.includes(code))) return true;
-    if (componentHints.length && componentHints.some(term => haystack.includes(term))) return true;
-    if (!dtcFilters.length && !componentHints.length) return true;
-    return false;
-  });
+    const filteredFixes = (fixesData || []).filter(row => {
+      const haystack = lower([row.symptom_pattern, row.root_cause, row.repair_performed, safeArray(row.dtcs).join(' ')].join(' '));
+      if (dtcFilters.length && dtcFilters.some(code => haystack.includes(code))) return true;
+      if (componentHints.length && componentHints.some(term => haystack.includes(term))) return true;
+      if (!dtcFilters.length && !componentHints.length) return true;
+      return false;
+    });
 
-  return { facts: filteredFacts.slice(0, 20), known_fixes: filteredFixes.slice(0, 10) };
+    return { facts: filteredFacts.slice(0, 20), known_fixes: filteredFixes.slice(0, 10) };
+  } catch (err) {
+    console.log('searchAskAllieInternalKnowledge failed:', err.message);
+    return { facts: [], known_fixes: [] };
+  }
 }
 
 function computeAskAllieNeedWeb(question, internalKnowledge) {
@@ -639,52 +672,115 @@ function computeAskAllieNeedWeb(question, internalKnowledge) {
   return false;
 }
 
+// ==============================================
+// CORE ASK ALLIE AI — this is the main brain.
+// Responds like a real senior mechanic using
+// all available context + web data.
+// ==============================================
 async function synthesizeAskAllieAnswer({ question, jobContext, internalKnowledge, externalResearch, extracted }) {
-  const internalFactSummary = (internalKnowledge.facts || []).slice(0, 8).map(row => ({
-    fact_type: row.fact_type, component_name: row.component_name, connector_name: row.connector_name,
-    pin_label: row.pin_label, wire_color: row.wire_color, circuit_function: row.circuit_function,
-    expected_value: row.expected_value, status: row.status, confidence_score: row.confidence_score
-  }));
+  try {
+    const internalFactSummary = (internalKnowledge.facts || []).slice(0, 8).map(row => ({
+      fact_type: row.fact_type, component_name: row.component_name, connector_name: row.connector_name,
+      pin_label: row.pin_label, wire_color: row.wire_color, circuit_function: row.circuit_function,
+      expected_value: row.expected_value, status: row.status, confidence_score: row.confidence_score
+    }));
 
-  const knownFixSummary = (internalKnowledge.known_fixes || []).slice(0, 5).map(row => ({
-    dtcs: row.dtcs, symptom_pattern: row.symptom_pattern, root_cause: row.root_cause,
-    repair_performed: row.repair_performed, outcome: row.outcome, confidence_score: row.confidence_score
-  }));
+    const knownFixSummary = (internalKnowledge.known_fixes || []).slice(0, 5).map(row => ({
+      dtcs: row.dtcs, symptom_pattern: row.symptom_pattern, root_cause: row.root_cause,
+      repair_performed: row.repair_performed, outcome: row.outcome, confidence_score: row.confidence_score
+    }));
 
-  const prompt = `You are Allie, an automotive diagnostic assistant inside a mechanic workflow.
-Return ONLY valid JSON:
-{"answer":"","confidence_score":0,"match_level":"high | medium | low","best_image_urls":[],"pinout_table":[{"pin_label":"","wire_color":"","circuit_function":"","expected_value":"","notes":""}],"warnings":[],"next_steps":[]}
-Rules: Prefer internal verified data first. Use extracted web data if internal data is weak. Be application-specific. Do not invent exact pin numbers. next_steps must be actionable shop tests.
-CURRENT JOB: ${JSON.stringify(jobContext, null, 2)}
-QUESTION: ${question}
-INTERNAL FACTS: ${JSON.stringify(internalFactSummary, null, 2)}
-KNOWN FIXES: ${JSON.stringify(knownFixSummary, null, 2)}
-EXTRACTED WEB DATA: ${JSON.stringify(extracted || {}, null, 2)}
-IMAGE URLS: ${JSON.stringify((externalResearch.images || []).slice(0, 5), null, 2)}`;
+    const webSummary = (externalResearch.results || []).slice(0, 4).map(r => ({
+      title: safeString(r.title),
+      content: safeString(r.content || r.raw_content).slice(0, 800)
+    }));
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${OPENAI_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini', temperature: 0.08,
-      messages: [{ role: 'system', content: 'Return only valid JSON.' }, { role: 'user', content: prompt }]
-    })
-  });
+    const systemPrompt = `You are Allie, a senior master automotive diagnostic technician and AI assistant built into a shop diagnostic tool called Allie-Kat Diagnostics.
 
-  const data = await response.json();
-  const content = data?.choices?.[0]?.message?.content || '';
-  const parsed = cleanModelJson(content);
-  if (!parsed || typeof parsed !== 'object') return null;
+Your job is to help mechanics diagnose and fix vehicles. You think like a 20+ year master tech. You are direct, practical, and specific to the vehicle and fault code in front of you.
 
-  return {
-    answer: safeString(parsed.answer),
-    confidence_score: toNumber(parsed.confidence_score, toNumber(extracted?.confidence, 0)),
-    match_level: safeString(parsed.match_level) || 'low',
-    best_image_urls: Array.isArray(parsed.best_image_urls) ? parsed.best_image_urls : [],
-    pinout_table: Array.isArray(parsed.pinout_table) ? parsed.pinout_table : [],
-    warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
-    next_steps: Array.isArray(parsed.next_steps) ? parsed.next_steps : []
-  };
+Rules:
+- Always respond directly to the mechanic's question
+- Use the vehicle info, DTC, complaint, and notes to give specific advice — not generic answers
+- If web data was found, use it to give better specs, pinouts, or procedures
+- If internal known fixes exist, lead with those
+- Give actionable next steps a mechanic can do right now in the shop
+- Be conversational but professional — like a senior tech helping a junior
+- If you have pinout data, include it in the pinout_table field
+- Always give next_steps a mechanic can act on
+- Do not make up exact pin numbers if you are not sure — say "verify exact OEM pinout"
+- confidence_score is 0-100 based on how specific and verified your answer is
+
+Return ONLY valid JSON in exactly this shape:
+{"answer":"","confidence_score":0,"match_level":"high | medium | low","best_image_urls":[],"pinout_table":[{"pin_label":"","wire_color":"","circuit_function":"","expected_value":"","notes":""}],"warnings":[],"next_steps":[]}`;
+
+    const userPrompt = `CURRENT JOB:
+VIN: ${jobContext.vin || 'not provided'}
+Year: ${jobContext.year || 'unknown'}
+Make: ${jobContext.make || 'unknown'}
+Model: ${jobContext.model || 'unknown'}
+Engine: ${jobContext.engine || 'unknown'}
+DTC(s): ${safeArray(jobContext.dtcs).join(', ') || 'none'}
+Complaint: ${jobContext.complaint || 'none'}
+Tech Notes: ${jobContext.notes || 'none'}
+
+MECHANIC'S QUESTION: ${question}
+
+INTERNAL KNOWN FIXES FROM DATABASE:
+${JSON.stringify(knownFixSummary, null, 2)}
+
+INTERNAL PINOUT/SPEC FACTS FROM DATABASE:
+${JSON.stringify(internalFactSummary, null, 2)}
+
+WEB RESEARCH RESULTS:
+${JSON.stringify(webSummary, null, 2)}
+
+EXTRACTED STRUCTURED DATA FROM WEB:
+${JSON.stringify(extracted || {}, null, 2)}
+
+IMAGE URLS FOUND:
+${JSON.stringify((externalResearch.images || []).slice(0, 5), null, 2)}
+
+Answer the mechanic's question now. Be specific to this vehicle and fault. Give real shop guidance.`;
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${OPENAI_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        temperature: 0.15,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ]
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.error) {
+      console.error('OpenAI synthesize error:', data.error);
+      return null;
+    }
+
+    const content = data?.choices?.[0]?.message?.content || '';
+    const parsed = cleanModelJson(content);
+
+    if (!parsed || typeof parsed !== 'object') return null;
+
+    return {
+      answer: safeString(parsed.answer),
+      confidence_score: toNumber(parsed.confidence_score, toNumber(extracted?.confidence, 0)),
+      match_level: safeString(parsed.match_level) || 'medium',
+      best_image_urls: Array.isArray(parsed.best_image_urls) ? parsed.best_image_urls : [],
+      pinout_table: Array.isArray(parsed.pinout_table) ? parsed.pinout_table : [],
+      warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
+      next_steps: Array.isArray(parsed.next_steps) ? parsed.next_steps : []
+    };
+  } catch (err) {
+    console.error('synthesizeAskAllieAnswer failed:', err.message);
+    return null;
+  }
 }
 
 function buildAskAllieFallbackAnswer(extracted, externalResearch) {
@@ -705,48 +801,50 @@ function buildAskAllieFallbackAnswer(extracted, externalResearch) {
   }
 
   const specs = Array.isArray(extracted?.key_specs) ? extracted.key_specs : [];
-  if (specs.length) { answerLines.push(''); answerLines.push('Key specs:'); for (const spec of specs) { answerLines.push(`- ${safeString(spec)}`); } }
-
-  const notes = Array.isArray(extracted?.diagnostic_notes) ? extracted.diagnostic_notes : [];
-  if (notes.length) { answerLines.push(''); answerLines.push('Diagnostic notes:'); for (const note of notes) { answerLines.push(`- ${safeString(note)}`); } }
+  if (specs.length) {
+    answerLines.push('');
+    answerLines.push('Key specs:');
+    for (const spec of specs) { answerLines.push(`- ${safeString(spec)}`); }
+  }
 
   if (!answerLines.length) {
-    answerLines.push('I found filtered web results, but no application-specific cavity assignment could be confirmed yet. Verify exact OEM pinout for this platform.');
-    answerLines.push('General TPS/APP testing still applies: verify 5V reference, low-reference integrity, and a smooth signal sweep while moving the throttle.');
+    answerLines.push('I was unable to reach the AI service right now. Please check your connection and try again. If the issue continues, verify the OpenAI API key in your Render environment variables.');
   }
 
   return {
     answer: answerLines.join('\n'),
     confidence_score: toNumber(extracted?.confidence, 20),
-    match_level: toNumber(extracted?.confidence, 0) >= 75 ? 'high' : toNumber(extracted?.confidence, 0) >= 45 ? 'medium' : 'low',
+    match_level: 'low',
     best_image_urls: Array.isArray(externalResearch?.images) ? externalResearch.images.slice(0, 5) : [],
     pinout_table: pinoutTable,
-    warnings: pinoutTable.length ? [] : ['Exact application-specific pinout was not confirmed.'],
-    next_steps: [
-      'Backprobe the TPS/APP signal and verify a smooth change from low voltage at idle toward higher voltage with throttle movement.',
-      'Verify 5V reference directly at the connector under load.',
-      'Verify low-reference/ground with a loaded voltage drop test.',
-      'Perform a wiggle test on the harness while watching signal, 5V reference, and low-reference stability.',
-      'Compare sensor signal at the component and at the ECM side if a harness fault is suspected.'
-    ]
+    warnings: ['AI service may be unavailable. Check OpenAI API key in Render environment variables.'],
+    next_steps: []
   };
 }
 
 async function promoteAskAllieConfidence(sessionId, confidenceScore) {
-  const score = toNumber(confidenceScore, 0);
-  if (score < 75) return;
-  await supabaseAdmin.from('ask_allie_sources').update({ status: 'cross_checked', confidence_score: score }).eq('session_id', sessionId).eq('status', 'unverified');
-  await supabaseAdmin.from('ask_allie_facts').update({ status: 'cross_checked', confidence_score: score }).eq('session_id', sessionId).eq('status', 'unverified');
+  try {
+    const score = toNumber(confidenceScore, 0);
+    if (score < 75) return;
+    await supabaseAdmin.from('ask_allie_sources').update({ status: 'cross_checked', confidence_score: score }).eq('session_id', sessionId).eq('status', 'unverified');
+    await supabaseAdmin.from('ask_allie_facts').update({ status: 'cross_checked', confidence_score: score }).eq('session_id', sessionId).eq('status', 'unverified');
+  } catch (err) {
+    console.log('promoteAskAllieConfidence failed:', err.message);
+  }
 }
 
 async function buildAskAllieSourceList(sessionId) {
-  const { data } = await supabaseAdmin
-    .from('ask_allie_sources')
-    .select('id, source_type, title, url, domain, status, confidence_score, created_at')
-    .eq('session_id', sessionId)
-    .order('created_at', { ascending: false })
-    .limit(20);
-  return data || [];
+  try {
+    const { data } = await supabaseAdmin
+      .from('ask_allie_sources')
+      .select('id, source_type, title, url, domain, status, confidence_score, created_at')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    return data || [];
+  } catch (err) {
+    return [];
+  }
 }
 
 /* =========================
@@ -763,17 +861,9 @@ app.post('/login', async (req, res) => {
   try {
     const email = safeString(req.body.email).toLowerCase();
     const password = safeString(req.body.password);
-
-    if (!email || !password) {
-      return res.status(400).json({ success: false, error: 'Email and password required' });
-    }
-
+    if (!email || !password) return res.status(400).json({ success: false, error: 'Email and password required' });
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (error) {
-      return res.status(401).json({ success: false, error: error.message });
-    }
-
+    if (error) return res.status(401).json({ success: false, error: error.message });
     return res.json({ success: true, user: data.user, session: data.session });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
@@ -785,29 +875,13 @@ app.post('/signup', async (req, res) => {
     const name = safeString(req.body.name);
     const email = safeString(req.body.email).toLowerCase();
     const password = safeString(req.body.password);
-
-    if (!email || !password) {
-      return res.status(400).json({ success: false, error: 'Email and password required' });
-    }
-
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true
-    });
-
-    if (error) {
-      return res.status(400).json({ success: false, error: error.message });
-    }
-
+    if (!email || !password) return res.status(400).json({ success: false, error: 'Email and password required' });
+    const { data, error } = await supabaseAdmin.auth.admin.createUser({ email, password, email_confirm: true });
+    if (error) return res.status(400).json({ success: false, error: error.message });
     await supabaseAdmin.from('user_profiles').insert([{
-      id: data.user.id,
-      email,
-      name: name || email,
-      role: 'tech',
-      last_seen: new Date().toISOString()
+      id: data.user.id, email, name: name || email,
+      role: 'tech', last_seen: new Date().toISOString()
     }]);
-
     return res.json({ success: true, user: data.user });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
@@ -820,13 +894,7 @@ app.get('/user-profile/:userId', async (req, res) => {
   try {
     const userId = safeString(req.params.userId);
     if (!userId) return res.status(400).json({ success: false, error: 'userId required' });
-
-    const { data, error } = await supabaseAdmin
-      .from('user_profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
+    const { data, error } = await supabaseAdmin.from('user_profiles').select('*').eq('id', userId).single();
     if (error) return res.status(404).json({ success: false, error: error.message });
     return res.json({ success: true, profile: data });
   } catch (err) {
@@ -855,14 +923,9 @@ app.post('/decode-vin', async (req, res) => {
     return res.json({
       success: true,
       vehicle: {
-        vin,
-        year: safeString(vehicleInfo?.ModelYear),
-        make: safeString(vehicleInfo?.Make),
-        model: safeString(vehicleInfo?.Model),
-        engine: safeString(vehicleInfo?.EngineModel || vehicleInfo?.DisplacementL),
-        trim: safeString(vehicleInfo?.Trim),
-        driveType: safeString(vehicleInfo?.DriveType),
-        fuelType: safeString(vehicleInfo?.FuelTypePrimary)
+        vin, year: safeString(vehicleInfo?.ModelYear), make: safeString(vehicleInfo?.Make),
+        model: safeString(vehicleInfo?.Model), engine: safeString(vehicleInfo?.EngineModel || vehicleInfo?.DisplacementL),
+        trim: safeString(vehicleInfo?.Trim), driveType: safeString(vehicleInfo?.DriveType), fuelType: safeString(vehicleInfo?.FuelTypePrimary)
       }
     });
   } catch (err) {
@@ -891,16 +954,12 @@ app.post('/diagnose-detailed', async (req, res) => {
     const code = safeString(req.body.code);
     const symptom = safeString(req.body.symptom);
     const notes = safeString(req.body.notes);
-
     let vehicleInfo = null;
     if (vin && vin.length >= 11) vehicleInfo = await decodeVIN(vin);
-
     const learningContext = await getLearningContext({ code, vehicleInfo });
     const detailedTree = await callOpenAIForTree({ vin, code, symptom, notes, vehicleInfo, learningContext, mode: 'standard' });
-
     res.json({
-      success: true,
-      tree: detailedTree,
+      success: true, tree: detailedTree,
       vehicle: {
         vin, year: safeString(vehicleInfo?.ModelYear), make: safeString(vehicleInfo?.Make),
         model: safeString(vehicleInfo?.Model), engine: safeString(vehicleInfo?.EngineModel || vehicleInfo?.DisplacementL),
@@ -920,16 +979,12 @@ app.post('/diagnose-expert', async (req, res) => {
     const code = safeString(req.body.code);
     const symptom = safeString(req.body.symptom);
     const notes = safeString(req.body.notes);
-
     let vehicleInfo = null;
     if (vin && vin.length >= 11) vehicleInfo = await decodeVIN(vin);
-
     const learningContext = await getLearningContext({ code, vehicleInfo });
     const expertTree = await callOpenAIForTree({ vin, code, symptom, notes, vehicleInfo, learningContext, mode: 'expert' });
-
     res.json({
-      success: true,
-      tree: expertTree,
+      success: true, tree: expertTree,
       vehicle: {
         vin, year: safeString(vehicleInfo?.ModelYear), make: safeString(vehicleInfo?.Make),
         model: safeString(vehicleInfo?.Model), engine: safeString(vehicleInfo?.EngineModel || vehicleInfo?.DisplacementL),
@@ -943,7 +998,7 @@ app.post('/diagnose-expert', async (req, res) => {
   }
 });
 
-// --- CHAT ---
+// --- CHAT (legacy - kept for makeNextStep) ---
 
 app.post('/chat', async (req, res) => {
   try {
@@ -953,7 +1008,6 @@ app.post('/chat', async (req, res) => {
     const stepHistory = req.body.step_history || [];
     const chatHistory = (req.body.chat_history || []).slice(-6);
     const vehicleData = req.body.vehicle || {};
-
     if (!question) return res.status(400).json({ success: false, error: 'question required' });
 
     const systemPrompt = action === 'make_next_step'
@@ -965,8 +1019,6 @@ VIN: ${req.body.vin || 'unknown'}
 DTC: ${req.body.code || 'none'}
 Complaint: ${req.body.symptom || 'none'}
 Notes: ${req.body.notes || 'none'}
-Tree Summary: ${req.body.tree_issue_summary || 'none'}
-Likely Fault Path: ${req.body.tree_likely_fault_path || 'none'}
 Current Step: ${currentStep ? JSON.stringify(currentStep) : 'none'}
 Step History: ${stepHistory.join(', ') || 'none'}
 Question: ${question}`;
@@ -984,13 +1036,13 @@ Question: ${question}`;
     });
 
     const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content || '';
+    if (data.error) return res.status(500).json({ success: false, error: data.error.message });
 
+    const content = data?.choices?.[0]?.message?.content || '';
     if (action === 'make_next_step') {
       const parsed = cleanModelJson(content);
       return res.json({ success: true, next_step: parsed });
     }
-
     return res.json({ success: true, reply: content });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
@@ -1002,20 +1054,13 @@ Question: ${question}`;
 app.post('/record-step-result', async (req, res) => {
   try {
     await supabaseAdmin.from('step_results').insert([{
-      vin: safeString(req.body.vin),
-      year: safeString(req.body.year),
-      make: safeString(req.body.make),
-      model: safeString(req.body.model),
-      engine: safeString(req.body.engine),
-      fault_code: safeString(req.body.fault_code),
-      complaint: safeString(req.body.complaint),
-      notes: safeString(req.body.notes),
-      step_title: safeString(req.body.step_title),
-      step_id: safeString(req.body.step_id),
-      button_result: safeString(req.body.button_result),
-      next_step_id: safeString(req.body.next_step_id),
-      ai_diagnosis: safeString(req.body.ai_diagnosis),
-      status: safeString(req.body.status) || 'in_progress'
+      vin: safeString(req.body.vin), year: safeString(req.body.year),
+      make: safeString(req.body.make), model: safeString(req.body.model),
+      engine: safeString(req.body.engine), fault_code: safeString(req.body.fault_code),
+      complaint: safeString(req.body.complaint), notes: safeString(req.body.notes),
+      step_title: safeString(req.body.step_title), step_id: safeString(req.body.step_id),
+      button_result: safeString(req.body.button_result), next_step_id: safeString(req.body.next_step_id),
+      ai_diagnosis: safeString(req.body.ai_diagnosis), status: safeString(req.body.status) || 'in_progress'
     }]);
   } catch (err) {
     console.log('record-step-result insert failed (table may not exist):', err.message);
@@ -1028,21 +1073,14 @@ app.post('/record-step-result', async (req, res) => {
 app.post('/save-repair', async (req, res) => {
   try {
     const { data, error } = await supabaseAdmin.from('repair_cases').insert([{
-      vin: safeString(req.body.vin),
-      year: safeString(req.body.year),
-      make: safeString(req.body.make),
-      model: safeString(req.body.model),
-      engine: safeString(req.body.engine),
-      fault_code: safeString(req.body.fault_code),
-      complaint: safeString(req.body.complaint),
-      ai_diagnosis: safeString(req.body.ai_diagnosis),
-      recommended_tests: safeString(req.body.recommended_tests),
-      final_fix: safeString(req.body.final_fix),
-      tech_name: safeString(req.body.tech_name),
-      status: safeString(req.body.status) || 'fixed',
+      vin: safeString(req.body.vin), year: safeString(req.body.year),
+      make: safeString(req.body.make), model: safeString(req.body.model),
+      engine: safeString(req.body.engine), fault_code: safeString(req.body.fault_code),
+      complaint: safeString(req.body.complaint), ai_diagnosis: safeString(req.body.ai_diagnosis),
+      recommended_tests: safeString(req.body.recommended_tests), final_fix: safeString(req.body.final_fix),
+      tech_name: safeString(req.body.tech_name), status: safeString(req.body.status) || 'fixed',
       notes: safeString(req.body.notes)
     }]).select().single();
-
     if (error) return res.status(500).json({ success: false, error: error.message });
     return res.json({ success: true, record: data });
   } catch (err) {
@@ -1056,17 +1094,10 @@ app.get('/admin-user-stats', async (req, res) => {
   try {
     const { data: profiles, error } = await supabaseAdmin.from('user_profiles').select('id, last_seen');
     if (error) return res.status(500).json({ success: false, error: error.message });
-
     const cutoff = getOnlineCutoffIso(15);
     const total = (profiles || []).length;
     const online = (profiles || []).filter(p => p.last_seen && p.last_seen >= cutoff).length;
-
-    return res.json({
-      success: true,
-      total_registered_users: total,
-      online_registered_users: online,
-      online_window_minutes: 15
-    });
+    return res.json({ success: true, total_registered_users: total, online_registered_users: online, online_window_minutes: 15 });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }
@@ -1077,10 +1108,8 @@ app.get('/admin-user-stats', async (req, res) => {
 app.get('/admin-users', async (req, res) => {
   try {
     const { data, error } = await supabaseAdmin
-      .from('user_profiles')
-      .select('id, email, name, role, created_at, last_seen')
+      .from('user_profiles').select('id, email, name, role, created_at, last_seen')
       .order('created_at', { ascending: false });
-
     if (error) return res.status(500).json({ success: false, error: error.message });
     return res.json({ success: true, users: data || [] });
   } catch (err) {
@@ -1094,11 +1123,7 @@ app.get('/access-requests', async (req, res) => {
   try {
     const status = safeString(req.query.status) || 'pending';
     const { data, error } = await supabaseAdmin
-      .from('access_requests')
-      .select('*')
-      .eq('status', status)
-      .order('created_at', { ascending: false });
-
+      .from('access_requests').select('*').eq('status', status).order('created_at', { ascending: false });
     if (error) return res.status(500).json({ success: false, error: error.message });
     return res.json({ success: true, requests: data || [] });
   } catch (err) {
@@ -1110,17 +1135,10 @@ app.post('/approve-request', async (req, res) => {
   try {
     const requestId = safeString(req.body.request_id);
     if (!requestId) return res.status(400).json({ success: false, error: 'request_id required' });
-
-    const { data: request, error: fetchError } = await supabaseAdmin
-      .from('access_requests').select('*').eq('id', requestId).single();
-
+    const { data: request, error: fetchError } = await supabaseAdmin.from('access_requests').select('*').eq('id', requestId).single();
     if (fetchError) return res.status(404).json({ success: false, error: fetchError.message });
-
-    const { error: updateError } = await supabaseAdmin
-      .from('access_requests').update({ status: 'approved' }).eq('id', requestId);
-
+    const { error: updateError } = await supabaseAdmin.from('access_requests').update({ status: 'approved' }).eq('id', requestId);
     if (updateError) return res.status(500).json({ success: false, error: updateError.message });
-
     return res.json({ success: true, message: 'Request approved' });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
@@ -1131,10 +1149,7 @@ app.post('/deny-request', async (req, res) => {
   try {
     const requestId = safeString(req.body.request_id);
     if (!requestId) return res.status(400).json({ success: false, error: 'request_id required' });
-
-    const { error } = await supabaseAdmin
-      .from('access_requests').update({ status: 'denied' }).eq('id', requestId);
-
+    const { error } = await supabaseAdmin.from('access_requests').update({ status: 'denied' }).eq('id', requestId);
     if (error) return res.status(500).json({ success: false, error: error.message });
     return res.json({ success: true, message: 'Request denied' });
   } catch (err) {
@@ -1142,17 +1157,24 @@ app.post('/deny-request', async (req, res) => {
   }
 });
 
-// --- ASK ALLIE ---
+// --- ASK ALLIE HEALTH CHECK ---
 
 app.get('/ask-allie-health', async (req, res) => {
   try {
     const { count, error } = await supabaseAdmin.from('ask_allie_sessions').select('*', { count: 'exact', head: true });
     if (error) return res.status(500).json({ success: false, error: error.message });
-    return res.json({ success: true, status: 'ok', ask_allie_sessions_count: count || 0, openai_configured: true, tavily_configured: true });
+    return res.json({
+      success: true, status: 'ok',
+      ask_allie_sessions_count: count || 0,
+      openai_configured: !!OPENAI_KEY,
+      tavily_configured: !!TAVILY_KEY
+    });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// --- ASK ALLIE (MAIN) ---
 
 app.post('/ask-allie', async (req, res) => {
   try {
@@ -1162,97 +1184,154 @@ app.post('/ask-allie', async (req, res) => {
 
     if (!question) return res.status(400).json({ success: false, error: 'question is required' });
 
-    let session = null;
+    if (!OPENAI_KEY) {
+      return res.status(500).json({ success: false, error: 'OpenAI API key not configured. Add OPENAI_API_KEY to Render environment variables.' });
+    }
 
+    // Session management
+    let session = null;
     if (incomingSessionId) {
-      const { data: existingSession } = await supabaseAdmin.from('ask_allie_sessions').select('*').eq('id', incomingSessionId).single();
-      if (existingSession) session = existingSession;
+      try {
+        const { data: existingSession } = await supabaseAdmin.from('ask_allie_sessions').select('*').eq('id', incomingSessionId).single();
+        if (existingSession) session = existingSession;
+      } catch (err) {
+        console.log('Session lookup failed:', err.message);
+      }
     }
 
     if (!session) {
-      const { data: insertedSession, error: sessionError } = await supabaseAdmin
-        .from('ask_allie_sessions')
-        .insert([{
-          vin: jobContext.vin || null, year: jobContext.year || null, make: jobContext.make || null,
-          model: jobContext.model || null, engine: jobContext.engine || null, complaint: jobContext.complaint || null,
-          dtcs: jobContext.dtcs, symptoms: jobContext.symptoms, prior_tests: jobContext.prior_tests,
-          notes: jobContext.notes || null, updated_at: new Date().toISOString()
-        }])
-        .select().single();
+      try {
+        const { data: insertedSession, error: sessionError } = await supabaseAdmin
+          .from('ask_allie_sessions')
+          .insert([{
+            vin: jobContext.vin || null, year: jobContext.year || null,
+            make: jobContext.make || null, model: jobContext.model || null,
+            engine: jobContext.engine || null, complaint: jobContext.complaint || null,
+            dtcs: jobContext.dtcs, symptoms: jobContext.symptoms,
+            prior_tests: jobContext.prior_tests, notes: jobContext.notes || null,
+            updated_at: new Date().toISOString()
+          }])
+          .select().single();
 
-      if (sessionError) return res.status(500).json({ success: false, error: `ask_allie_sessions insert failed: ${sessionError.message}` });
-      session = insertedSession;
+        if (sessionError) {
+          console.log('Session insert failed:', sessionError.message);
+          // Continue without session — don't block the answer
+        } else {
+          session = insertedSession;
+        }
+      } catch (err) {
+        console.log('Session creation failed:', err.message);
+      }
     }
 
-    const sessionId = session.id;
+    const sessionId = session?.id || 'no-session';
 
-    await supabaseAdmin.from('ask_allie_messages').insert([{ session_id: sessionId, role: 'user', content: question, metadata: { job_context: jobContext } }]);
+    // Save user message
+    try {
+      await supabaseAdmin.from('ask_allie_messages').insert([{
+        session_id: sessionId === 'no-session' ? null : sessionId,
+        role: 'user', content: question,
+        metadata: { job_context: jobContext }
+      }]);
+    } catch (err) {
+      console.log('User message save failed:', err.message);
+    }
 
+    // Search internal knowledge
     const internalKnowledge = await searchAskAllieInternalKnowledge(question, jobContext);
+
+    // Decide if web search needed
     const shouldUseWeb = computeAskAllieNeedWeb(question, internalKnowledge);
 
     let externalResearch = { query: '', used_web: false, results: [], images: [], warning: '' };
-    if (shouldUseWeb) externalResearch = await tavilySearch(buildAskAllieSearchQuery(question, jobContext));
+    if (shouldUseWeb && TAVILY_KEY) {
+      externalResearch = await tavilySearch(buildAskAllieSearchQuery(question, jobContext));
+    }
 
+    // Save web sources
     const savedWebSourceRows = [];
-    for (const item of (externalResearch.results || []).slice(0, 5)) {
-      const sourceRow = await saveAskAllieSource(sessionId, {
-        source_type: 'web', title: item.title, url: item.url,
-        domain: (() => { try { return new URL(item.url).hostname; } catch { return ''; } })(),
-        raw_content: safeString(item.raw_content || item.content),
-        extracted_summary: safeString(item.content || item.raw_content),
-        status: 'unverified', confidence_score: 40
-      });
-      savedWebSourceRows.push(sourceRow);
+    if (sessionId !== 'no-session') {
+      for (const item of (externalResearch.results || []).slice(0, 5)) {
+        const sourceRow = await saveAskAllieSource(sessionId, {
+          source_type: 'web', title: item.title, url: item.url,
+          domain: (() => { try { return new URL(item.url).hostname; } catch { return ''; } })(),
+          raw_content: safeString(item.raw_content || item.content),
+          extracted_summary: safeString(item.content || item.raw_content),
+          status: 'unverified', confidence_score: 40
+        });
+        if (sourceRow) savedWebSourceRows.push(sourceRow);
+      }
+
+      for (const imageUrl of (externalResearch.images || []).slice(0, 5)) {
+        await saveAskAllieSource(sessionId, {
+          source_type: 'image', title: 'Image result', url: imageUrl,
+          domain: (() => { try { return new URL(imageUrl).hostname; } catch { return ''; } })(),
+          raw_content: '', extracted_summary: '', status: 'unverified', confidence_score: 25
+        });
+      }
     }
 
-    for (const imageUrl of (externalResearch.images || []).slice(0, 5)) {
-      await saveAskAllieSource(sessionId, {
-        source_type: 'image', title: 'Image result', url: imageUrl,
-        domain: (() => { try { return new URL(imageUrl).hostname; } catch { return ''; } })(),
-        raw_content: '', extracted_summary: '', status: 'unverified', confidence_score: 25
-      });
-    }
+    // Extract structured data from web results
+    const extractionInputSources = savedWebSourceRows.length
+      ? savedWebSourceRows.map(row => ({ extracted_summary: row.extracted_summary, raw_content: row.raw_content }))
+      : (externalResearch.results || []).slice(0, 5).map(r => ({ extracted_summary: safeString(r.content), raw_content: safeString(r.raw_content) }));
 
-    const extractionInputSources = savedWebSourceRows.map(row => ({ extracted_summary: row.extracted_summary, raw_content: row.raw_content }));
     const extracted = await extractStructuredDataFromWeb(extractionInputSources, jobContext, question);
 
-    if (extracted && (extracted.pinout_table?.length || extracted.key_specs?.length)) {
+    // Save extracted facts
+    if (extracted && (extracted.pinout_table?.length || extracted.key_specs?.length) && sessionId !== 'no-session') {
       await saveAskAllieFacts(sessionId, savedWebSourceRows[0]?.id || null, extracted, jobContext);
     }
 
+    // Synthesize the answer using AI
     let answerPayload = await synthesizeAskAllieAnswer({ question, jobContext, internalKnowledge, externalResearch, extracted });
-    if (!answerPayload) answerPayload = buildAskAllieFallbackAnswer(extracted, externalResearch);
 
-    await promoteAskAllieConfidence(sessionId, answerPayload.confidence_score);
+    // Only use fallback if AI completely failed
+    if (!answerPayload || !answerPayload.answer) {
+      answerPayload = buildAskAllieFallbackAnswer(extracted, externalResearch);
+    }
 
-    const { data: assistantMessage, error: assistantMessageError } = await supabaseAdmin
-      .from('ask_allie_messages')
-      .insert([{
-        session_id: sessionId, role: 'assistant', content: answerPayload.answer,
-        metadata: {
-          confidence_score: toNumber(answerPayload.confidence_score, 0),
-          match_level: safeString(answerPayload.match_level),
-          best_image_urls: answerPayload.best_image_urls || [],
-          pinout_table: answerPayload.pinout_table || [],
-          warnings: answerPayload.warnings || [],
-          next_steps: answerPayload.next_steps || [],
-          used_web: Boolean(externalResearch.used_web),
-          web_query: safeString(externalResearch.query)
-        }
-      }])
-      .select().single();
+    // Promote confidence for verified data
+    if (sessionId !== 'no-session') {
+      await promoteAskAllieConfidence(sessionId, answerPayload.confidence_score);
+    }
 
-    if (assistantMessageError) return res.status(500).json({ success: false, error: assistantMessageError.message });
+    // Save assistant message
+    let assistantMessageId = null;
+    try {
+      const { data: assistantMessage, error: assistantMessageError } = await supabaseAdmin
+        .from('ask_allie_messages')
+        .insert([{
+          session_id: sessionId === 'no-session' ? null : sessionId,
+          role: 'assistant', content: answerPayload.answer,
+          metadata: {
+            confidence_score: toNumber(answerPayload.confidence_score, 0),
+            match_level: safeString(answerPayload.match_level),
+            best_image_urls: answerPayload.best_image_urls || [],
+            pinout_table: answerPayload.pinout_table || [],
+            warnings: answerPayload.warnings || [],
+            next_steps: answerPayload.next_steps || [],
+            used_web: Boolean(externalResearch.used_web),
+            web_query: safeString(externalResearch.query)
+          }
+        }])
+        .select().single();
 
-    const sourceList = await buildAskAllieSourceList(sessionId);
+      if (!assistantMessageError) assistantMessageId = assistantMessage?.id;
+    } catch (err) {
+      console.log('Assistant message save failed:', err.message);
+    }
+
+    const sourceList = sessionId !== 'no-session' ? await buildAskAllieSourceList(sessionId) : [];
 
     return res.json({
-      success: true, session_id: sessionId, message_id: assistantMessage.id,
+      success: true,
+      session_id: sessionId !== 'no-session' ? sessionId : null,
+      message_id: assistantMessageId,
       data: {
         answer: answerPayload.answer,
         confidence_score: toNumber(answerPayload.confidence_score, 0),
-        match_level: safeString(answerPayload.match_level) || 'low',
+        match_level: safeString(answerPayload.match_level) || 'medium',
         best_image_urls: answerPayload.best_image_urls || [],
         pinout_table: answerPayload.pinout_table || [],
         warnings: answerPayload.warnings || [],
@@ -1262,7 +1341,9 @@ app.post('/ask-allie', async (req, res) => {
         sources: sourceList
       }
     });
+
   } catch (err) {
+    console.error('/ask-allie route error:', err.message);
     return res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -1273,5 +1354,6 @@ app.post('/ask-allie', async (req, res) => {
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log('Server running on port ' + PORT);
-});
+  console.log('Allie-kat backend running on port ' + PORT);
+  console.log('OpenAI key configured:', !!OPENAI_KEY);
+  console.log('Tavily key configured:', !!TAVILY_KEY);
