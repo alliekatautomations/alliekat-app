@@ -663,19 +663,67 @@
       .online-users-grid {
         grid-template-columns: 1fr;
       }
+      .title { font-size: 27px; }
+      .status { width: 100%; }
+      .status-area { width: 100%; justify-content: stretch; }
+    }
 
-      .title {
-        font-size: 27px;
-      }
+    @media (max-width: 768px) {
+      .wrap { padding: 10px; }
+      .header { padding: 12px; border-radius: 16px; gap: 10px; }
+      .brand-block { min-width: unset; gap: 10px; }
+      .logo-box { width: 56px; height: 56px; flex: 0 0 56px; border-radius: 12px; }
+      .title { font-size: 20px; }
+      .motto { display: none; }
+      .eyebrow { font-size: 10px; }
+      .status { font-size: 12px; padding: 8px 10px; min-width: unset; width: 100%; border-radius: 12px; }
+      .status-area { width: 100%; flex-direction: column; gap: 8px; }
+      .admin-top-btn, .logout-btn { width: 100%; padding: 12px; font-size: 14px; border-radius: 12px; }
+      .layout { grid-template-columns: 1fr; gap: 12px; }
+      .panel, .admin-dashboard-panel, .admin-users-panel { border-radius: 16px; padding: 14px; }
+      .panel h2, .admin-dashboard-panel h2, .admin-users-panel h2 { font-size: 20px; margin-bottom: 10px; }
+      input, textarea { font-size: 16px; padding: 14px; border-radius: 10px; }
+      textarea { min-height: 90px; }
+      #chatInput { min-height: 70px; font-size: 16px; }
+      button { padding: 14px 16px; font-size: 15px; border-radius: 12px; min-height: 48px; }
+      .button-row, .result-buttons, .final-row, .chat-input-row, .chat-action-row, .auth-action-row, .admin-action-row { gap: 8px; margin-top: 10px; }
+      .result-buttons { flex-direction: column; }
+      .result-buttons button { width: 100%; font-size: 16px; padding: 16px; min-height: 54px; }
+      .button-row { flex-direction: column; }
+      .button-row button { width: 100%; }
+      .vehicle-card, .step-card, .summary-card, .final-card, .learning-card, .chat-card, .auth-card, .locked-card, .admin-card, .request-card, .stats-card, .user-card, .online-user-card { border-radius: 12px; padding: 12px; margin-top: 10px; }
+      .vehicle-grid, .spec-grid, .admin-stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .field-value { font-size: 14px; }
+      .field-label { font-size: 10px; }
+      .step-title, .chat-title, .auth-title, .admin-title, .learning-title { font-size: 18px; }
+      .step-section-body { font-size: 14px; }
+      .step-section-title { font-size: 11px; }
+      .chat-messages { min-height: 200px; max-height: 340px; }
+      .chat-msg { font-size: 13px; padding: 10px; border-radius: 12px; }
+      .chat-input-row { flex-direction: column; }
+      .chat-send { width: 100%; min-height: 48px; font-size: 15px; }
+      .chat-action-row { flex-direction: row; flex-wrap: wrap; }
+      .chat-note-btn, .chat-step-btn { flex: 1; min-width: 120px; font-size: 13px; padding: 10px 12px; }
+      .allie-pinout-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .allie-pinout th, .allie-pinout td { font-size: 12px; padding: 6px 8px; white-space: nowrap; }
+      .allie-next-steps { font-size: 12px; }
+      .auth-result, .admin-result { font-size: 12px; }
+      .learning-fix { font-size: 14px; }
+      .learning-example { font-size: 12px; }
+      .stats-value { font-size: 28px; }
+      .locked-card { padding: 20px 14px; }
+      .locked-title { font-size: 18px; }
+      .locked-text { font-size: 14px; }
+      .footer { font-size: 11px; margin-top: 12px; }
+      .admin-back-btn { width: 100%; margin-bottom: 4px; }
+    }
 
-      .status {
-        width: 100%;
-      }
-
-      .status-area {
-        width: 100%;
-        justify-content: stretch;
-      }
+    @media (max-width: 480px) {
+      .title { font-size: 17px; }
+      .vehicle-grid, .spec-grid { grid-template-columns: 1fr; }
+      .admin-stats-grid { grid-template-columns: 1fr; }
+      .chat-messages { max-height: 280px; }
+      .step-title { font-size: 16px; }
     }
   </style>
 </head>
