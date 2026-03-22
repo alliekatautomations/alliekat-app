@@ -434,6 +434,64 @@
       color: #7fb8cd;
     }
 
+    .allie-meta {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(76, 229, 255, 0.12);
+      font-size: 12px;
+      color: #7fb8cd;
+    }
+
+    .allie-confidence {
+      margin-bottom: 4px;
+    }
+
+    .allie-web-badge {
+      display: inline-block;
+      background: rgba(0, 217, 255, 0.12);
+      border: 1px solid rgba(0, 217, 255, 0.25);
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 11px;
+      color: #4ce5ff;
+      margin-bottom: 6px;
+    }
+
+    .allie-pinout {
+      margin-top: 8px;
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .allie-pinout th {
+      background: rgba(76, 229, 255, 0.10);
+      color: #4ce5ff;
+      padding: 6px 8px;
+      text-align: left;
+      border-bottom: 1px solid rgba(76, 229, 255, 0.15);
+    }
+
+    .allie-pinout td {
+      padding: 5px 8px;
+      color: #dff7ff;
+      border-bottom: 1px solid rgba(76, 229, 255, 0.07);
+    }
+
+    .allie-next-steps {
+      margin-top: 8px;
+      padding-left: 16px;
+      color: #cfefff;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .allie-warning {
+      margin-top: 6px;
+      color: #ffcc66;
+      font-size: 12px;
+    }
+
     #chatInput {
       min-height: 90px;
     }
@@ -870,6 +928,7 @@
     let currentProfile = null;
     let heartbeatTimer = null;
     let cachedAdminUsers = [];
+    let askAllieSessionId = null;
 
     function setStatus(text) {
       document.getElementById("status").innerText = text;
@@ -911,14 +970,11 @@
 
     async function sendHeartbeat() {
       if (!currentUser || !currentUser.id) return;
-
       try {
         await fetch(`${backend}/heartbeat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: currentUser.id
-          })
+          body: JSON.stringify({ user_id: currentUser.id })
         });
       } catch (err) {
         console.log("heartbeat failed:", err.message);
@@ -927,9 +983,7 @@
 
     function startHeartbeat() {
       stopHeartbeat();
-
       if (!currentUser || !currentUser.id) return;
-
       sendHeartbeat();
       heartbeatTimer = setInterval(sendHeartbeat, 60000);
     }
@@ -943,15 +997,10 @@
 
     async function loadUserProfile(userId) {
       if (!userId) return null;
-
       try {
         const res = await fetch(`${backend}/user-profile/${userId}`);
         const data = await res.json();
-
-        if (data.success && data.profile) {
-          return data.profile;
-        }
-
+        if (data.success && data.profile) return data.profile;
         return null;
       } catch (err) {
         return null;
@@ -970,22 +1019,17 @@
       const resultBox = document.getElementById("adminUserStatsResult");
       const totalBox = document.getElementById("totalRegisteredUsers");
       const onlineBox = document.getElementById("onlineRegisteredUsers");
-
       if ((currentProfile?.role || "") !== "admin") return;
-
       resultBox.innerText = "Loading user stats...";
-
       try {
         const res = await fetch(`${backend}/admin-user-stats`);
         const data = await res.json();
-
         if (data.success) {
           totalBox.innerText = data.total_registered_users ?? 0;
           onlineBox.innerText = data.online_registered_users ?? 0;
           resultBox.innerText = `Loaded user stats. Online window: ${data.online_window_minutes ?? 15} minute(s).`;
           return;
         }
-
         totalBox.innerText = "0";
         onlineBox.innerText = "0";
         resultBox.innerText = data.error || "Failed to load user stats.";
@@ -998,16 +1042,10 @@
 
     function renderAdminUsers(users) {
       const container = document.getElementById("adminUsersList");
-
       if (!users || !users.length) {
-        container.innerHTML = `
-          <div class="user-card">
-            <div class="field-value">No registered users found.</div>
-          </div>
-        `;
+        container.innerHTML = `<div class="user-card"><div class="field-value">No registered users found.</div></div>`;
         return;
       }
-
       container.innerHTML = users.map(user => `
         <div class="user-card">
           <div class="user-email">${user.email || "-"}</div>
@@ -1026,17 +1064,11 @@ Last Seen: ${user.last_seen || "-"}
       const container = document.getElementById("onlineUsersList");
       const resultBox = document.getElementById("onlineUsersResult");
       const onlineUsers = (users || []).filter(user => isUserOnline(user.last_seen, 15));
-
       if (!onlineUsers.length) {
-        container.innerHTML = `
-          <div class="online-user-card">
-            <div class="field-value">No users are currently online.</div>
-          </div>
-        `;
+        container.innerHTML = `<div class="online-user-card"><div class="field-value">No users are currently online.</div></div>`;
         resultBox.innerText = "Loaded 0 online user(s).";
         return;
       }
-
       container.innerHTML = onlineUsers.map(user => `
         <div class="online-user-card">
           <div class="online-user-email">${user.email || "-"}</div>
@@ -1048,23 +1080,18 @@ Last Seen: ${user.last_seen || "-"}
           <div class="online-role-badge">${user.role || "tech"}</div>
         </div>
       `).join("");
-
       resultBox.innerText = `Loaded ${onlineUsers.length} online user(s).`;
     }
 
     async function loadAdminUsers() {
       const dashboardBox = document.getElementById("adminUsersResult");
       const pageBox = document.getElementById("adminUsersPageResult");
-
       if ((currentProfile?.role || "") !== "admin") return;
-
       dashboardBox.innerText = "Loading registered users...";
       pageBox.innerText = "Loading registered users...";
-
       try {
         const res = await fetch(`${backend}/admin-users`);
         const data = await res.json();
-
         if (data.success) {
           cachedAdminUsers = data.users || [];
           renderAdminUsers(cachedAdminUsers);
@@ -1073,7 +1100,6 @@ Last Seen: ${user.last_seen || "-"}
           pageBox.innerText = `Loaded ${cachedAdminUsers.length} registered user(s).`;
           return;
         }
-
         cachedAdminUsers = [];
         renderAdminUsers([]);
         renderOnlineUsers([]);
@@ -1131,7 +1157,6 @@ Last Seen: ${user.last_seen || "-"}
       const loggedIn = !!currentUser;
       const role = currentProfile?.role || "tech";
       const isAdmin = role === "admin";
-
       document.getElementById("authWrap").style.display = loggedIn ? "none" : "block";
       document.getElementById("diagLockedCard").style.display = loggedIn ? "none" : "block";
       document.getElementById("diagPanelContent").classList.toggle("hidden", !loggedIn);
@@ -1139,7 +1164,6 @@ Last Seen: ${user.last_seen || "-"}
       document.getElementById("chatPanel").classList.toggle("hidden", !loggedIn);
       document.getElementById("logoutBtn").style.display = loggedIn ? "inline-block" : "none";
       document.getElementById("adminTopBtn").style.display = loggedIn && isAdmin ? "inline-block" : "none";
-
       if (!loggedIn) {
         document.getElementById("adminDashboardView").classList.add("hidden");
         document.getElementById("adminUsersView").classList.add("hidden");
@@ -1159,12 +1183,10 @@ Last Seen: ${user.last_seen || "-"}
 
     function renderCurrentUser() {
       const box = document.getElementById("currentUserBox");
-
       if (!currentUser) {
         box.innerText = "Not logged in";
         return;
       }
-
       const email = currentUser.email || "Unknown email";
       const role = currentProfile?.role || "tech";
       box.innerText = `${email} | role: ${role}`;
@@ -1183,9 +1205,7 @@ Last Seen: ${user.last_seen || "-"}
       document.getElementById("stepContainer").innerHTML = `
         <div class="step-card loading-card">
           <div class="loading-title">Building ${modeLabel} Tree...</div>
-          <div class="loading-text">
-            VIN is decoded and the system is building the richer troubleshooting path now.
-          </div>
+          <div class="loading-text">VIN is decoded and the system is building the richer troubleshooting path now.</div>
         </div>
       `;
     }
@@ -1195,7 +1215,6 @@ Last Seen: ${user.last_seen || "-"}
         document.getElementById("learningContainer").innerHTML = "";
         return;
       }
-
       const fixesHtml = suggestedFixes.map(fix => {
         const examples = (fix.examples || []).map(example => `
           <div class="learning-example">
@@ -1203,7 +1222,6 @@ Last Seen: ${user.last_seen || "-"}
             ${example.complaint || ""}
           </div>
         `).join("");
-
         return `
           <div class="learning-item">
             <div class="learning-fix">${fix.final_fix}</div>
@@ -1212,7 +1230,6 @@ Last Seen: ${user.last_seen || "-"}
           </div>
         `;
       }).join("");
-
       document.getElementById("learningContainer").innerHTML = `
         <div class="learning-card">
           <h3 class="learning-title">Known Fixes</h3>
@@ -1226,22 +1243,18 @@ Last Seen: ${user.last_seen || "-"}
       document.getElementById("stepContainer").innerHTML = `
         <div class="final-card">
           <h3 class="step-title">Diagnosis Complete</h3>
-
           <div class="step-section">
             <div class="step-section-title">Likely Fault Path</div>
             <div class="step-section-body">${tree?.likely_fault_path || "No likely fault path returned."}</div>
           </div>
-
           <div class="step-section">
             <div class="step-section-title">Final Recommendation</div>
             <div class="step-section-body">${tree?.final_recommendation || "No final recommendation returned."}</div>
           </div>
-
           <div class="field-group">
             <label for="finalFix">Final Fix Performed</label>
             <textarea id="finalFix" placeholder="Enter actual repair performed"></textarea>
           </div>
-
           <div class="final-row">
             <button class="back" onclick="goBack()">⬅ Back</button>
             <button class="complete" onclick="saveFinal()">Save Final Fix</button>
@@ -1255,32 +1268,26 @@ Last Seen: ${user.last_seen || "-"}
         renderCompleteCard();
         return;
       }
-
       const buttonsHtml = (currentStep.result_buttons || []).map(btn => {
         let cls = "skip";
         if (btn.label === "PASS") cls = "pass";
         if (btn.label === "FAIL") cls = "fail";
         return `<button class="${cls}" onclick="nextStep('${btn.next_step_id}', '${btn.label.replace(/'/g, "\\'")}')">${btn.label}</button>`;
       }).join("");
-
       const backButtonHtml = stepStack.length > 0
         ? `<button class="back" onclick="goBack()">⬅ Back</button>`
         : "";
-
       document.getElementById("stepContainer").innerHTML = `
         <div class="step-card">
           <h3 class="step-title">${currentStep.title || "Diagnostic Step"}</h3>
-
           <div class="step-section">
             <div class="step-section-title">Instruction</div>
             <div class="step-section-body">${currentStep.instruction || "-"}</div>
           </div>
-
           <div class="step-section">
             <div class="step-section-title">Where To Test</div>
             <div class="step-section-body">${currentStep.where_to_test || "-"}</div>
           </div>
-
           <div class="step-section">
             <div class="step-section-title">Expected Specs</div>
             <div class="spec-grid">
@@ -1291,12 +1298,10 @@ Last Seen: ${user.last_seen || "-"}
               <div><div class="field-label">Expected Voltage Drop</div><div class="field-value">${currentStep.expected_specs?.voltage_drop || "-"}</div></div>
             </div>
           </div>
-
           <div class="step-section">
             <div class="step-section-title">How To Test</div>
             <div class="step-section-body">${currentStep.how_to_test || "-"}</div>
           </div>
-
           <div class="result-buttons">
             ${buttonsHtml}
             ${backButtonHtml}
@@ -1307,16 +1312,10 @@ Last Seen: ${user.last_seen || "-"}
 
     function renderAccessRequests(requests) {
       const container = document.getElementById("accessRequestsList");
-
       if (!requests || !requests.length) {
-        container.innerHTML = `
-          <div class="request-card">
-            <div class="field-value">No pending access requests.</div>
-          </div>
-        `;
+        container.innerHTML = `<div class="request-card"><div class="field-value">No pending access requests.</div></div>`;
         return;
       }
-
       container.innerHTML = requests.map(request => `
         <div class="request-card">
           <div class="request-email">${request.email || ""}</div>
@@ -1337,20 +1336,16 @@ Reason: ${request.reason || "-"}
 
     async function loadAccessRequests() {
       if ((currentProfile?.role || "") !== "admin") return;
-
       const resultBox = document.getElementById("adminResult");
       resultBox.innerText = "Loading pending requests...";
-
       try {
         const res = await fetch(`${backend}/access-requests?status=pending`);
         const data = await res.json();
-
         if (data.success) {
           renderAccessRequests(data.requests || []);
           resultBox.innerText = `Loaded ${(data.requests || []).length} pending request(s).`;
           return;
         }
-
         resultBox.innerText = data.error || "Failed to load requests.";
       } catch (err) {
         resultBox.innerText = `Request load error: ${err.message}`;
@@ -1360,22 +1355,18 @@ Reason: ${request.reason || "-"}
     async function approveRequest(requestId) {
       const resultBox = document.getElementById("adminResult");
       resultBox.innerText = "Approving request...";
-
       try {
         const res = await fetch(`${backend}/approve-request`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ request_id: requestId })
         });
-
         const data = await res.json();
-
         if (data.success) {
           resultBox.innerText = "Request approved.";
           await loadAdminDashboardData();
           return;
         }
-
         resultBox.innerText = data.error || "Approve failed.";
       } catch (err) {
         resultBox.innerText = `Approve error: ${err.message}`;
@@ -1385,22 +1376,18 @@ Reason: ${request.reason || "-"}
     async function denyRequest(requestId) {
       const resultBox = document.getElementById("adminResult");
       resultBox.innerText = "Denying request...";
-
       try {
         const res = await fetch(`${backend}/deny-request`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ request_id: requestId })
         });
-
         const data = await res.json();
-
         if (data.success) {
           resultBox.innerText = "Request denied.";
           await loadAdminDashboardData();
           return;
         }
-
         resultBox.innerText = data.error || "Deny failed.";
       } catch (err) {
         resultBox.innerText = `Deny error: ${err.message}`;
@@ -1411,7 +1398,6 @@ Reason: ${request.reason || "-"}
       const notesBox = document.getElementById("notes");
       const cleanText = (text || "").trim();
       if (!cleanText) return;
-
       const prefix = notesBox.value.trim() ? "\n\n" : "";
       notesBox.value = `${notesBox.value}${prefix}[CHAT INSIGHT]\n${cleanText}`;
       setStatus("System Status: Added to notes");
@@ -1439,6 +1425,10 @@ Reason: ${request.reason || "-"}
       };
     }
 
+    // =============================================
+    // RENDER CHAT — shows full Allie response
+    // including pinout tables, next steps, sources
+    // =============================================
     function renderChat() {
       const box = document.getElementById("chatMessages");
 
@@ -1451,6 +1441,7 @@ Reason: ${request.reason || "-"}
             - What does this voltage mean?
             - Can I skip this step?
             - Why am I checking this wire?
+            - What's the pinout for the TPS connector?
           </div>
         `;
         return;
@@ -1458,10 +1449,65 @@ Reason: ${request.reason || "-"}
 
       box.innerHTML = chatHistory.map((msg, index) => {
         if (msg.role === "assistant") {
+          const meta = msg.meta || {};
+
+          // Pinout table HTML
+          let pinoutHtml = "";
+          if (meta.pinout_table && meta.pinout_table.length) {
+            const rows = meta.pinout_table.map(pin => `
+              <tr>
+                <td>${pin.pin_label || "-"}</td>
+                <td>${pin.wire_color || "-"}</td>
+                <td>${pin.circuit_function || "-"}</td>
+                <td>${pin.expected_value || "-"}</td>
+                <td>${pin.notes || "-"}</td>
+              </tr>
+            `).join("");
+            pinoutHtml = `
+              <table class="allie-pinout">
+                <thead><tr><th>Pin</th><th>Wire Color</th><th>Function</th><th>Expected</th><th>Notes</th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            `;
+          }
+
+          // Next steps HTML
+          let nextStepsHtml = "";
+          if (meta.next_steps && meta.next_steps.length) {
+            nextStepsHtml = `
+              <div style="margin-top:8px; font-size:12px; color:#7fb8cd; text-transform:uppercase; letter-spacing:1px;">Next Steps</div>
+              <ol class="allie-next-steps">
+                ${meta.next_steps.map(s => `<li>${s}</li>`).join("")}
+              </ol>
+            `;
+          }
+
+          // Warnings HTML
+          let warningsHtml = "";
+          if (meta.warnings && meta.warnings.length) {
+            warningsHtml = meta.warnings.map(w => `<div class="allie-warning">⚠ ${w}</div>`).join("");
+          }
+
+          // Meta bar
+          const confidenceScore = meta.confidence_score != null ? meta.confidence_score : "";
+          const matchLevel = meta.match_level || "";
+          const usedWeb = meta.used_web ? `<span class="allie-web-badge">🌐 Web search used</span>` : "";
+
+          const metaHtml = (confidenceScore !== "" || matchLevel || usedWeb) ? `
+            <div class="allie-meta">
+              ${usedWeb}
+              ${confidenceScore !== "" ? `<div class="allie-confidence">Confidence: ${confidenceScore}% | Match: ${matchLevel}</div>` : ""}
+            </div>
+          ` : "";
+
           return `
             <div class="chat-msg chat-assistant">
               <span class="chat-role">Allie</span>
               ${msg.content}
+              ${pinoutHtml}
+              ${nextStepsHtml}
+              ${warningsHtml}
+              ${metaHtml}
               <div class="chat-action-row">
                 <button class="chat-note-btn" onclick="addToNotes(chatHistory[${index}].content)">Add to Notes</button>
                 <button class="chat-step-btn" onclick="makeNextStep(${index})">Make Next Step</button>
@@ -1486,25 +1532,20 @@ Reason: ${request.reason || "-"}
       const email = (document.getElementById("signupEmail").value || "").trim();
       const password = document.getElementById("signupPassword").value || "";
       const resultBox = document.getElementById("signupResult");
-
       if (!email || !password) {
         resultBox.innerText = "Email and password required.";
         setStatus("System Status: Signup needs email and password");
         return;
       }
-
       setStatus("System Status: Creating request...");
-
       try {
         const res = await fetch(`${backend}/signup`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name, email, password })
         });
-
         const data = await res.json();
         resultBox.innerText = JSON.stringify(data, null, 2);
-
         if (data.success) {
           document.getElementById("loginEmail").value = email;
           document.getElementById("loginPassword").value = password;
@@ -1523,24 +1564,19 @@ Reason: ${request.reason || "-"}
       const email = (document.getElementById("loginEmail").value || "").trim();
       const password = document.getElementById("loginPassword").value || "";
       const resultBox = document.getElementById("loginResult");
-
       if (!email || !password) {
         resultBox.innerText = "Email and password required.";
         setStatus("System Status: Login needs email and password");
         return;
       }
-
       setStatus("System Status: Logging in...");
-
       try {
         const res = await fetch(`${backend}/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password })
         });
-
         const data = await res.json();
-
         if (data.success) {
           currentUser = data.user || null;
           currentSession = data.session || null;
@@ -1549,9 +1585,7 @@ Reason: ${request.reason || "-"}
           renderCurrentUser();
           updateAuthView();
           startHeartbeat();
-
           const role = currentProfile?.role || "tech";
-
           resultBox.innerText = JSON.stringify({
             success: data.success,
             email: data.user?.email || "",
@@ -1559,15 +1593,10 @@ Reason: ${request.reason || "-"}
             role,
             access_token_found: !!data.session?.access_token
           }, null, 2);
-
-          if (role === "admin") {
-            await loadAdminDashboardData();
-          }
-
+          if (role === "admin") await loadAdminDashboardData();
           setStatus(`System Status: Login successful (${role})`);
           return;
         }
-
         currentUser = null;
         currentSession = null;
         currentProfile = null;
@@ -1596,6 +1625,7 @@ Reason: ${request.reason || "-"}
       currentSession = null;
       currentProfile = null;
       cachedAdminUsers = [];
+      askAllieSessionId = null;
       clearAuthFromStorage();
       renderCurrentUser();
       updateAuthView();
@@ -1620,47 +1650,36 @@ Reason: ${request.reason || "-"}
         setStatus("System Status: Login required");
         return;
       }
-
       currentMode = mode || "standard";
       runToken += 1;
       const localRunToken = runToken;
-
       historyLog = [];
       stepStack = [];
       tree = null;
       currentStep = null;
       chatHistory = [];
+      askAllieSessionId = null;
       renderHistory();
       renderChat();
       document.getElementById("learningContainer").innerHTML = "";
-
       const enteredVin = document.getElementById("vin").value || "";
       setVehicle({ vin: enteredVin }, "Decoding VIN...");
       setStatus(`System Status: Decoding VIN for ${currentMode} mode...`);
       renderLoadingCard(currentMode === "expert" ? "Expert" : "Detailed");
-
       try {
         const vinRes = await fetch(`${backend}/decode-vin`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ vin: enteredVin })
         });
-
         const vinData = await vinRes.json();
-
         if (localRunToken !== runToken) return;
-
-        if (vinData.success) {
-          setVehicle(vinData.vehicle || { vin: enteredVin }, "VIN decoded");
-        }
-
+        if (vinData.success) setVehicle(vinData.vehicle || { vin: enteredVin }, "VIN decoded");
         const diagnosisEndpoint = currentMode === "expert"
           ? `${backend}/diagnose-expert`
           : `${backend}/diagnose-detailed`;
-
         setStatus(`System Status: Building ${currentMode} tree...`);
         document.getElementById("currentPosition").innerText = `Building ${currentMode} tree...`;
-
         const diagRes = await fetch(diagnosisEndpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1671,56 +1690,42 @@ Reason: ${request.reason || "-"}
             notes: document.getElementById("notes").value || ""
           })
         });
-
         const data = await diagRes.json();
-
         if (localRunToken !== runToken) return;
-
         if (!data.success || !data.tree || !Array.isArray(data.tree.steps)) {
           setStatus("System Status: Diagnosis failed");
           document.getElementById("stepContainer").innerHTML = `
-            <div class="step-card">
-              <div class="field-value">No valid tree returned.</div>
-            </div>
+            <div class="step-card"><div class="field-value">No valid tree returned.</div></div>
           `;
           return;
         }
-
         tree = data.tree;
         currentStep = tree.steps.find(step => step.id === tree.current_step_id) || tree.steps[0] || null;
         stepStack = [];
-
         if (data.vehicle) {
           setVehicle(data.vehicle, tree.current_position || `${currentMode} diagnosis loaded`);
         } else {
           document.getElementById("currentPosition").innerText = tree.current_position || `${currentMode} diagnosis loaded`;
         }
-
         renderLearningPanel(data.suggested_fixes || [], data.learning_matches || 0);
-
         historyLog = [`Started ${currentMode} tree: ${tree.issue_summary || "Diagnostic flow started"}`];
         renderHistory();
         renderStep();
         setStatus(`System Status: ${currentMode} tree ready`);
       } catch (err) {
         if (localRunToken !== runToken) return;
-
         setStatus("System Status: Error loading diagnosis");
         document.getElementById("stepContainer").innerHTML = `
-          <div class="step-card">
-            <div class="field-value">Error: ${err.message}</div>
-          </div>
+          <div class="step-card"><div class="field-value">Error: ${err.message}</div></div>
         `;
       }
     }
 
     async function nextStep(nextId, resultLabel) {
       if (!currentStep || !currentUser) return;
-
       stepStack.push(currentStep);
       historyLog.push(`${currentStep.title} → ${resultLabel}`);
       renderHistory();
-
       try {
         await fetch(`${backend}/record-step-result`, {
           method: "POST",
@@ -1745,14 +1750,12 @@ Reason: ${request.reason || "-"}
       } catch (err) {
         console.log("record-step-result failed:", err.message);
       }
-
       if (!nextId) {
         currentStep = null;
         setStatus("System Status: Flow complete");
         renderStep();
         return;
       }
-
       currentStep = (tree.steps || []).find(step => step.id === nextId) || null;
       setStatus(`System Status: ${currentMode} step advanced`);
       renderStep();
@@ -1760,7 +1763,6 @@ Reason: ${request.reason || "-"}
 
     function goBack() {
       if (stepStack.length === 0 || !currentUser) return;
-
       currentStep = stepStack.pop();
       historyLog.push("Went back one step");
       renderHistory();
@@ -1768,6 +1770,11 @@ Reason: ${request.reason || "-"}
       renderStep();
     }
 
+    // =============================================
+    // SEND CHAT — now calls /ask-allie with full
+    // job context. Returns rich Allie response
+    // including pinouts, next steps, web data.
+    // =============================================
     async function sendChat() {
       if (!currentUser) {
         setStatus("System Status: Login required");
@@ -1776,45 +1783,64 @@ Reason: ${request.reason || "-"}
 
       const input = document.getElementById("chatInput");
       const question = (input.value || "").trim();
-
       if (!question) return;
 
       chatHistory.push({ role: "user", content: question });
       renderChat();
       input.value = "";
-      setStatus("System Status: Thinking...");
+      setStatus("System Status: Allie is thinking...");
 
       try {
-        const res = await fetch(`${backend}/chat`, {
+        const res = await fetch(`${backend}/ask-allie`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            action: "chat",
             question,
-            vin: document.getElementById("vin").value || "",
-            code: document.getElementById("code").value || "",
-            symptom: document.getElementById("symptom").value || "",
-            notes: document.getElementById("notes").value || "",
-            vehicle: vehicleData || {},
-            current_mode: currentMode,
-            current_step: currentStep || null,
-            tree_issue_summary: tree?.issue_summary || "",
-            tree_likely_fault_path: tree?.likely_fault_path || "",
-            tree_final_recommendation: tree?.final_recommendation || "",
-            step_history: historyLog || [],
-            chat_history: chatHistory || [],
-            known_fixes_text: document.getElementById("learningContainer").innerText || ""
+            session_id: askAllieSessionId || undefined,
+            job_context: {
+              vin: document.getElementById("vin").value || "",
+              year: vehicleData.year || "",
+              make: vehicleData.make || "",
+              model: vehicleData.model || "",
+              engine: vehicleData.engine || "",
+              complaint: document.getElementById("symptom").value || "",
+              dtcs: [document.getElementById("code").value || ""].filter(Boolean),
+              symptoms: [document.getElementById("symptom").value || ""].filter(Boolean),
+              prior_tests: historyLog || [],
+              notes: document.getElementById("notes").value || ""
+            }
           })
         });
 
         const data = await res.json();
-        const answer = data.reply || "No reply returned.";
 
-        chatHistory.push({ role: "assistant", content: answer });
+        if (!data.success) {
+          chatHistory.push({ role: "assistant", content: `Allie error: ${data.error || "Unknown error"}`, meta: {} });
+          renderChat();
+          setStatus("System Status: Ask Allie error");
+          return;
+        }
+
+        // Save session ID for conversation continuity
+        if (data.session_id) askAllieSessionId = data.session_id;
+
+        const answer = data.data?.answer || "No reply returned.";
+        const meta = {
+          confidence_score: data.data?.confidence_score,
+          match_level: data.data?.match_level,
+          pinout_table: data.data?.pinout_table || [],
+          next_steps: data.data?.next_steps || [],
+          warnings: data.data?.warnings || [],
+          best_image_urls: data.data?.best_image_urls || [],
+          used_web: data.data?.used_web || false,
+          web_query: data.data?.web_query || ""
+        };
+
+        chatHistory.push({ role: "assistant", content: answer, meta });
         renderChat();
         setStatus("System Status: Ready");
       } catch (err) {
-        chatHistory.push({ role: "assistant", content: `Chat error: ${err.message}` });
+        chatHistory.push({ role: "assistant", content: `Chat error: ${err.message}`, meta: {} });
         renderChat();
         setStatus("System Status: Chat error");
       }
@@ -1825,12 +1851,9 @@ Reason: ${request.reason || "-"}
         setStatus("System Status: Login required");
         return;
       }
-
       const msg = chatHistory[chatIndex];
       if (!msg || msg.role !== "assistant") return;
-
       setStatus("System Status: Building next step from chat...");
-
       try {
         const res = await fetch(`${backend}/chat`, {
           method: "POST",
@@ -1849,29 +1872,17 @@ Reason: ${request.reason || "-"}
             tree_likely_fault_path: tree?.likely_fault_path || "",
             tree_final_recommendation: tree?.final_recommendation || "",
             step_history: historyLog || [],
-            chat_history: chatHistory || [],
-            known_fixes_text: document.getElementById("learningContainer").innerText || ""
+            chat_history: chatHistory || []
           })
         });
-
         const data = await res.json();
         let nextStep = data.next_step || null;
-
-        if (!nextStep) {
-          nextStep = buildStepFromAssistantText(msg.content);
-        }
-
-        if (currentStep) {
-          stepStack.push(currentStep);
-        }
-
+        if (!nextStep) nextStep = buildStepFromAssistantText(msg.content);
+        if (currentStep) stepStack.push(currentStep);
         currentStep = nextStep;
-
         if (tree && Array.isArray(tree.steps)) {
           const exists = tree.steps.find(step => step.id === nextStep.id);
-          if (!exists) {
-            tree.steps.unshift(nextStep);
-          }
+          if (!exists) tree.steps.unshift(nextStep);
         } else {
           tree = {
             steps: [nextStep],
@@ -1880,18 +1891,14 @@ Reason: ${request.reason || "-"}
             final_recommendation: ""
           };
         }
-
         historyLog.push(`Chat created next step: ${nextStep.title || "Chat-Suggested Next Step"}`);
         renderHistory();
         renderStep();
         setStatus("System Status: Chat next step loaded");
       } catch (err) {
         const fallbackStep = buildStepFromAssistantText(msg.content);
-        if (currentStep) {
-          stepStack.push(currentStep);
-        }
+        if (currentStep) stepStack.push(currentStep);
         currentStep = fallbackStep;
-
         if (!tree || !Array.isArray(tree.steps)) {
           tree = {
             steps: [fallbackStep],
@@ -1900,7 +1907,6 @@ Reason: ${request.reason || "-"}
             final_recommendation: ""
           };
         }
-
         historyLog.push("Chat next step fallback loaded");
         renderHistory();
         renderStep();
@@ -1913,16 +1919,12 @@ Reason: ${request.reason || "-"}
         setStatus("System Status: Login required");
         return;
       }
-
       const finalFix = document.getElementById("finalFix")?.value?.trim() || "";
-
       if (!finalFix) {
         setStatus("System Status: Enter final fix first");
         return;
       }
-
       setStatus("System Status: Saving final fix...");
-
       try {
         const res = await fetch(`${backend}/save-repair`, {
           method: "POST",
@@ -1943,9 +1945,7 @@ Reason: ${request.reason || "-"}
             notes: document.getElementById("notes").value || ""
           })
         });
-
         const data = await res.json();
-
         if (data.success) {
           historyLog.push(`Final fix saved: ${finalFix}`);
           renderHistory();
@@ -1961,13 +1961,11 @@ Reason: ${request.reason || "-"}
 
     function clearAll() {
       runToken += 1;
-
       document.getElementById("vin").value = "";
       document.getElementById("code").value = "";
       document.getElementById("symptom").value = "";
       document.getElementById("notes").value = "";
       document.getElementById("chatInput").value = "";
-
       tree = null;
       currentStep = null;
       historyLog = [];
@@ -1975,7 +1973,7 @@ Reason: ${request.reason || "-"}
       vehicleData = {};
       currentMode = "standard";
       chatHistory = [];
-
+      askAllieSessionId = null;
       document.getElementById("vehicleVin").innerText = "-";
       document.getElementById("vehicleYear").innerText = "-";
       document.getElementById("vehicleMake").innerText = "-";
@@ -1983,16 +1981,13 @@ Reason: ${request.reason || "-"}
       document.getElementById("vehicleEngine").innerText = "-";
       document.getElementById("currentPosition").innerText = "Waiting for diagnosis...";
       document.getElementById("learningContainer").innerHTML = "";
-
       document.getElementById("stepContainer").innerHTML = `
         <div class="step-card">
           <div class="field-value">No diagnostic step loaded yet.</div>
         </div>
       `;
-
       renderHistory();
       renderChat();
-
       if (currentUser) {
         const role = currentProfile?.role || "tech";
         setStatus(`System Status: Ready (${role})`);
@@ -2005,7 +2000,6 @@ Reason: ${request.reason || "-"}
       renderChat();
       showLogin();
       updateAuthView();
-
       if (currentUser && currentUser.id) {
         currentProfile = await loadUserProfile(currentUser.id);
         saveAuthToStorage();
@@ -2013,9 +2007,7 @@ Reason: ${request.reason || "-"}
         updateAuthView();
         startHeartbeat();
         const role = currentProfile?.role || "tech";
-        if (role === "admin") {
-          await loadAdminDashboardData();
-        }
+        if (role === "admin") await loadAdminDashboardData();
         setStatus(`System Status: Session restored (${role})`);
       }
     }
