@@ -1357,3 +1357,4 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log('Allie-kat backend running on port ' + PORT);
   console.log('OpenAI key configured:', !!OPENAI_KEY);
   console.log('Tavily key configured:', !!TAVILY_KEY);
+});
