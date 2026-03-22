@@ -6,9 +6,20 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
+/*
+  KEYS GO EXACTLY HERE:
+  line 12  -> SUPABASE URL
+  line 13  -> SUPABASE ANON KEY
+  line 18  -> SUPABASE URL
+  line 19  -> SUPABASE SERVICE ROLE KEY
+  search   -> PASTE_OPENAI_API_KEY_HERE
+  search   -> PASTE_TAVILY_API_KEY_HERE
+*/
+
 const supabase = createClient(
   'https://julpheuumolnwkthazdj.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1bHBoZXV1bW9sbndrdGhhemRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMzc5ODYsImV4cCI6MjA4OTYxMzk4Nn0.i3jI-PjdAUPnbgVn_EXctr0-F158Gbp-r6icrEdvOGM'
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1bHBoZXV1bW9sbndrdGhhemRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMzc5ODYsImV4cCI6MjA4OTYxMzk4Nn0.i3jI-PjdAUPnbgVn_EXctr0-F158Gbp-r6icrEdvOGM
+'
 );
 
 const supabaseAdmin = createClient(
@@ -21,6 +32,10 @@ const supabaseAdmin = createClient(
     }
   }
 );
+
+/* =========================
+   HELPERS
+========================= */
 
 function safeString(value) {
   return String(value || '').trim();
@@ -97,42 +112,7 @@ function buildAskAllieSearchQuery(question, ctx) {
     question
   ].filter(Boolean).join(' ');
 }
-async function tavilySearch(query) {
-  try {
-    const response = await fetch('https://api.tavily.com/search', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        api_key: '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',
-        query,
-        search_depth: 'advanced',
-        include_answer: false,
-        include_images: true,
-        max_results: 8
-      })
-    });
 
-    const data = await response.json();
-
-    return {
-      query,
-      used_web: true,
-      results: data.results || [],
-      images: data.images || [],
-      warning: ''
-    };
-  } catch (err) {
-    return {
-      query,
-      used_web: false,
-      results: [],
-      images: [],
-      warning: err.message
-    };
-  }
-}
 function isBlockedSearchDomain(hostname) {
   const host = lower(hostname);
   return [
@@ -168,12 +148,14 @@ function looksLikeWeakSource(url, title) {
 function dedupeByUrl(items) {
   const seen = new Set();
   const output = [];
+
   for (const item of items || []) {
     const key = safeString(item.url);
     if (!key || seen.has(key)) continue;
     seen.add(key);
     output.push(item);
   }
+
   return output;
 }
 
@@ -241,6 +223,10 @@ async function decodeVIN(vin) {
     return null;
   }
 }
+
+/* =========================
+   LEARNING HELPERS
+========================= */
 
 function rowLooksUsableForLearning(row) {
   const finalFix = safeString(row.final_fix);
@@ -380,6 +366,10 @@ function learningContextToText(learningContext) {
 
   return lines.join('\n');
 }
+
+/* =========================
+   TREE ENGINE
+========================= */
 
 function buildQuickTree(payload) {
   const code = normalizeCode(payload.code);
@@ -600,37 +590,558 @@ ${learningText}
 Build the ${mode === 'expert' ? 'expert' : 'normal'} diagnostic tree now.
 `;
 
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': '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',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        temperature: mode === 'expert' ? 0.05 : 0.08,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ]
-      })
-    });
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer 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',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      temperature: mode === 'expert' ? 0.05 : 0.08,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ]
+    })
+  });
 
-    const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content || '';
-    const parsed = cleanModelJson(content);
+  const data = await response.json();
+  const content = data?.choices?.[0]?.message?.content || '';
+  const parsed = cleanModelJson(content);
 
-    return normalizeTree(
-      parsed,
-      { vin, code, symptom, notes },
-      vehicleInfo,
-      mode === 'expert' ? 'openai-expert-aggressive' : 'openai-aggressive'
-    );
-  } catch {
-    return buildQuickTree({ vin, code, symptom, notes });
-  }
+  return normalizeTree(
+    parsed,
+    { vin, code, symptom, notes },
+    vehicleInfo,
+    mode === 'expert' ? 'openai-expert-aggressive' : 'openai-aggressive'
+  );
 }
+
+async function tavilySearch(query) {
+  const response = await fetch('https://api.tavily.com/search', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      api_key: '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',
+      query,
+      search_depth: 'advanced',
+      include_answer: false,
+      include_images: true,
+      include_raw_content: true,
+      max_results: 10
+    })
+  });
+
+  const data = await response.json();
+
+  const filteredResults = dedupeByUrl(
+    (Array.isArray(data?.results) ? data.results : []).filter(item => {
+      const url = safeString(item.url);
+      const title = safeString(item.title);
+
+      let host = '';
+      try {
+        host = new URL(url).hostname;
+      } catch {
+        host = '';
+      }
+
+      if (!url || !title) return false;
+      if (isBlockedSearchDomain(host)) return false;
+      if (looksLikeWeakSource(url, title)) return false;
+      return true;
+    })
+  ).slice(0, 6);
+
+  const filteredImages = dedupeByUrl(
+    (Array.isArray(data?.images) ? data.images : [])
+      .filter(url => {
+        let host = '';
+        try {
+          host = new URL(url).hostname;
+        } catch {
+          host = '';
+        }
+        return !isBlockedSearchDomain(host);
+      })
+      .map(url => ({ url }))
+  ).map(x => x.url).slice(0, 5);
+
+  return {
+    query,
+    results: filteredResults,
+    images: filteredImages,
+    used_web: true,
+    warning: ''
+  };
+}
+
+async function saveAskAllieSource(sessionId, source) {
+  const { data, error } = await supabaseAdmin
+    .from('ask_allie_sources')
+    .insert([
+      {
+        session_id: sessionId,
+        source_type: safeString(source.source_type),
+        title: safeString(source.title),
+        url: safeString(source.url),
+        domain: safeString(source.domain),
+        raw_content: safeString(source.raw_content),
+        extracted_summary: safeString(source.extracted_summary),
+        status: safeString(source.status) || 'unverified',
+        confidence_score: toNumber(source.confidence_score, 0)
+      }
+    ])
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+async function saveAskAllieFacts(sessionId, sourceId, extracted, jobContext) {
+  const rows = [];
+
+  const pinoutTable = Array.isArray(extracted?.pinout_table) ? extracted.pinout_table : [];
+  for (const pin of pinoutTable) {
+    rows.push({
+      session_id: sessionId,
+      source_id: sourceId || null,
+      fact_type: 'pinout',
+      component_name: safeString(extracted?.component_name || 'Throttle Position Sensor'),
+      connector_name: safeString(extracted?.connector_name),
+      pin_label: safeString(pin.pin || pin.pin_label),
+      wire_color: safeString(pin.wire_color),
+      circuit_function: safeString(pin.function || pin.circuit_function),
+      expected_value: safeString(pin.expected_voltage || pin.expected_value),
+      conditions: safeString(extracted?.conditions),
+      application_year: safeString(jobContext.year),
+      application_make: safeString(jobContext.make),
+      application_model: safeString(jobContext.model),
+      application_engine: safeString(jobContext.engine),
+      fact_json: pin,
+      status: 'unverified',
+      confidence_score: toNumber(extracted?.confidence, 0)
+    });
+  }
+
+  const keySpecs = Array.isArray(extracted?.key_specs) ? extracted.key_specs : [];
+  for (const spec of keySpecs) {
+    rows.push({
+      session_id: sessionId,
+      source_id: sourceId || null,
+      fact_type: 'spec',
+      component_name: safeString(extracted?.component_name || 'Throttle Position Sensor'),
+      connector_name: safeString(extracted?.connector_name),
+      pin_label: '',
+      wire_color: '',
+      circuit_function: 'Spec',
+      expected_value: safeString(spec),
+      conditions: safeString(extracted?.conditions),
+      application_year: safeString(jobContext.year),
+      application_make: safeString(jobContext.make),
+      application_model: safeString(jobContext.model),
+      application_engine: safeString(jobContext.engine),
+      fact_json: { spec },
+      status: 'unverified',
+      confidence_score: toNumber(extracted?.confidence, 0)
+    });
+  }
+
+  if (!rows.length) return [];
+
+  const { data, error } = await supabaseAdmin
+    .from('ask_allie_facts')
+    .insert(rows)
+    .select();
+
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+async function extractStructuredDataFromWeb(sources, jobContext, question) {
+  const combinedText = (sources || [])
+    .map(s => safeString(s.extracted_summary || s.raw_content || s.content))
+    .join('\n\n')
+    .slice(0, 15000);
+
+  if (!combinedText) return null;
+
+  const prompt = `
+You are a master automotive diagnostic data extractor.
+
+Extract only usable structured data from the source text below for this exact application.
+
+Question:
+${question}
+
+Vehicle:
+${jobContext.year} ${jobContext.make} ${jobContext.model} ${jobContext.engine}
+Complaint: ${jobContext.complaint}
+DTCs: ${safeArray(jobContext.dtcs).join(', ')}
+Notes: ${jobContext.notes}
+
+Content:
+${combinedText}
+
+Return ONLY valid JSON in this exact shape:
+{
+  "component_name": "",
+  "connector_name": "",
+  "conditions": "",
+  "pinout_table": [
+    {
+      "pin": "",
+      "wire_color": "",
+      "function": "",
+      "expected_voltage": ""
+    }
+  ],
+  "key_specs": [],
+  "diagnostic_notes": [],
+  "confidence": 0
+}
+
+Rules:
+- Prefer application-specific facts.
+- Do not invent exact pin numbers.
+- If you only find general TPS ranges, put them in key_specs.
+- If exact cavity assignments are not proven, leave pin blank.
+- confidence must be 0 to 100.
+`;
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer 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',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      temperature: 0.05,
+      messages: [
+        { role: 'system', content: 'Return only valid JSON.' },
+        { role: 'user', content: prompt }
+      ]
+    })
+  });
+
+  const data = await response.json();
+  const content = data?.choices?.[0]?.message?.content || '';
+  const parsed = cleanModelJson(content);
+
+  if (!parsed || typeof parsed !== 'object') return null;
+
+  return {
+    component_name: safeString(parsed.component_name),
+    connector_name: safeString(parsed.connector_name),
+    conditions: safeString(parsed.conditions),
+    pinout_table: Array.isArray(parsed.pinout_table) ? parsed.pinout_table : [],
+    key_specs: Array.isArray(parsed.key_specs) ? parsed.key_specs : [],
+    diagnostic_notes: Array.isArray(parsed.diagnostic_notes) ? parsed.diagnostic_notes : [],
+    confidence: toNumber(parsed.confidence, 0)
+  };
+}
+
+async function searchAskAllieInternalKnowledge(question, ctx) {
+  const questionText = lower(question);
+  const componentHints = [
+    'throttle', 'pedal', 'accelerator', 'map', 'maf', 'cam', 'crank', 'abs',
+    'injector', 'fuel', 'egr', 'vgt', 'boost', 'temperature', 'pressure',
+    'sensor', 'switch', 'solenoid', 'connector', 'wiring'
+  ].filter(term => questionText.includes(term));
+
+  const { data: factsData } = await supabaseAdmin
+    .from('ask_allie_facts')
+    .select('*')
+    .eq('application_make', ctx.make || null)
+    .eq('application_model', ctx.model || null)
+    .eq('application_engine', ctx.engine || null)
+    .order('confidence_score', { ascending: false })
+    .limit(50);
+
+  const filteredFacts = (factsData || []).filter(row => {
+    const haystack = lower([
+      row.fact_type,
+      row.component_name,
+      row.connector_name,
+      row.pin_label,
+      row.wire_color,
+      row.circuit_function,
+      row.expected_value,
+      JSON.stringify(row.fact_json || {})
+    ].join(' '));
+
+    if (componentHints.length === 0) return true;
+    return componentHints.some(term => haystack.includes(term));
+  });
+
+  const dtcFilters = safeArray(ctx.dtcs).map(lower);
+
+  const { data: fixesData } = await supabaseAdmin
+    .from('ask_allie_known_fixes')
+    .select('*')
+    .eq('make', ctx.make || null)
+    .eq('model', ctx.model || null)
+    .eq('engine', ctx.engine || null)
+    .order('confidence_score', { ascending: false })
+    .limit(25);
+
+  const filteredFixes = (fixesData || []).filter(row => {
+    const haystack = lower([
+      row.symptom_pattern,
+      row.root_cause,
+      row.repair_performed,
+      safeArray(row.dtcs).join(' ')
+    ].join(' '));
+
+    if (dtcFilters.length && dtcFilters.some(code => haystack.includes(code))) return true;
+    if (componentHints.length && componentHints.some(term => haystack.includes(term))) return true;
+    if (!dtcFilters.length && !componentHints.length) return true;
+    return false;
+  });
+
+  return {
+    facts: filteredFacts.slice(0, 20),
+    known_fixes: filteredFixes.slice(0, 10)
+  };
+}
+
+function computeAskAllieNeedWeb(question, internalKnowledge) {
+  const asksForWiringData = /pinout|connector|wire|wiring|diagram|image|picture|photo|voltage|ohms|spec|reference|testing procedure/i.test(safeString(question));
+  const verifiedFacts = (internalKnowledge.facts || []).filter(
+    row => ['cross_checked', 'tech_confirmed', 'repair_confirmed'].includes(lower(row.status))
+  );
+
+  if (asksForWiringData && verifiedFacts.length === 0) return true;
+  if ((internalKnowledge.facts || []).length === 0 && (internalKnowledge.known_fixes || []).length === 0) return true;
+
+  return false;
+}
+
+async function synthesizeAskAllieAnswer({ question, jobContext, internalKnowledge, externalResearch, extracted }) {
+  const internalFactSummary = (internalKnowledge.facts || []).slice(0, 8).map(row => ({
+    fact_type: row.fact_type,
+    component_name: row.component_name,
+    connector_name: row.connector_name,
+    pin_label: row.pin_label,
+    wire_color: row.wire_color,
+    circuit_function: row.circuit_function,
+    expected_value: row.expected_value,
+    status: row.status,
+    confidence_score: row.confidence_score
+  }));
+
+  const knownFixSummary = (internalKnowledge.known_fixes || []).slice(0, 5).map(row => ({
+    dtcs: row.dtcs,
+    symptom_pattern: row.symptom_pattern,
+    root_cause: row.root_cause,
+    repair_performed: row.repair_performed,
+    outcome: row.outcome,
+    confidence_score: row.confidence_score
+  }));
+
+  const prompt = `
+You are Allie, an automotive diagnostic assistant inside a mechanic workflow.
+
+Return ONLY valid JSON in this exact shape:
+{
+  "answer": "plain english answer",
+  "confidence_score": 0,
+  "match_level": "high | medium | low",
+  "best_image_urls": [],
+  "pinout_table": [
+    {
+      "pin_label": "",
+      "wire_color": "",
+      "circuit_function": "",
+      "expected_value": "",
+      "notes": ""
+    }
+  ],
+  "warnings": [],
+  "next_steps": []
+}
+
+Rules:
+- Prefer internal verified data first.
+- Use extracted web data if internal data is weak.
+- Be application-specific.
+- Do not invent exact pin numbers.
+- If exact cavity ID is uncertain, say verify exact OEM pinout for this platform.
+- next_steps must be actionable shop tests.
+- If only general TPS voltage ranges are known, say that clearly.
+
+CURRENT JOB:
+${JSON.stringify(jobContext, null, 2)}
+
+QUESTION:
+${question}
+
+INTERNAL FACTS:
+${JSON.stringify(internalFactSummary, null, 2)}
+
+KNOWN FIXES:
+${JSON.stringify(knownFixSummary, null, 2)}
+
+EXTRACTED WEB DATA:
+${JSON.stringify(extracted || {}, null, 2)}
+
+IMAGE URLS:
+${JSON.stringify((externalResearch.images || []).slice(0, 5), null, 2)}
+`;
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer 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',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      temperature: 0.08,
+      messages: [
+        { role: 'system', content: 'Return only valid JSON.' },
+        { role: 'user', content: prompt }
+      ]
+    })
+  });
+
+  const data = await response.json();
+  const content = data?.choices?.[0]?.message?.content || '';
+  const parsed = cleanModelJson(content);
+
+  if (!parsed || typeof parsed !== 'object') return null;
+
+  return {
+    answer: safeString(parsed.answer),
+    confidence_score: toNumber(parsed.confidence_score, toNumber(extracted?.confidence, 0)),
+    match_level: safeString(parsed.match_level) || 'low',
+    best_image_urls: Array.isArray(parsed.best_image_urls) ? parsed.best_image_urls : [],
+    pinout_table: Array.isArray(parsed.pinout_table) ? parsed.pinout_table : [],
+    warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
+    next_steps: Array.isArray(parsed.next_steps) ? parsed.next_steps : []
+  };
+}
+
+function buildAskAllieFallbackAnswer(extracted, externalResearch) {
+  const pinoutTable = Array.isArray(extracted?.pinout_table)
+    ? extracted.pinout_table.map(pin => ({
+        pin_label: safeString(pin.pin || pin.pin_label),
+        wire_color: safeString(pin.wire_color),
+        circuit_function: safeString(pin.function || pin.circuit_function),
+        expected_value: safeString(pin.expected_voltage || pin.expected_value),
+        notes: ''
+      }))
+    : [];
+
+  const answerLines = [];
+
+  if (pinoutTable.length) {
+    answerLines.push('Possible application-related pinout/spec data found:');
+    for (const pin of pinoutTable) {
+      answerLines.push(
+        `Pin ${pin.pin_label || '(verify exact cavity)'} | ${pin.wire_color || 'wire color not confirmed'} | ${pin.circuit_function || 'function not confirmed'} | ${pin.expected_value || 'verify exact expected voltage'}`
+      );
+    }
+  }
+
+  const specs = Array.isArray(extracted?.key_specs) ? extracted.key_specs : [];
+  if (specs.length) {
+    answerLines.push('');
+    answerLines.push('Key specs:');
+    for (const spec of specs) {
+      answerLines.push(`- ${safeString(spec)}`);
+    }
+  }
+
+  const notes = Array.isArray(extracted?.diagnostic_notes) ? extracted.diagnostic_notes : [];
+  if (notes.length) {
+    answerLines.push('');
+    answerLines.push('Diagnostic notes:');
+    for (const note of notes) {
+      answerLines.push(`- ${safeString(note)}`);
+    }
+  }
+
+  if (!answerLines.length) {
+    answerLines.push('I found filtered web results, but no application-specific cavity assignment could be confirmed yet. Verify exact OEM pinout for this platform.');
+    answerLines.push('General TPS/APP testing still applies: verify 5V reference, low-reference integrity, and a smooth signal sweep while moving the throttle.');
+  }
+
+  return {
+    answer: answerLines.join('\n'),
+    confidence_score: toNumber(extracted?.confidence, 20),
+    match_level: toNumber(extracted?.confidence, 0) >= 75 ? 'high' : toNumber(extracted?.confidence, 0) >= 45 ? 'medium' : 'low',
+    best_image_urls: Array.isArray(externalResearch?.images) ? externalResearch.images.slice(0, 5) : [],
+    pinout_table: pinoutTable,
+    warnings: pinoutTable.length ? [] : ['Exact application-specific pinout was not confirmed.'],
+    next_steps: [
+      'Backprobe the TPS/APP signal and verify a smooth change from low voltage at idle toward higher voltage with throttle movement.',
+      'Verify 5V reference directly at the connector under load.',
+      'Verify low-reference/ground with a loaded voltage drop test.',
+      'Perform a wiggle test on the harness while watching signal, 5V reference, and low-reference stability.',
+      'Compare sensor signal at the component and at the ECM side if a harness fault is suspected.'
+    ]
+  };
+}
+
+async function promoteAskAllieConfidence(sessionId, confidenceScore) {
+  const score = toNumber(confidenceScore, 0);
+  if (score < 75) return;
+
+  await supabaseAdmin
+    .from('ask_allie_sources')
+    .update({ status: 'cross_checked', confidence_score: score })
+    .eq('session_id', sessionId)
+    .eq('status', 'unverified');
+
+  await supabaseAdmin
+    .from('ask_allie_facts')
+    .update({ status: 'cross_checked', confidence_score: score })
+    .eq('session_id', sessionId)
+    .eq('status', 'unverified');
+}
+
+async function buildAskAllieSourceList(sessionId) {
+  const { data } = await supabaseAdmin
+    .from('ask_allie_sources')
+    .select('id, source_type, title, url, domain, status, confidence_score, created_at')
+    .eq('session_id', sessionId)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  return data || [];
+}
+
+app.get('/', (req, res) => {
+  res.send('Allie-kat backend live');
+});
+
+app.get('/ask-allie-health', async (req, res) => {
+  try {
+    const { count, error } = await supabaseAdmin
+      .from('ask_allie_sessions')
+      .select('*', { count: 'exact', head: true });
+
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+
+    return res.json({
+      success: true,
+      status: 'ok',
+      ask_allie_sessions_count: count || 0,
+      openai_configured: true,
+      tavily_configured: true
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 app.post('/diagnose', async (req, res) => {
   try {
