@@ -4,22 +4,22 @@ const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '4mb' }));
+app.use(express.json({ limit: '8mb' }));
 
 const supabaseUrl = 'https://julpheuumolnwkthazdj.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1bHBoZXV1bW9sbndrdGhhemRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMzc5ODYsImV4cCI6MjA4OTYxMzk4Nn0.i3jI-PjdAUPnbgVn_EXctr0-F158Gbp-r6icrEdvOGM';
+const serviceRoleKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1bHBoZXV1bW9sbndrdGhhemRqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDAzNzk4NiwiZXhwIjoyMDg5NjEzOTg2fQ.eCDb9XAD02Pi8Ejl3vIz9ROJC80zBpAOW4svI7M9GR4';
+const openAiKey = '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';
+const tavilyApiKey = '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';
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const supabaseAdmin = serviceRoleKey
-  ? createClient(supabaseUrl, serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    })
-  : null;
+const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+});
 
 function safeString(value) {
   return String(value || '').trim();
@@ -31,6 +31,17 @@ function normalizeCode(code) {
 
 function lower(value) {
   return safeString(value).toLowerCase();
+}
+
+function safeArray(value) {
+  if (Array.isArray(value)) return value.filter(Boolean).map(v => safeString(v));
+  if (!value) return [];
+  return [safeString(value)];
+}
+
+function toNumber(value, fallback = 0) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
 }
 
 function getOnlineCutoffIso(minutes = 15) {
@@ -62,20 +73,12 @@ async function getLatestAccessRequestByEmail(email) {
     .order('created_at', { ascending: false })
     .limit(1);
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
+  if (error) throw new Error(error.message);
   return data && data.length ? data[0] : null;
 }
 
 async function findAuthUserByEmail(email) {
-  if (!supabaseAdmin) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY is missing in Render environment variables.');
-  }
-
   const cleanEmail = safeString(email).toLowerCase();
-
   let page = 1;
   let foundUser = null;
 
@@ -85,17 +88,12 @@ async function findAuthUserByEmail(email) {
       perPage: 1000
     });
 
-    if (error) {
-      throw new Error(error.message);
-    }
+    if (error) throw new Error(error.message);
 
     const users = data?.users || [];
     foundUser = users.find(user => safeString(user.email).toLowerCase() === cleanEmail) || null;
 
-    if (foundUser || users.length < 1000) {
-      break;
-    }
-
+    if (foundUser || users.length < 1000) break;
     page += 1;
   }
 
@@ -109,7 +107,6 @@ async function decodeVIN(vin) {
 
     const res = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/${cleanVin}?format=json`);
     const data = await res.json();
-
     return data?.Results?.[0] || null;
   } catch {
     return null;
@@ -326,7 +323,6 @@ async function getLearningContext({ code, vehicleInfo }) {
     .sort((a, b) => b._score - a._score);
 
   const topRows = scored.slice(0, 20);
-
   const suggestedFixes = summarizeLearningRows(topRows, normalizedCode, make, model, engine);
 
   return {
@@ -370,9 +366,6 @@ function learningContextToText(learningContext) {
 }
 
 async function callOpenAIForTree({ vin, code, symptom, notes, vehicleInfo, learningContext, mode }) {
-  const openAiKey = process.env.OPENAI_API_KEY;
-  if (!openAiKey) return buildQuickTree({ vin, code, symptom, notes });
-
   const learningText = learningContextToText(learningContext);
 
   const standardSystemPrompt = `
@@ -559,11 +552,6 @@ Build the ${mode === 'expert' ? 'expert' : 'detailed'} diagnostic tree now.
 }
 
 async function callOpenAIForChat(context) {
-  const openAiKey = process.env.OPENAI_API_KEY;
-  if (!openAiKey) {
-    return 'Chat is not available because the OpenAI API key is missing.';
-  }
-
   const systemPrompt = `
 You are Allie-Kat Job Chat, a shop-floor diagnostic assistant for mechanics.
 
@@ -652,9 +640,6 @@ Answer the technician now.
 }
 
 async function callOpenAIForNextStep(context) {
-  const openAiKey = process.env.OPENAI_API_KEY;
-  if (!openAiKey) return null;
-
   const systemPrompt = `
 You are a master diesel diagnostic assistant.
 
@@ -779,6 +764,520 @@ ${context.knownFixesText || 'No known fixes shown.'}
   } catch {
     return null;
   }
+}
+
+function buildVehicleSnapshot(jobContext = {}) {
+  return {
+    vin: safeString(jobContext.vin),
+    year: safeString(jobContext.year),
+    make: safeString(jobContext.make),
+    model: safeString(jobContext.model),
+    engine: safeString(jobContext.engine),
+    complaint: safeString(jobContext.complaint),
+    dtcs: safeArray(jobContext.dtcs),
+    symptoms: safeArray(jobContext.symptoms),
+    prior_tests: safeArray(jobContext.prior_tests || jobContext.priorTests),
+    notes: safeString(jobContext.notes)
+  };
+}
+
+function buildAskAllieSearchQuery(question, ctx) {
+  return [
+    ctx.year,
+    ctx.make,
+    ctx.model,
+    ctx.engine,
+    safeArray(ctx.dtcs).join(' '),
+    safeArray(ctx.symptoms).join(' '),
+    ctx.complaint,
+    question
+  ].filter(Boolean).join(' ');
+}
+
+function computeAskAllieNeedWeb(question, internalKnowledge) {
+  const asksForWiringData = /pinout|connector|wire|wiring|diagram|image|picture|photo|voltage|ohms|spec|reference/i.test(safeString(question));
+
+  const verifiedFacts = (internalKnowledge.facts || []).filter(
+    row => ['cross_checked', 'tech_confirmed', 'repair_confirmed'].includes(lower(row.status))
+  );
+
+  if (asksForWiringData && verifiedFacts.length === 0) return true;
+  if ((internalKnowledge.facts || []).length === 0 && (internalKnowledge.known_fixes || []).length === 0) return true;
+
+  return false;
+}
+
+async function createAskAllieSessionIfNeeded(sessionId, jobContext) {
+  const cleanSessionId = safeString(sessionId);
+
+  if (cleanSessionId) {
+    const { data, error } = await supabase
+      .from('ask_allie_sessions')
+      .select('*')
+      .eq('id', cleanSessionId)
+      .single();
+
+      if (!error && data) return data;
+  }
+
+  const ctx = buildVehicleSnapshot(jobContext);
+
+  const { data, error } = await supabase
+    .from('ask_allie_sessions')
+    .insert([
+      {
+        vin: ctx.vin,
+        year: ctx.year,
+        make: ctx.make,
+        model: ctx.model,
+        engine: ctx.engine,
+        complaint: ctx.complaint,
+        dtcs: ctx.dtcs,
+        symptoms: ctx.symptoms,
+        prior_tests: ctx.prior_tests,
+        notes: ctx.notes,
+        updated_at: new Date().toISOString()
+      }
+    ])
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+async function updateAskAllieSession(sessionId, jobContext) {
+  const ctx = buildVehicleSnapshot(jobContext);
+
+  const { error } = await supabase
+    .from('ask_allie_sessions')
+    .update({
+      vin: ctx.vin || null,
+      year: ctx.year || null,
+      make: ctx.make || null,
+      model: ctx.model || null,
+      engine: ctx.engine || null,
+      complaint: ctx.complaint || null,
+      dtcs: ctx.dtcs,
+      symptoms: ctx.symptoms,
+      prior_tests: ctx.prior_tests,
+      notes: ctx.notes || null,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', sessionId);
+
+  if (error) throw new Error(error.message);
+}
+
+async function saveAskAllieMessage(sessionId, role, content, metadata = {}) {
+  const { data, error } = await supabase
+    .from('ask_allie_messages')
+    .insert([
+      {
+        session_id: sessionId,
+        role,
+        content: safeString(content),
+        metadata
+      }
+    ])
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+async function searchAskAllieInternalKnowledge(question, ctx) {
+  const questionText = lower(question);
+  const componentHints = [
+    'throttle', 'pedal', 'accelerator', 'map', 'maf', 'cam', 'crank', 'abs',
+    'injector', 'fuel', 'egr', 'vgt', 'boost', 'temperature', 'pressure',
+    'sensor', 'switch', 'solenoid', 'connector', 'wiring'
+  ].filter(term => questionText.includes(term));
+
+  const { data: factsData, error: factsError } = await supabase
+    .from('ask_allie_facts')
+    .select('*')
+    .eq('application_make', ctx.make || null)
+    .eq('application_model', ctx.model || null)
+    .eq('application_engine', ctx.engine || null)
+    .order('confidence_score', { ascending: false })
+    .limit(50);
+
+  if (factsError && !String(factsError.message).includes('0 rows')) {
+    throw new Error(factsError.message);
+  }
+
+  const filteredFacts = (factsData || []).filter(row => {
+    const haystack = lower([
+      row.fact_type,
+      row.component_name,
+      row.connector_name,
+      row.pin_label,
+      row.wire_color,
+      row.circuit_function,
+      row.expected_value,
+      JSON.stringify(row.fact_json || {})
+    ].join(' '));
+
+    if (componentHints.length === 0) return true;
+    return componentHints.some(term => haystack.includes(term));
+  });
+
+  const dtcFilters = safeArray(ctx.dtcs).map(lower);
+
+  const { data: fixesData, error: fixesError } = await supabase
+    .from('ask_allie_known_fixes')
+    .select('*')
+    .eq('make', ctx.make || null)
+    .eq('model', ctx.model || null)
+    .eq('engine', ctx.engine || null)
+    .order('confidence_score', { ascending: false })
+    .limit(25);
+
+  if (fixesError && !String(fixesError.message).includes('0 rows')) {
+    throw new Error(fixesError.message);
+  }
+
+  const filteredFixes = (fixesData || []).filter(row => {
+    const haystack = lower([
+      row.symptom_pattern,
+      row.root_cause,
+      row.repair_performed,
+      safeArray(row.dtcs).join(' ')
+    ].join(' '));
+
+    if (dtcFilters.length && dtcFilters.some(code => haystack.includes(code))) return true;
+    if (componentHints.length && componentHints.some(term => haystack.includes(term))) return true;
+    if (!dtcFilters.length && !componentHints.length) return true;
+    return false;
+  });
+
+  return {
+    facts: filteredFacts.slice(0, 20),
+    known_fixes: filteredFixes.slice(0, 10)
+  };
+}
+
+async function tavilySearch(query) {
+  try {
+    const response = await fetch('https://api.tavily.com/search', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        api_key: tavilyApiKey,
+        query,
+        search_depth: 'advanced',
+        include_answer: false,
+        include_images: true,
+        include_raw_content: false,
+        max_results: 8
+      })
+    });
+
+    const data = await response.json();
+
+    return {
+      query,
+      results: Array.isArray(data?.results) ? data.results : [],
+      images: Array.isArray(data?.images) ? data.images : [],
+      used_web: true
+    };
+  } catch (err) {
+    return {
+      query,
+      results: [],
+      images: [],
+      used_web: false,
+      warning: err.message
+    };
+  }
+}
+
+async function saveAskAllieSource(sessionId, source) {
+  const { data, error } = await supabase
+    .from('ask_allie_sources')
+    .insert([
+      {
+        session_id: sessionId,
+        source_type: safeString(source.source_type),
+        title: safeString(source.title),
+        url: safeString(source.url),
+        domain: safeString(source.domain),
+        raw_content: safeString(source.raw_content),
+        extracted_summary: safeString(source.extracted_summary),
+        status: safeString(source.status) || 'unverified',
+        confidence_score: toNumber(source.confidence_score, 0)
+      }
+    ])
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+async function saveAskAllieFacts(sessionId, sourceId, facts) {
+  const rows = (Array.isArray(facts) ? facts : []).map(fact => ({
+    session_id: sessionId,
+    source_id: sourceId,
+    fact_type: safeString(fact.fact_type) || 'spec',
+    component_name: safeString(fact.component_name),
+    connector_name: safeString(fact.connector_name),
+    pin_label: safeString(fact.pin_label),
+    wire_color: safeString(fact.wire_color),
+    circuit_function: safeString(fact.circuit_function),
+    expected_value: safeString(fact.expected_value),
+    conditions: safeString(fact.conditions),
+    application_year: safeString(fact.application_year),
+    application_make: safeString(fact.application_make),
+    application_model: safeString(fact.application_model),
+    application_engine: safeString(fact.application_engine),
+    fact_json: fact || {},
+    status: safeString(fact.status) || 'unverified',
+    confidence_score: toNumber(fact.confidence_score, 0)
+  }));
+
+  if (!rows.length) return [];
+
+  const { data, error } = await supabase
+    .from('ask_allie_facts')
+    .insert(rows)
+    .select();
+
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+async function extractAskAllieFactsFromSearch({ question, jobContext, searchResults }) {
+  const compactResults = (searchResults || []).slice(0, 5).map((item, index) => ({
+    index: index + 1,
+    title: safeString(item.title),
+    url: safeString(item.url),
+    content: safeString(item.content).slice(0, 2000)
+  }));
+
+  const prompt = `
+You are extracting automotive diagnostic facts from search results.
+
+Return ONLY valid JSON in this exact shape:
+{
+  "source_summaries": [
+    {
+      "title": "",
+      "url": "",
+      "summary": "",
+      "likely_match": true,
+      "confidence_score": 0
+    }
+  ],
+  "facts": [
+    {
+      "fact_type": "pinout | spec | procedure | known_issue",
+      "component_name": "",
+      "connector_name": "",
+      "pin_label": "",
+      "wire_color": "",
+      "circuit_function": "",
+      "expected_value": "",
+      "conditions": "",
+      "application_year": "",
+      "application_make": "",
+      "application_model": "",
+      "application_engine": "",
+      "status": "unverified",
+      "confidence_score": 0
+    }
+  ]
+}
+
+Rules:
+- Only extract facts that appear supported by the search result text.
+- Do not invent pin numbers.
+- If exact pinout is uncertain, leave pin_label blank.
+- Prefer exact application matches to the current job.
+- Ignore generic junk.
+- confidence_score must be 0 to 100.
+
+CURRENT JOB:
+${JSON.stringify(jobContext, null, 2)}
+
+QUESTION:
+${question}
+
+SEARCH RESULTS:
+${JSON.stringify(compactResults, null, 2)}
+`;
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        temperature: 0.05,
+        messages: [
+          { role: 'system', content: 'Return only valid JSON.' },
+          { role: 'user', content: prompt }
+        ]
+      })
+    });
+
+    const data = await response.json();
+    const content = data?.choices?.[0]?.message?.content || '';
+    const parsed = cleanModelJson(content);
+
+    return {
+      source_summaries: Array.isArray(parsed?.source_summaries) ? parsed.source_summaries : [],
+      facts: Array.isArray(parsed?.facts) ? parsed.facts : []
+    };
+  } catch {
+    return {
+      source_summaries: [],
+      facts: []
+    };
+  }
+}
+
+async function synthesizeAskAllieAnswer({ question, jobContext, internalKnowledge, externalResearch }) {
+  const prompt = `
+You are Allie, an automotive diagnostic assistant inside a mechanic workflow.
+
+Return ONLY valid JSON in this exact shape:
+{
+  "answer": "plain english answer",
+  "confidence_score": 0,
+  "match_level": "high | medium | low",
+  "best_image_urls": [],
+  "pinout_table": [
+    {
+      "pin_label": "",
+      "wire_color": "",
+      "circuit_function": "",
+      "expected_value": "",
+      "notes": ""
+    }
+  ],
+  "warnings": [],
+  "next_steps": [],
+  "save_recommendation": {
+    "should_save_as_candidate": true,
+    "reason": ""
+  }
+}
+
+Rules:
+- Prefer internal verified data first.
+- Use external results only if needed.
+- Do not invent exact pin numbers.
+- If uncertain, say verify exact OEM pinout for this platform.
+- If there are multiple conflicting sources, warn clearly.
+- Tie answer to the exact job.
+- Be practical, bay-ready, and direct.
+- If images look useful, return the best image URLs.
+- next_steps should be actionable tests.
+
+CURRENT JOB:
+${JSON.stringify(jobContext, null, 2)}
+
+QUESTION:
+${question}
+
+INTERNAL KNOWLEDGE:
+${JSON.stringify(internalKnowledge, null, 2)}
+
+EXTERNAL RESEARCH:
+${JSON.stringify(externalResearch, null, 2)}
+`;
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        temperature: 0.08,
+        messages: [
+          { role: 'system', content: 'Return only valid JSON.' },
+          { role: 'user', content: prompt }
+        ]
+      })
+    });
+
+    const data = await response.json();
+    const content = data?.choices?.[0]?.message?.content || '';
+    const parsed = cleanModelJson(content);
+
+    return {
+      answer: safeString(parsed?.answer) || 'I found data, but could not fully structure the answer.',
+      confidence_score: toNumber(parsed?.confidence_score, 25),
+      match_level: safeString(parsed?.match_level) || 'low',
+      best_image_urls: Array.isArray(parsed?.best_image_urls) ? parsed.best_image_urls.filter(Boolean) : [],
+      pinout_table: Array.isArray(parsed?.pinout_table) ? parsed.pinout_table : [],
+      warnings: Array.isArray(parsed?.warnings) ? parsed.warnings : [],
+      next_steps: Array.isArray(parsed?.next_steps) ? parsed.next_steps : [],
+      save_recommendation: {
+        should_save_as_candidate: Boolean(parsed?.save_recommendation?.should_save_as_candidate),
+        reason: safeString(parsed?.save_recommendation?.reason)
+      }
+    };
+  } catch (err) {
+    return {
+      answer: `Ask Allie synthesis error: ${err.message}`,
+      confidence_score: 20,
+      match_level: 'low',
+      best_image_urls: [],
+      pinout_table: [],
+      warnings: ['Synthesis failed'],
+      next_steps: ['Review source list manually'],
+      save_recommendation: {
+        should_save_as_candidate: false,
+        reason: 'Synthesis failed'
+      }
+    };
+  }
+}
+
+async function promoteAskAllieConfidence(sessionId, confidenceScore) {
+  const score = toNumber(confidenceScore, 0);
+  if (score < 75) return;
+
+  await supabase
+    .from('ask_allie_sources')
+    .update({
+      status: 'cross_checked',
+      confidence_score: score
+    })
+    .eq('session_id', sessionId)
+    .eq('status', 'unverified');
+
+  await supabase
+    .from('ask_allie_facts')
+    .update({
+      status: 'cross_checked',
+      confidence_score: score
+    })
+    .eq('session_id', sessionId)
+    .eq('status', 'unverified');
+}
+
+async function buildAskAllieSourceList(sessionId) {
+  const { data } = await supabase
+    .from('ask_allie_sources')
+    .select('id, source_type, title, url, domain, status, confidence_score, created_at')
+    .eq('session_id', sessionId)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  return data || [];
 }
 
 app.get('/', (req, res) => {
@@ -916,9 +1415,7 @@ app.post('/heartbeat', async (req, res) => {
 
     await touchUserLastSeen(userId);
 
-    return res.json({
-      success: true
-    });
+    return res.json({ success: true });
   } catch (err) {
     return res.json({
       success: false,
@@ -1210,6 +1707,374 @@ app.post('/chat', async (req, res) => {
   }
 });
 
+app.get('/ask-allie-health', async (req, res) => {
+  try {
+    const { count, error } = await supabase
+      .from('ask_allie_sessions')
+      .select('*', { count: 'exact', head: true });
+
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+
+    return res.json({
+      success: true,
+      status: 'ok',
+      ask_allie_sessions_count: count || 0,
+      openai_configured: true,
+      tavily_configured: true
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+app.post('/ask-allie', async (req, res) => {
+  try {
+    const question = safeString(req.body.question);
+    const incomingSessionId = safeString(req.body.session_id);
+    const jobContext = buildVehicleSnapshot(req.body.job_context || {});
+
+    if (!question) {
+      return res.status(400).json({
+        success: false,
+        error: 'question is required'
+      });
+    }
+
+    const session = await createAskAllieSessionIfNeeded(incomingSessionId, jobContext);
+    await updateAskAllieSession(session.id, jobContext);
+
+    await saveAskAllieMessage(session.id, 'user', question, {
+      job_context: jobContext
+    });
+
+    const internalKnowledge = await searchAskAllieInternalKnowledge(question, jobContext);
+    const shouldUseWeb = computeAskAllieNeedWeb(question, internalKnowledge);
+
+    let externalResearch = {
+      query: '',
+      used_web: false,
+      results: [],
+      images: [],
+      source_summaries: [],
+      extracted_facts: []
+    };
+
+    if (shouldUseWeb) {
+      const searchQuery = buildAskAllieSearchQuery(question, jobContext);
+      const webData = await tavilySearch(searchQuery);
+      const extracted = await extractAskAllieFactsFromSearch({
+        question,
+        jobContext,
+        searchResults: webData.results || []
+      });
+
+      externalResearch = {
+        query: webData.query || searchQuery,
+        used_web: Boolean(webData.used_web),
+        warning: webData.warning || '',
+        results: webData.results || [],
+        images: webData.images || [],
+        source_summaries: extracted.source_summaries || [],
+        extracted_facts: extracted.facts || []
+      };
+
+      for (let i = 0; i < (webData.results || []).slice(0, 5).length; i += 1) {
+        const item = webData.results[i];
+        const matchingSummary = (externalResearch.source_summaries || []).find(
+          summary => safeString(summary.url) === safeString(item.url)
+        );
+
+        const sourceRow = await saveAskAllieSource(session.id, {
+          source_type: 'web',
+          title: item.title,
+          url: item.url,
+          domain: (() => {
+            try {
+              return new URL(item.url).hostname;
+            } catch {
+              return '';
+            }
+          })(),
+          raw_content: safeString(item.content),
+          extracted_summary: safeString(matchingSummary?.summary || item.content),
+          status: 'unverified',
+          confidence_score: toNumber(matchingSummary?.confidence_score, 40)
+        });
+
+        const matchingFacts = (externalResearch.extracted_facts || []).filter(fact => {
+          const appMake = lower(fact.application_make);
+          const appModel = lower(fact.application_model);
+          const appEngine = lower(fact.application_engine);
+          const ctxMake = lower(jobContext.make);
+          const ctxModel = lower(jobContext.model);
+          const ctxEngine = lower(jobContext.engine);
+
+          const vehicleMatch =
+            (!appMake || appMake === ctxMake) &&
+            (!appModel || appModel === ctxModel) &&
+            (!appEngine || appEngine === ctxEngine);
+
+          return vehicleMatch;
+        });
+
+        if (matchingFacts.length) {
+          await saveAskAllieFacts(session.id, sourceRow.id, matchingFacts);
+        }
+      }
+
+      for (const imageUrl of (webData.images || []).slice(0, 5)) {
+        await saveAskAllieSource(session.id, {
+          source_type: 'image',
+          title: 'Image result',
+          url: imageUrl,
+          domain: (() => {
+            try {
+              return new URL(imageUrl).hostname;
+            } catch {
+              return '';
+            }
+          })(),
+          raw_content: '',
+          extracted_summary: '',
+          status: 'unverified',
+          confidence_score: 25
+        });
+      }
+    }
+
+    const answerPayload = await synthesizeAskAllieAnswer({
+      question,
+      jobContext,
+      internalKnowledge,
+      externalResearch
+    });
+
+    await promoteAskAllieConfidence(session.id, answerPayload.confidence_score);
+
+    const assistantMessage = await saveAskAllieMessage(session.id, 'assistant', answerPayload.answer, {
+      confidence_score: toNumber(answerPayload.confidence_score, 0),
+      match_level: safeString(answerPayload.match_level),
+      best_image_urls: answerPayload.best_image_urls || [],
+      pinout_table: answerPayload.pinout_table || [],
+      warnings: answerPayload.warnings || [],
+      next_steps: answerPayload.next_steps || [],
+      used_web: Boolean(externalResearch.used_web),
+      web_query: safeString(externalResearch.query)
+    });
+
+    const sourceList = await buildAskAllieSourceList(session.id);
+
+    return res.json({
+      success: true,
+      session_id: session.id,
+      message_id: assistantMessage.id,
+      data: {
+        answer: answerPayload.answer,
+        confidence_score: toNumber(answerPayload.confidence_score, 0),
+        match_level: safeString(answerPayload.match_level) || 'low',
+        best_image_urls: answerPayload.best_image_urls || [],
+        pinout_table: answerPayload.pinout_table || [],
+        warnings: answerPayload.warnings || [],
+        next_steps: answerPayload.next_steps || [],
+        used_web: Boolean(externalResearch.used_web),
+        web_query: safeString(externalResearch.query),
+        sources: sourceList
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+app.post('/ask-allie-feedback', async (req, res) => {
+  try {
+    const sessionId = safeString(req.body.session_id);
+    const messageId = safeString(req.body.message_id);
+    const feedbackType = safeString(req.body.feedback_type);
+    const notes = safeString(req.body.notes);
+    const promoteKnownFix = Boolean(req.body.promote_known_fix);
+    const confirmedFix = req.body.confirmed_fix || {};
+    const vehicleContext = buildVehicleSnapshot(req.body.vehicle_context || {});
+
+    if (!sessionId || !feedbackType) {
+      return res.status(400).json({
+        success: false,
+        error: 'session_id and feedback_type are required'
+      });
+    }
+
+    const { error: feedbackError } = await supabase
+      .from('ask_allie_feedback')
+      .insert([
+        {
+          session_id: sessionId,
+          message_id: messageId || null,
+          feedback_type: feedbackType,
+          notes: notes || null
+        }
+      ]);
+
+    if (feedbackError) throw new Error(feedbackError.message);
+
+    if (feedbackType === 'confirm' || feedbackType === 'repair_confirmed') {
+      const promotedStatus = feedbackType === 'repair_confirmed' ? 'repair_confirmed' : 'tech_confirmed';
+
+      await supabase
+        .from('ask_allie_sources')
+        .update({
+          status: promotedStatus,
+          confidence_score: 90
+        })
+        .eq('session_id', sessionId);
+
+      await supabase
+        .from('ask_allie_facts')
+        .update({
+          status: promotedStatus,
+          confidence_score: 90
+        })
+        .eq('session_id', sessionId);
+    }
+
+    if (feedbackType === 'reject') {
+      await supabase
+        .from('ask_allie_sources')
+        .update({
+          status: 'rejected',
+          confidence_score: 10
+        })
+        .eq('session_id', sessionId);
+
+      await supabase
+        .from('ask_allie_facts')
+        .update({
+          status: 'rejected',
+          confidence_score: 10
+        })
+        .eq('session_id', sessionId);
+    }
+
+    if (promoteKnownFix && confirmedFix && safeString(confirmedFix.repair_performed)) {
+      const existing = await supabase
+        .from('ask_allie_known_fixes')
+        .select('*')
+        .eq('make', vehicleContext.make)
+        .eq('model', vehicleContext.model)
+        .eq('engine', vehicleContext.engine)
+        .eq('root_cause', safeString(confirmedFix.root_cause))
+        .eq('repair_performed', safeString(confirmedFix.repair_performed))
+        .limit(1);
+
+      const existingRow = existing?.data?.[0] || null;
+
+      if (existingRow) {
+        await supabase
+          .from('ask_allie_known_fixes')
+          .update({
+            repeat_count: toNumber(existingRow.repeat_count, 1) + 1,
+            confidence_score: 95,
+            status: 'repair_confirmed',
+            updated_at: new Date().toISOString(),
+            outcome: safeString(confirmedFix.outcome) || existingRow.outcome
+          })
+          .eq('id', existingRow.id);
+      } else {
+        await supabase
+          .from('ask_allie_known_fixes')
+          .insert([
+            {
+              vin: vehicleContext.vin,
+              year: vehicleContext.year,
+              make: vehicleContext.make,
+              model: vehicleContext.model,
+              engine: vehicleContext.engine,
+              dtcs: vehicleContext.dtcs,
+              symptom_pattern: safeString(confirmedFix.symptom_pattern),
+              root_cause: safeString(confirmedFix.root_cause),
+              repair_performed: safeString(confirmedFix.repair_performed),
+              outcome: safeString(confirmedFix.outcome) || 'Fixed',
+              confidence_score: 95,
+              repeat_count: 1,
+              status: 'repair_confirmed',
+              updated_at: new Date().toISOString()
+            }
+          ]);
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: 'Ask Allie feedback saved'
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+app.get('/ask-allie-session/:sessionId', async (req, res) => {
+  try {
+    const sessionId = safeString(req.params.sessionId);
+
+    const { data: session, error: sessionError } = await supabase
+      .from('ask_allie_sessions')
+      .select('*')
+      .eq('id', sessionId)
+      .single();
+
+    if (sessionError || !session) {
+      return res.status(404).json({
+        success: false,
+        error: 'Session not found'
+      });
+    }
+
+    const { data: messages } = await supabase
+      .from('ask_allie_messages')
+      .select('*')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: true });
+
+    const { data: sources } = await supabase
+      .from('ask_allie_sources')
+      .select('*')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: false });
+
+    const { data: facts } = await supabase
+      .from('ask_allie_facts')
+      .select('*')
+      .eq('session_id', sessionId)
+      .order('confidence_score', { ascending: false });
+
+    return res.json({
+      success: true,
+      session,
+      messages: messages || [],
+      sources: sources || [],
+      facts: facts || []
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
 app.get('/test-db', async (req, res) => {
   const { data, error } = await supabase
     .from('repair_cases')
@@ -1328,13 +2193,6 @@ app.post('/record-step-result', async (req, res) => {
 
 app.post('/signup', async (req, res) => {
   try {
-    if (!supabaseAdmin) {
-      return res.json({
-        success: false,
-        error: 'SUPABASE_SERVICE_ROLE_KEY is missing in Render environment variables.'
-      });
-    }
-
     const name = safeString(req.body.name);
     const email = safeString(req.body.email).toLowerCase();
     const password = safeString(req.body.password);
@@ -1368,9 +2226,7 @@ app.post('/signup', async (req, res) => {
       email,
       password,
       email_confirm: true,
-      user_metadata: {
-        name
-      }
+      user_metadata: { name }
     });
 
     if (createUserError || !createdUserData?.user) {
@@ -1481,32 +2337,30 @@ app.post('/login', async (req, res) => {
       });
     }
 
-    if (supabaseAdmin) {
-      const existingProfileResult = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', data.user.id)
-        .single();
+    const existingProfileResult = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', data.user.id)
+      .single();
 
-      const existingProfile = existingProfileResult?.data || null;
-      const currentRole = safeString(existingProfile?.role) || 'tech';
-      const currentName = safeString(existingProfile?.name || data.user.user_metadata?.name);
+    const existingProfile = existingProfileResult?.data || null;
+    const currentRole = safeString(existingProfile?.role) || 'tech';
+    const currentName = safeString(existingProfile?.name || data.user.user_metadata?.name);
 
-      const { error: profileUpsertError } = await supabaseAdmin
-        .from('user_profiles')
-        .upsert([
-          {
-            id: data.user.id,
-            email,
-            name: currentName,
-            role: currentRole,
-            last_seen: new Date().toISOString()
-          }
-        ], { onConflict: 'id' });
+    const { error: profileUpsertError } = await supabaseAdmin
+      .from('user_profiles')
+      .upsert([
+        {
+          id: data.user.id,
+          email,
+          name: currentName,
+          role: currentRole,
+          last_seen: new Date().toISOString()
+        }
+      ], { onConflict: 'id' });
 
-      if (profileUpsertError) {
-        console.log('profile upsert during login failed:', profileUpsertError.message);
-      }
+    if (profileUpsertError) {
+      console.log('profile upsert during login failed:', profileUpsertError.message);
     }
 
     await touchUserLastSeen(data.user.id);
