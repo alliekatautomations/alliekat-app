@@ -706,10 +706,11 @@ Rules:
 - If internal known fixes exist, lead with those
 - Give actionable next steps a mechanic can do right now in the shop
 - Be conversational but professional — like a senior tech helping a junior
-- If you have pinout data, include it in the pinout_table field
+- CRITICAL: If the question asks for a pinout or connector data, put ALL pin data in the pinout_table array — do NOT put pipe-separated tables or pin data inside the answer text field. The answer field should be clean readable prose only — introduce what you found, then the UI will render the table automatically.
 - Always give next_steps a mechanic can act on
 - Do not make up exact pin numbers if you are not sure — say "verify exact OEM pinout"
 - confidence_score is 0-100 based on how specific and verified your answer is
+- next_steps must be short actionable shop tests, not paragraphs
 
 Return ONLY valid JSON in exactly this shape:
 {"answer":"","confidence_score":0,"match_level":"high | medium | low","best_image_urls":[],"pinout_table":[{"pin_label":"","wire_color":"","circuit_function":"","expected_value":"","notes":""}],"warnings":[],"next_steps":[]}`;
