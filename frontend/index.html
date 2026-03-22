@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Allie-Kat Tech Assistant</title>
+  <title>ALLIE — Tech Assistant by Allie-Kat</title>
 
   <!-- Industrial font -->
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Exo+2:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -799,6 +799,67 @@
       display: none !important;
     }
 
+    /* ── SCAN LINE SURPRISE ── */
+    body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,200,212,0.012) 2px,rgba(0,200,212,0.012) 4px);pointer-events:none;z-index:0;}
+    .wrap{position:relative;z-index:1;}
+
+    /* ── TOAST ── */
+    #toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:linear-gradient(135deg,#00a85a,#00d878);color:#020f07;padding:12px 28px;border-radius:999px;font-family:var(--font-head);font-weight:700;font-size:14px;letter-spacing:2px;text-transform:uppercase;z-index:9998;transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);box-shadow:0 4px 24px rgba(0,216,120,0.35);}
+    #toast.show{transform:translateX(-50%) translateY(0);}
+    #toast.error{background:linear-gradient(135deg,#aa0000,#ff3d3d);color:#fff;box-shadow:0 4px 24px rgba(255,61,61,0.35);}
+
+    /* ── OFFLINE BANNER ── */
+    #offlineBanner{display:none;background:linear-gradient(135deg,#aa6600,#ffaa00);color:#1a0d00;padding:10px 20px;text-align:center;font-family:var(--font-head);font-weight:700;font-size:12px;letter-spacing:2px;text-transform:uppercase;border-radius:12px;margin-bottom:10px;}
+
+    /* ── CONFIRM MODAL ── */
+    #confirmModal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(3,11,16,0.94);z-index:9997;align-items:center;justify-content:center;}
+    #confirmModal.show{display:flex;}
+    .confirm-box{background:var(--bg-panel);border:1px solid var(--border-bright);border-radius:20px;padding:28px;max-width:380px;width:90%;text-align:center;}
+    .confirm-title{font-family:var(--font-head);font-size:22px;font-weight:700;color:var(--warn);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;}
+    .confirm-msg{color:var(--text-secondary);font-size:14px;line-height:1.6;margin-bottom:20px;}
+    .confirm-btns{display:flex;gap:12px;}
+    .confirm-yes{background:linear-gradient(135deg,#aa0000,#ff3d3d);color:#fff;border:none;padding:12px 20px;border-radius:10px;font-family:var(--font-head);font-weight:700;font-size:14px;letter-spacing:1px;text-transform:uppercase;flex:1;cursor:pointer;}
+    .confirm-no{background:var(--steel);color:var(--text-secondary);border:1px solid var(--border);padding:12px 20px;border-radius:10px;font-family:var(--font-head);font-weight:700;font-size:14px;letter-spacing:1px;text-transform:uppercase;flex:1;cursor:pointer;}
+
+    /* ── FONT SIZE ── */
+    body.fs-small{font-size:13px;}
+    body.fs-large{font-size:17px;}
+
+    /* ── UTIL BUTTONS ── */
+    .util-btn{background:var(--steel);border:1px solid var(--border);color:var(--text-secondary);padding:9px 12px;border-radius:10px;font-family:var(--font-head);font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;display:none;}
+
+    /* ── STEP COUNTER ── */
+    .step-counter-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:8px 12px;background:rgba(0,200,212,0.05);border:1px solid var(--border);border-radius:10px;}
+    .step-badge{font-family:var(--font-head);font-size:12px;font-weight:700;color:var(--cyan-bright);letter-spacing:1px;text-transform:uppercase;white-space:nowrap;}
+    .step-progress-bar{flex:1;height:4px;background:rgba(0,200,212,0.1);border-radius:999px;overflow:hidden;}
+    .step-progress-fill{height:100%;background:linear-gradient(90deg,var(--cyan),var(--cyan-bright));border-radius:999px;transition:width 0.4s ease;}
+
+    /* ── LOADING DOTS ── */
+    .loading-dots{display:flex;gap:8px;justify-content:center;margin-top:12px;}
+    .loading-dot{width:8px;height:8px;border-radius:50%;background:var(--cyan);animation:dotpulse 1.4s ease-in-out infinite;}
+    .loading-dot:nth-child(2){animation-delay:0.2s;}
+    .loading-dot:nth-child(3){animation-delay:0.4s;}
+    @keyframes dotpulse{0%,100%{opacity:0.2;transform:scale(0.8);}50%{opacity:1;transform:scale(1.2);}}
+
+    /* ── ALLIE THINKING ── */
+    .allie-thinking{display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(9,21,33,0.96);border:1px solid var(--border);border-radius:12px;}
+    .thinking-dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);animation:dotpulse 1.2s ease-in-out infinite;}
+    .thinking-dot:nth-child(2){animation-delay:0.15s;}
+    .thinking-dot:nth-child(3){animation-delay:0.3s;}
+    .thinking-label{font-family:var(--font-head);font-size:10px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;}
+
+    /* ── ENTER HINT ── */
+    .enter-hint{font-size:10px;color:var(--text-dim);text-align:right;margin-top:4px;font-family:var(--font-head);letter-spacing:1px;}
+
+    /* ── STEP NOTE BTN ── */
+    .step-note-btn{background:rgba(0,200,212,0.06);border:1px solid var(--border);color:var(--cyan);width:100%;margin-top:10px;font-size:12px;padding:10px;border-radius:10px;font-family:var(--font-head);font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;}
+
+    /* ── FOOTER ── */
+    .footer{text-align:center;margin-top:16px;padding-top:12px;border-top:1px solid rgba(0,200,212,0.08);}
+    .footer-brand{color:var(--cyan-dim);font-size:11px;letter-spacing:3px;text-transform:uppercase;font-family:var(--font-head);font-weight:600;margin-bottom:4px;}
+    .footer-meta{color:var(--text-dim);font-size:10px;letter-spacing:2px;font-family:var(--font-head);}
+    .footer-counter{display:inline-block;margin-top:6px;padding:3px 14px;border-radius:999px;border:1px solid rgba(0,200,212,0.12);background:rgba(0,200,212,0.04);color:var(--cyan-dim);font-size:10px;font-family:var(--font-head);letter-spacing:1px;}
+
     .footer {
       text-align: center;
       margin-top: 18px;
@@ -893,6 +954,20 @@
 <body>
   <div class="wrap">
 
+  <div id="toast"></div>
+  <div id="offlineBanner">⚠ Backend Offline — Check Connection</div>
+
+  <div id="confirmModal">
+    <div class="confirm-box">
+      <div class="confirm-title">⚠ Clear Everything?</div>
+      <div class="confirm-msg">This will clear the VIN, DTC, complaint, notes, and all diagnosis steps. Cannot be undone.</div>
+      <div class="confirm-btns">
+        <button class="confirm-yes" onclick="confirmClear()">Yes, Clear</button>
+        <button class="confirm-no" onclick="cancelClear()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
     <div class="header">
       <div class="brand-block">
         <div class="logo-box">
@@ -901,10 +976,9 @@
 
         <div class="brand-copy">
           <div class="eyebrow">Powered by Allie-Kat Automations</div>
-          <h1 class="title">ALLIE-KAT <span>TECH ASSISTANT</span></h1>
-          <div class="motto">
-            AI-powered diagnostic intelligence for serious mechanics. Built from the shop floor up.
-          </div>
+          <h1 class="title">ALLIE</h1>
+          <div class="title-sub">Tech Assistant</div>
+          <div class="motto">AI diagnostic intelligence — built from the shop floor up.</div>
         </div>
       </div>
 
@@ -912,6 +986,8 @@
         <button id="adminTopBtn" class="admin-top-btn" onclick="openAdminDashboard()">Admin Dashboard</button>
         <button id="jobHistoryBtn" class="admin-top-btn" style="display:none;" onclick="openJobHistory()">Job History</button>
         <button id="fleetBtn" class="admin-top-btn" style="display:none;" onclick="openFleetView()">Fleet</button>
+        <button id="flashlightBtn" class="util-btn" onclick="toggleFlashlight()">☀ Light</button>
+        <button id="fontSizeBtn" class="util-btn" onclick="cycleFontSize()">Aa</button>
         <button id="logoutBtn" class="logout-btn" onclick="logoutUser()">Logout</button>
         <div id="status" class="status">System Status: Ready</div>
       </div>
@@ -1019,9 +1095,9 @@
             </div>
 
             <div class="button-row">
-              <button class="primary" onclick="startDiag('standard')">Start Diagnosis</button>
-              <button class="expert" onclick="startDiag('expert')">Expert Diagnosis</button>
-              <button class="secondary" onclick="clearAll()">Clear</button>
+              <button id="startBtn" class="primary" onclick="startDiag('standard')">Start Diagnosis</button>
+              <button id="expertBtn" class="expert" onclick="startDiag('expert')">Expert Diagnosis</button>
+              <button class="secondary" onclick="askClearConfirm()">Clear</button>
             </div>
           </div>
         </div>
@@ -1085,8 +1161,9 @@
             </div>
 
             <div class="chat-input-row">
-              <button class="chat-send" onclick="sendChat()">Send</button>
+              <button class="chat-send" id="chatSendBtn" onclick="sendChat()">Send</button>
             </div>
+            <div class="enter-hint">Press Enter to send · Shift+Enter for new line</div>
           </div>
         </div>
       </div>
@@ -1279,7 +1356,11 @@
       </div>
     </div>
 
-    <div class="footer">Allie-Kat Automations</div>
+    <div class="footer">
+      <div class="footer-brand">Allie-Kat Automations</div>
+      <div class="footer-meta">ALLIE Tech Assistant · Beta v3.0.0</div>
+      <div id="repairCounter" class="footer-counter" style="display:none;"></div>
+    </div>
   </div>
 
   <script>
@@ -1544,6 +1625,8 @@ Last Seen: ${user.last_seen || "-"}
       document.getElementById("adminTopBtn").style.display = loggedIn && isAdmin ? "inline-block" : "none";
       document.getElementById("jobHistoryBtn").style.display = loggedIn ? "inline-block" : "none";
       document.getElementById("fleetBtn").style.display = loggedIn && isAdmin ? "inline-block" : "none";
+      document.getElementById("flashlightBtn").style.display = loggedIn ? "inline-block" : "none";
+      document.getElementById("fontSizeBtn").style.display = loggedIn ? "inline-block" : "none";
 
       if (!loggedIn) {
         document.getElementById("adminDashboardView").classList.add("hidden");
@@ -1588,7 +1671,12 @@ Last Seen: ${user.last_seen || "-"}
       document.getElementById("stepContainer").innerHTML = `
         <div class="step-card loading-card">
           <div class="loading-title">Building ${modeLabel} Tree...</div>
-          <div class="loading-text">VIN is decoded and the system is building the richer troubleshooting path now.</div>
+          <div class="loading-text">Decoding VIN and building your diagnostic path. Hang tight.</div>
+          <div class="loading-dots">
+            <div class="loading-dot"></div>
+            <div class="loading-dot"></div>
+            <div class="loading-dot"></div>
+          </div>
         </div>
       `;
     }
@@ -1651,16 +1739,28 @@ Last Seen: ${user.last_seen || "-"}
         renderCompleteCard();
         return;
       }
+
+      const totalSteps = tree?.steps?.length || 1;
+      const currentIndex = tree?.steps?.findIndex(s => s.id === currentStep.id) ?? 0;
+      const stepNum = currentIndex + 1;
+      const progressPct = Math.round((stepNum / totalSteps) * 100);
+
       const buttonsHtml = (currentStep.result_buttons || []).map(btn => {
-        let cls = "skip";
-        if (btn.label === "PASS") cls = "pass";
-        if (btn.label === "FAIL") cls = "fail";
-        return `<button class="${cls}" onclick="nextStep('${btn.next_step_id}', '${btn.label.replace(/'/g, "\\'")}')">${btn.label}</button>`;
+        let cls = "skip", icon = "—";
+        if (btn.label === "PASS") { cls = "pass"; icon = "✓"; }
+        if (btn.label === "FAIL") { cls = "fail"; icon = "✗"; }
+        return `<button class="${cls}" onclick="handleResult('${btn.next_step_id}', '${btn.label.replace(/'/g, "\\'")}', '${cls}')">${icon} ${btn.label}</button>`;
       }).join("");
+
       const backButtonHtml = stepStack.length > 0
         ? `<button class="back" onclick="goBack()">⬅ Back</button>`
         : "";
+
       document.getElementById("stepContainer").innerHTML = `
+        <div class="step-counter-row">
+          <div class="step-badge">Step ${stepNum} of ${totalSteps}</div>
+          <div class="step-progress-bar"><div class="step-progress-fill" style="width:${progressPct}%"></div></div>
+        </div>
         <div class="step-card">
           <h3 class="step-title">${currentStep.title || "Diagnostic Step"}</h3>
           <div class="step-section">
@@ -1689,8 +1789,14 @@ Last Seen: ${user.last_seen || "-"}
             ${buttonsHtml}
             ${backButtonHtml}
           </div>
+          <button class="step-note-btn" onclick="addStepFindingToNotes()">+ Add Finding to Notes</button>
         </div>
       `;
+    }
+
+    function handleResult(nextId, resultLabel, cls) {
+      vibrate(cls === "pass" ? [30] : cls === "fail" ? [80, 40, 80] : [20]);
+      nextStep(nextId, resultLabel);
     }
 
     function renderAccessRequests(requests) {
@@ -1985,8 +2091,12 @@ Reason: ${request.reason || "-"}
             role,
             access_token_found: !!data.session?.access_token
           }, null, 2);
-          if (role === "admin") await loadAdminDashboardData();
+          if (role === "admin" || role === "super_admin") await loadAdminDashboardData();
+          loadRepairCounter();
+          requestWakeLock();
+          resetSessionTimeout();
           setStatus(`System Status: Login successful (${role})`);
+          showToast(`Welcome back, ${currentUser?.email?.split('@')[0] || 'tech'}!`);
           return;
         }
         currentUser = null;
@@ -2013,6 +2123,8 @@ Reason: ${request.reason || "-"}
 
     function logoutUser() {
       stopHeartbeat();
+      releaseWakeLock();
+      clearTimeout(sessionTimeoutTimer);
       currentUser = null;
       currentSession = null;
       currentProfile = null;
@@ -2038,6 +2150,7 @@ Reason: ${request.reason || "-"}
       document.getElementById("adminUserStatsResult").innerText = "User stats not loaded yet.";
       document.getElementById("totalRegisteredUsers").innerText = "0";
       document.getElementById("onlineRegisteredUsers").innerText = "0";
+      document.getElementById("repairCounter").style.display = "none";
       setStatus("System Status: Logged out");
     }
 
@@ -2046,6 +2159,11 @@ Reason: ${request.reason || "-"}
         setStatus("System Status: Login required");
         return;
       }
+      if (diagnosing) return;
+      diagnosing = true;
+      document.getElementById("startBtn").disabled = true;
+      document.getElementById("expertBtn").disabled = true;
+
       currentMode = mode || "standard";
       runToken += 1;
       const localRunToken = runToken;
@@ -2060,6 +2178,7 @@ Reason: ${request.reason || "-"}
       document.getElementById("learningContainer").innerHTML = "";
       const enteredVin = document.getElementById("vin").value || "";
       setVehicle({ vin: enteredVin }, "Decoding VIN...");
+      await requestWakeLock();
       setStatus(`System Status: Decoding VIN for ${currentMode} mode...`);
       renderLoadingCard(currentMode === "expert" ? "Expert" : "Detailed");
       try {
@@ -2108,12 +2227,18 @@ Reason: ${request.reason || "-"}
         renderHistory();
         renderStep();
         setStatus(`System Status: ${currentMode} tree ready`);
+        showToast(`Tree built — ${tree.steps.length} steps`);
       } catch (err) {
         if (localRunToken !== runToken) return;
         setStatus("System Status: Error loading diagnosis");
         document.getElementById("stepContainer").innerHTML = `
           <div class="step-card"><div class="field-value">Error: ${err.message}</div></div>
         `;
+        showToast("Diagnosis error — check connection", true);
+      } finally {
+        diagnosing = false;
+        document.getElementById("startBtn").disabled = false;
+        document.getElementById("expertBtn").disabled = false;
       }
     }
 
@@ -2184,6 +2309,20 @@ Reason: ${request.reason || "-"}
       chatHistory.push({ role: "user", content: question });
       renderChat();
       input.value = "";
+
+      const sendBtn = document.getElementById("chatSendBtn");
+      sendBtn.disabled = true;
+
+      const thinkingId = `thinking_${Date.now()}`;
+      const box = document.getElementById("chatMessages");
+      box.innerHTML += `
+        <div id="${thinkingId}" class="allie-thinking">
+          <div class="thinking-dot"></div>
+          <div class="thinking-dot"></div>
+          <div class="thinking-dot"></div>
+          <span class="thinking-label">Allie is thinking...</span>
+        </div>`;
+      box.scrollTop = box.scrollHeight;
       setStatus("System Status: Allie is thinking...");
 
       try {
@@ -2209,15 +2348,17 @@ Reason: ${request.reason || "-"}
         });
 
         const data = await res.json();
+        const thinkEl = document.getElementById(thinkingId);
+        if (thinkEl) thinkEl.remove();
 
         if (!data.success) {
           chatHistory.push({ role: "assistant", content: `Allie error: ${data.error || "Unknown error"}`, meta: {} });
           renderChat();
-          setStatus("System Status: Ask Allie error");
+          setStatus("System Status: Ready");
+          sendBtn.disabled = false;
           return;
         }
 
-        // Save session ID for conversation continuity
         if (data.session_id) askAllieSessionId = data.session_id;
 
         const answer = data.data?.answer || "No reply returned.";
@@ -2236,9 +2377,14 @@ Reason: ${request.reason || "-"}
         renderChat();
         setStatus("System Status: Ready");
       } catch (err) {
+        const thinkEl = document.getElementById(thinkingId);
+        if (thinkEl) thinkEl.remove();
         chatHistory.push({ role: "assistant", content: `Chat error: ${err.message}`, meta: {} });
         renderChat();
         setStatus("System Status: Chat error");
+        showToast("Chat error — check connection", true);
+      } finally {
+        sendBtn.disabled = false;
       }
     }
 
@@ -2346,8 +2492,11 @@ Reason: ${request.reason || "-"}
           historyLog.push(`Final fix saved: ${finalFix}`);
           renderHistory();
           setStatus("System Status: Final fix saved");
-          setTimeout(() => clearAll(), 1200);
+          showToast("✓ Repair saved to knowledge base!");
+          loadRepairCounter();
+          setTimeout(() => clearAll(), 1800);
         } else {
+          showToast("Save failed — try again", true);
           setStatus("System Status: Save failed");
         }
       } catch (err) {
@@ -2850,20 +2999,132 @@ Reason: ${request.reason || "-"}
       }, 300);
     }
 
+    // =============================================
+    // V3.0.0 NEW FEATURES
+    // =============================================
+
+    let flashlightOn = false;
+    let fontSizeLevel = 1;
+    let wakeLock = null;
+    let sessionTimeoutTimer = null;
+    let diagnosing = false;
+
+    function showToast(msg, isError = false) {
+      const t = document.getElementById("toast");
+      t.innerText = msg;
+      t.className = isError ? "error" : "";
+      t.classList.add("show");
+      setTimeout(() => t.classList.remove("show"), 3000);
+    }
+
+    function checkOnline() {
+      const banner = document.getElementById("offlineBanner");
+      fetch(`${backend}/`).then(() => { banner.style.display = "none"; }).catch(() => { banner.style.display = "block"; });
+    }
+
+    function toggleFlashlight() {
+      flashlightOn = !flashlightOn;
+      document.body.style.backgroundColor = flashlightOn ? "#ffffff" : "";
+      document.body.style.color = flashlightOn ? "#000000" : "";
+      document.getElementById("flashlightBtn").innerText = flashlightOn ? "✕ Off" : "☀ Light";
+    }
+
+    function cycleFontSize() {
+      fontSizeLevel = (fontSizeLevel % 3) + 1;
+      document.body.className = document.body.className.replace(/fs-\w+/g, "").trim();
+      const btn = document.getElementById("fontSizeBtn");
+      if (fontSizeLevel === 1) btn.innerText = "Aa";
+      if (fontSizeLevel === 2) { document.body.classList.add("fs-small"); btn.innerText = "Aa-"; }
+      if (fontSizeLevel === 3) { document.body.classList.add("fs-large"); btn.innerText = "Aa+"; }
+    }
+
+    async function requestWakeLock() {
+      try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch(e) {}
+    }
+
+    function releaseWakeLock() {
+      if (wakeLock) { wakeLock.release(); wakeLock = null; }
+    }
+
+    function resetSessionTimeout() {
+      clearTimeout(sessionTimeoutTimer);
+      sessionTimeoutTimer = setTimeout(() => {
+        if (currentUser) showToast("⚠ Idle 30 min — re-login soon", true);
+      }, 30 * 60 * 1000);
+    }
+
+    document.addEventListener("click", resetSessionTimeout);
+    document.addEventListener("keydown", resetSessionTimeout);
+
+    function vibrate(pattern) {
+      if (navigator.vibrate) navigator.vibrate(pattern);
+    }
+
+    function askClearConfirm() {
+      document.getElementById("confirmModal").classList.add("show");
+    }
+    function cancelClear() {
+      document.getElementById("confirmModal").classList.remove("show");
+    }
+    function confirmClear() {
+      document.getElementById("confirmModal").classList.remove("show");
+      clearAll();
+    }
+
+    async function loadRepairCounter() {
+      try {
+        const shopId = currentProfile?.shop_id || "";
+        if (!shopId) return;
+        const res = await fetch(`${backend}/job-history?shop_id=${shopId}&limit=200`);
+        const data = await res.json();
+        if (data.success) {
+          const c = document.getElementById("repairCounter");
+          c.style.display = "inline-block";
+          c.innerText = `${data.jobs?.length || 0} repairs in knowledge base`;
+        }
+      } catch(e) {}
+    }
+
+    function addStepFindingToNotes() {
+      if (!currentStep) return;
+      const box = document.getElementById("notes");
+      const finding = `[Step: ${currentStep.title}]\nFindings: `;
+      const prefix = box.value.trim() ? "\n\n" : "";
+      box.value = `${box.value}${prefix}${finding}`;
+      box.focus();
+      box.setSelectionRange(box.value.length, box.value.length);
+      showToast("Finding added to notes");
+    }
+
+    // Enter key handlers
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("loginPassword").addEventListener("keydown", e => { if (e.key === "Enter") loginUser(); });
+      document.getElementById("loginEmail").addEventListener("keydown", e => { if (e.key === "Enter") loginUser(); });
+      document.getElementById("chatInput").addEventListener("keydown", e => {
+        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); }
+      });
+    });
+
     async function restoreSessionState() {
       loadAuthFromStorage();
       renderCurrentUser();
       renderChat();
       showLogin();
       updateAuthView();
+      checkOnline();
+      setInterval(checkOnline, 60000);
+
       if (currentUser && currentUser.id) {
         currentProfile = await loadUserProfile(currentUser.id);
         saveAuthToStorage();
         renderCurrentUser();
         updateAuthView();
         startHeartbeat();
+        requestWakeLock();
+        resetSessionTimeout();
         const role = currentProfile?.role || "tech";
-        if (role === "admin") await loadAdminDashboardData();
+        if (role === "admin" || role === "super_admin") await loadAdminDashboardData();
+        loadRepairCounter();
         setStatus(`System Status: Session restored (${role})`);
       }
     }
