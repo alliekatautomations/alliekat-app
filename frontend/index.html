@@ -467,15 +467,46 @@
     .allie-pinout th {
       background: rgba(76, 229, 255, 0.10);
       color: #4ce5ff;
-      padding: 6px 8px;
+      padding: 8px 10px;
       text-align: left;
       border-bottom: 1px solid rgba(76, 229, 255, 0.15);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      white-space: nowrap;
     }
 
     .allie-pinout td {
-      padding: 5px 8px;
+      padding: 7px 10px;
       color: #dff7ff;
       border-bottom: 1px solid rgba(76, 229, 255, 0.07);
+      font-size: 13px;
+      vertical-align: top;
+    }
+
+    .allie-pinout tr:last-child td {
+      border-bottom: none;
+    }
+
+    .allie-pinout tr:hover td {
+      background: rgba(76, 229, 255, 0.04);
+    }
+
+    .allie-pinout-wrap {
+      margin-top: 10px;
+      border: 1px solid rgba(76, 229, 255, 0.15);
+      border-radius: 10px;
+      overflow: hidden;
+      overflow-x: auto;
+    }
+
+    .allie-pinout-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #4ce5ff;
+      margin-top: 12px;
+      margin-bottom: 6px;
     }
 
     .allie-next-steps {
@@ -1456,7 +1487,7 @@ Reason: ${request.reason || "-"}
           if (meta.pinout_table && meta.pinout_table.length) {
             const rows = meta.pinout_table.map(pin => `
               <tr>
-                <td>${pin.pin_label || "-"}</td>
+                <td><strong>${pin.pin_label || "-"}</strong></td>
                 <td>${pin.wire_color || "-"}</td>
                 <td>${pin.circuit_function || "-"}</td>
                 <td>${pin.expected_value || "-"}</td>
@@ -1464,10 +1495,13 @@ Reason: ${request.reason || "-"}
               </tr>
             `).join("");
             pinoutHtml = `
-              <table class="allie-pinout">
-                <thead><tr><th>Pin</th><th>Wire Color</th><th>Function</th><th>Expected</th><th>Notes</th></tr></thead>
-                <tbody>${rows}</tbody>
-              </table>
+              <div class="allie-pinout-title">📌 Connector Pinout</div>
+              <div class="allie-pinout-wrap">
+                <table class="allie-pinout">
+                  <thead><tr><th>Pin</th><th>Wire Color</th><th>Function</th><th>Expected</th><th>Notes</th></tr></thead>
+                  <tbody>${rows}</tbody>
+                </table>
+              </div>
             `;
           }
 
