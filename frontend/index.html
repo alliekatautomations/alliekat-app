@@ -1,0 +1,2206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Allie Diagnostics — Allie-Kat Automations</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --void:       #04080d;
+  --bg:         #070e16;
+  --bg2:        #0b1520;
+  --panel:      #0e1c2a;
+  --panel2:     #122030;
+  --border:     rgba(40, 110, 180, 0.18);
+  --border2:    rgba(40, 110, 180, 0.35);
+  --steel:      #4a90c4;
+  --steel2:     #6aaee0;
+  --steel-dim:  #2a5a80;
+  --chrome:     #8fb8d4;
+  --chrome2:    #c2daea;
+  --text:       #c8dde8;
+  --muted:      #5a7d94;
+  --dim:        #334d5e;
+  --green:      #2ecc8a;
+  --amber:      #e8a030;
+  --red:        #e8454a;
+  --glow:       0 0 20px rgba(74,144,196,0.15);
+  --glow2:      0 0 40px rgba(74,144,196,0.25);
+  --font-head:  'Rajdhani', sans-serif;
+  --font-mono:  'Share Tech Mono', monospace;
+  --font-body:  'Barlow', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--void);
+  color: var(--text);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 15% 0%, rgba(30,80,140,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 50% at 90% 100%, rgba(20,60,110,0.08) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(40,110,180,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(40,110,180,0.025) 1px, transparent 1px);
+  background-size: 44px 44px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── LOGIN ── */
+#loginScreen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--void);
+}
+
+.login-box {
+  width: 420px;
+  padding: 48px 40px 40px;
+  background: linear-gradient(160deg, #0d1c2c, #091420);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  box-shadow: var(--glow2), inset 0 1px 0 rgba(100,180,255,0.06);
+  position: relative;
+}
+
+.login-box::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 20px; right: 20px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--steel), transparent);
+}
+
+.login-logo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 32px;
+}
+
+.login-logo img {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 8px rgba(74,144,196,0.4));
+}
+
+.login-logo-text h1 {
+  font-family: var(--font-head);
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--chrome2);
+  line-height: 1;
+}
+
+.login-logo-text p {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--steel);
+  letter-spacing: 0.12em;
+  margin-top: 4px;
+}
+
+.login-box label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  margin-top: 18px;
+}
+
+.login-box input {
+  width: 100%;
+  background: rgba(4,8,13,0.8);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 11px 14px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.login-box input:focus { border-color: var(--steel); }
+
+.btn-primary {
+  width: 100%;
+  margin-top: 28px;
+  padding: 13px;
+  background: linear-gradient(135deg, #1a4a78, #1a3a60);
+  border: 1px solid var(--steel-dim);
+  border-radius: 4px;
+  color: var(--chrome2);
+  font-family: var(--font-head);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #1e5590, #1a4478);
+  border-color: var(--steel);
+  box-shadow: 0 0 16px rgba(74,144,196,0.2);
+}
+
+.login-err {
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: rgba(232,69,74,0.1);
+  border: 1px solid rgba(232,69,74,0.3);
+  border-radius: 4px;
+  color: var(--red);
+  font-size: 0.85rem;
+  display: none;
+}
+
+/* ── APP SHELL ── */
+#appShell { display: none; position: relative; z-index: 1; }
+
+/* ── TOPBAR ── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 24px;
+  background: linear-gradient(180deg, rgba(10,20,32,0.98), rgba(7,14,22,0.98));
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbar-brand img {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 6px rgba(74,144,196,0.35));
+}
+
+.topbar-brand-text h1 {
+  font-family: var(--font-head);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--chrome2);
+  line-height: 1;
+}
+
+.topbar-brand-text p {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--steel);
+  letter-spacing: 0.1em;
+  margin-top: 2px;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.status-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: rgba(4,8,13,0.7);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.status-chip .dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px rgba(46,204,138,0.6);
+}
+
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: rgba(4,8,13,0.7);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--chrome);
+}
+
+.btn-sm {
+  padding: 7px 14px;
+  background: rgba(26,58,96,0.6);
+  border: 1px solid var(--border2);
+  border-radius: 3px;
+  color: var(--steel2);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-sm:hover { background: rgba(26,70,120,0.8); border-color: var(--steel); }
+
+/* ── MAIN LAYOUT ── */
+.app-body {
+  display: grid;
+  grid-template-columns: 220px 1fr 360px;
+  gap: 0;
+  min-height: calc(100vh - 64px);
+}
+
+/* ── NAV ── */
+.sidenav {
+  background: linear-gradient(180deg, rgba(10,20,32,0.95), rgba(7,14,22,0.95));
+  border-right: 1px solid var(--border);
+  padding: 20px 12px;
+}
+
+.nav-section-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.14em;
+  color: var(--dim);
+  text-transform: uppercase;
+  padding: 0 10px;
+  margin-bottom: 8px;
+  margin-top: 18px;
+}
+
+.nav-section-label:first-child { margin-top: 4px; }
+
+.nav-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.18s;
+  margin-bottom: 3px;
+  text-align: left;
+}
+
+.nav-btn .nav-icon {
+  font-size: 1rem;
+  line-height: 1;
+  margin-top: 1px;
+  min-width: 18px;
+}
+
+.nav-btn .nav-label {
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.1;
+  color: var(--muted);
+}
+
+.nav-btn .nav-sub {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--dim);
+  margin-top: 2px;
+}
+
+.nav-btn:hover { background: rgba(20,50,80,0.5); border-color: var(--border); color: var(--text); }
+.nav-btn:hover .nav-label { color: var(--text); }
+
+.nav-btn.active {
+  background: linear-gradient(135deg, rgba(22,55,90,0.9), rgba(15,40,68,0.9));
+  border-color: var(--border2);
+  box-shadow: inset 3px 0 0 var(--steel), 0 0 12px rgba(74,144,196,0.1);
+}
+
+.nav-btn.active .nav-label { color: var(--chrome2); }
+.nav-btn.active .nav-sub { color: var(--steel); }
+
+/* ── CONTENT PANEL ── */
+.content {
+  background: rgba(7,14,22,0.4);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+}
+
+.section { display: none; padding: 24px; }
+.section.active { display: block; }
+
+.section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.section-header h2 {
+  font-family: var(--font-head);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--chrome2);
+  line-height: 1;
+}
+
+.section-header p {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 5px;
+}
+
+/* ── SUMMARY BAR ── */
+.summary-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.summary-card {
+  padding: 12px 14px;
+  background: rgba(10,20,32,0.9);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.summary-card .s-label {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  color: var(--dim);
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+.summary-card .s-value {
+  font-family: var(--font-head);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--chrome);
+  word-break: break-word;
+}
+
+/* ── FORM FIELDS ── */
+.field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.field-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+.field-grid.cols-1 { grid-template-columns: 1fr; }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field.full { grid-column: 1 / -1; }
+
+.field label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.field input,
+.field select,
+.field textarea {
+  background: rgba(4,8,13,0.85);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 10px 12px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.18s;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus { border-color: var(--steel); }
+
+.field textarea { resize: vertical; min-height: 80px; }
+
+.field select option { background: #0d1c2c; }
+
+.field-section-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  color: var(--steel);
+  text-transform: uppercase;
+  margin: 20px 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.field-section-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ── BUTTONS ── */
+.btn-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.btn-action {
+  padding: 11px 22px;
+  background: linear-gradient(135deg, #1a4a78, #142e54);
+  border: 1px solid var(--steel-dim);
+  border-radius: 3px;
+  color: var(--chrome2);
+  font-family: var(--font-head);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-action:hover {
+  background: linear-gradient(135deg, #1e5590, #1a3e6e);
+  border-color: var(--steel);
+  box-shadow: 0 0 14px rgba(74,144,196,0.2);
+}
+
+.btn-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-action.btn-danger {
+  background: linear-gradient(135deg, rgba(120,30,35,0.7), rgba(80,20,25,0.7));
+  border-color: rgba(232,69,74,0.3);
+  color: #e87a7e;
+}
+
+.btn-action.btn-danger:hover {
+  background: linear-gradient(135deg, rgba(150,35,40,0.8), rgba(100,25,30,0.8));
+  border-color: var(--red);
+}
+
+.btn-action.btn-success {
+  background: linear-gradient(135deg, rgba(20,90,60,0.8), rgba(14,65,44,0.8));
+  border-color: rgba(46,204,138,0.3);
+  color: #6dd9aa;
+}
+
+/* ── DIAGNOSIS RESULTS ── */
+.result-group { margin-bottom: 18px; }
+
+.result-group-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  color: var(--steel);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.result-item {
+  padding: 12px 14px;
+  background: rgba(10,20,32,0.9);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--steel-dim);
+  border-radius: 3px;
+  margin-bottom: 7px;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.result-item.warn {
+  border-left-color: var(--amber);
+  background: rgba(232,160,48,0.05);
+}
+
+.result-item.danger {
+  border-left-color: var(--red);
+  background: rgba(232,69,74,0.05);
+}
+
+.diag-ai-output {
+  padding: 18px;
+  background: rgba(8,16,26,0.95);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--steel);
+  border-radius: 3px;
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--text);
+  white-space: pre-wrap;
+  font-family: var(--font-body);
+}
+
+.diag-model-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  background: rgba(10,20,32,0.9);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--steel);
+  margin-bottom: 12px;
+}
+
+/* ── WORKFLOW STEPS ── */
+.step-item {
+  padding: 16px;
+  background: rgba(10,20,32,0.9);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.step-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.step-number {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--steel);
+  text-transform: uppercase;
+}
+
+.step-grid {
+  display: grid;
+  grid-template-columns: 1fr 160px;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.step-result-pass { color: var(--green); }
+.step-result-fail { color: var(--red); }
+.step-result-inconclusive { color: var(--amber); }
+
+/* ── CHAT PANEL ── */
+.chat-shell {
+  background: linear-gradient(180deg, rgba(10,20,32,0.97), rgba(7,14,22,0.97));
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 64px);
+  position: sticky;
+  top: 64px;
+}
+
+.chat-header {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.chat-header-title {
+  font-family: var(--font-head);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--chrome2);
+}
+
+.chat-header-sub {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.chat-context {
+  padding: 10px 14px;
+  background: rgba(4,8,13,0.8);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--steel);
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+}
+
+.chat-window {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chat-window::-webkit-scrollbar { width: 4px; }
+.chat-window::-webkit-scrollbar-track { background: transparent; }
+.chat-window::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.bubble {
+  padding: 11px 14px;
+  border-radius: 4px;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  max-width: 100%;
+}
+
+.bubble.user {
+  background: rgba(26,58,96,0.5);
+  border: 1px solid var(--border2);
+  border-right: 3px solid var(--steel);
+  align-self: flex-end;
+  color: var(--chrome);
+}
+
+.bubble.assistant {
+  background: rgba(10,20,32,0.9);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--steel-dim);
+  align-self: flex-start;
+  color: var(--text);
+}
+
+.bubble .b-role {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  color: var(--steel);
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 5px;
+}
+
+.bubble.user .b-role { color: var(--chrome); text-align: right; }
+
+.chat-input-row {
+  padding: 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 10px;
+}
+
+.chat-input-row input {
+  flex: 1;
+  background: rgba(4,8,13,0.85);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 10px 13px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  outline: none;
+  transition: border-color 0.18s;
+}
+
+.chat-input-row input:focus { border-color: var(--steel); }
+
+.btn-send {
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #1a4a78, #142e54);
+  border: 1px solid var(--steel-dim);
+  border-radius: 3px;
+  color: var(--chrome2);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-send:hover { border-color: var(--steel); box-shadow: 0 0 10px rgba(74,144,196,0.2); }
+
+/* ── EMPTY STATE ── */
+.empty-state {
+  padding: 20px;
+  text-align: center;
+  color: var(--dim);
+  font-size: 0.85rem;
+  border: 1px dashed rgba(40,110,180,0.12);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+}
+
+/* ── STATUS BAR ── */
+.statusbar {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 40;
+  padding: 6px 24px;
+  background: rgba(4,8,13,0.95);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--dim);
+}
+
+.statusbar .status-label {
+  color: var(--steel);
+}
+
+/* ── LOADING SPINNER ── */
+.spinner {
+  display: inline-block;
+  width: 14px; height: 14px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--steel);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.thinking-bubble {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  background: rgba(10,20,32,0.9);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--steel-dim);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--steel);
+}
+
+/* ── SCAN LINE ANIM ON DIAG ── */
+.scan-active {
+  position: relative;
+  overflow: hidden;
+}
+
+.scan-active::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--steel), transparent);
+  animation: scan 1.5s ease-in-out infinite;
+  top: 0;
+  opacity: 0.6;
+}
+
+@keyframes scan {
+  0%   { top: 0; opacity: 0.6; }
+  50%  { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+/* ── SCROLLBAR GLOBAL ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ── CONFIRM FIX SECTION ── */
+.confirm-fix-wrap {
+  margin-top: 24px;
+  padding: 18px;
+  background: rgba(14,35,22,0.5);
+  border: 1px solid rgba(46,204,138,0.2);
+  border-left: 3px solid var(--green);
+  border-radius: 4px;
+}
+
+.confirm-fix-wrap h3 {
+  font-family: var(--font-head);
+  font-size: 1rem;
+  font-weight: 600;
+  color: #6dd9aa;
+  letter-spacing: 0.08em;
+  margin-bottom: 12px;
+}
+
+/* ── DIAGNOSTIC LOADING ── */
+.diag-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 48px 0;
+}
+
+.diag-loading p {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--steel);
+  letter-spacing: 0.06em;
+}
+
+.logo-placeholder {
+  width: 52px; height: 52px;
+  background: linear-gradient(135deg, #1a3a5e, #0f2440);
+  border: 2px solid var(--border2);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-head);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--steel2);
+  letter-spacing: 0.05em;
+  box-shadow: 0 0 16px rgba(74,144,196,0.2);
+}
+
+/* ── TREE WALKER ── */
+.tree-step-card {
+  background: rgba(10,20,32,0.95);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: var(--glow);
+}
+
+.tree-step-header {
+  padding: 14px 18px;
+  background: linear-gradient(135deg, rgba(22,55,90,0.9), rgba(15,40,68,0.9));
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tree-step-num {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  color: var(--steel);
+  text-transform: uppercase;
+}
+
+.tree-step-title {
+  font-family: var(--font-head);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--chrome2);
+  margin-top: 2px;
+}
+
+.tree-step-body {
+  padding: 18px;
+}
+
+.tree-field-label {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  color: var(--steel);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  margin-top: 16px;
+}
+
+.tree-field-label:first-child { margin-top: 0; }
+
+.tree-field-value {
+  font-size: 0.9rem;
+  color: var(--text);
+  line-height: 1.65;
+  padding: 10px 14px;
+  background: rgba(4,8,13,0.7);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.tree-specs-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.tree-spec-cell {
+  padding: 8px 10px;
+  background: rgba(4,8,13,0.7);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.tree-spec-cell .spec-label {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+
+.tree-spec-cell .spec-val {
+  font-size: 0.8rem;
+  color: var(--chrome);
+  line-height: 1.4;
+}
+
+.tree-btn-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.tree-btn {
+  flex: 1;
+  min-width: 100px;
+  padding: 13px 10px;
+  border-radius: 4px;
+  font-family: var(--font-head);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid;
+  text-align: center;
+}
+
+.tree-btn.pass {
+  background: linear-gradient(135deg, rgba(20,90,60,0.85), rgba(14,65,44,0.85));
+  border-color: rgba(46,204,138,0.4);
+  color: #6dd9aa;
+}
+
+.tree-btn.pass:hover { border-color: var(--green); box-shadow: 0 0 14px rgba(46,204,138,0.2); }
+
+.tree-btn.fail {
+  background: linear-gradient(135deg, rgba(120,30,35,0.85), rgba(80,20,25,0.85));
+  border-color: rgba(232,69,74,0.4);
+  color: #e87a7e;
+}
+
+.tree-btn.fail:hover { border-color: var(--red); box-shadow: 0 0 14px rgba(232,69,74,0.2); }
+
+.tree-btn.skip {
+  background: rgba(20,40,70,0.6);
+  border-color: var(--border2);
+  color: var(--muted);
+}
+
+.tree-btn.skip:hover { border-color: var(--steel); color: var(--chrome); }
+
+.tree-history-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(10,20,32,0.7);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 7px;
+}
+
+.tree-history-badge {
+  padding: 3px 9px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
+.badge-pass { background: rgba(46,204,138,0.15); color: var(--green); border: 1px solid rgba(46,204,138,0.3); }
+.badge-fail { background: rgba(232,69,74,0.15); color: var(--red); border: 1px solid rgba(232,69,74,0.3); }
+.badge-skip { background: rgba(232,160,48,0.1); color: var(--amber); border: 1px solid rgba(232,160,48,0.25); }
+
+.tree-history-text { font-size: 0.85rem; color: var(--muted); line-height: 1.4; }
+.tree-history-text strong { color: var(--chrome); }
+
+.tree-complete-card {
+  padding: 24px;
+  background: rgba(14,35,22,0.5);
+  border: 1px solid rgba(46,204,138,0.25);
+  border-left: 4px solid var(--green);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.tree-progress-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.tree-progress-track {
+  flex: 1;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.tree-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--steel-dim), var(--steel));
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN ── -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="logo-placeholder">AKA</div>
+      <div class="login-logo-text">
+        <h1>ALLIE DIAGNOSTICS</h1>
+        <p>ALLIE-KAT AUTOMATIONS · POWERED BY ALLIE AI</p>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:0;margin-bottom:24px;border:1px solid var(--border);border-radius:4px;overflow:hidden;">
+      <button id="tabLogin" onclick="switchTab('login')" style="flex:1;padding:10px;background:linear-gradient(135deg,#1a4a78,#142e54);border:none;color:var(--chrome2);font-family:var(--font-mono);font-size:0.75rem;letter-spacing:0.1em;cursor:pointer;">SIGN IN</button>
+      <button id="tabSignup" onclick="switchTab('signup')" style="flex:1;padding:10px;background:rgba(4,8,13,0.8);border:none;border-left:1px solid var(--border);color:var(--muted);font-family:var(--font-mono);font-size:0.75rem;letter-spacing:0.1em;cursor:pointer;">CREATE ACCOUNT</button>
+    </div>
+
+    <!-- Login Form -->
+    <div id="loginForm">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="technician@example.com" autocomplete="email"/>
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password"/>
+      <button class="btn-primary" id="loginBtn">AUTHENTICATE</button>
+      <div class="login-err" id="loginErr"></div>
+    </div>
+
+    <!-- Signup Form -->
+    <div id="signupForm" style="display:none;">
+      <label>Full Name</label>
+      <input type="text" id="signupName" placeholder="John Smith"/>
+      <label>Email</label>
+      <input type="email" id="signupEmail" placeholder="technician@example.com" autocomplete="email"/>
+      <label>Password</label>
+      <input type="password" id="signupPassword" placeholder="Min 6 characters" autocomplete="new-password"/>
+      <button class="btn-primary" id="signupBtn">CREATE ACCOUNT</button>
+      <div class="login-err" id="signupErr"></div>
+      <div id="signupSuccess" style="display:none;margin-top:14px;padding:10px 14px;background:rgba(46,204,138,0.1);border:1px solid rgba(46,204,138,0.3);border-radius:4px;color:var(--green);font-size:0.85rem;">Account created. You can now sign in.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── REQUEST ACCESS SCREEN ── -->
+<div id="requestScreen" style="display:none;position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;background:var(--void);">
+  <div class="login-box" style="width:480px;">
+    <div class="login-logo">
+      <div class="logo-placeholder">AKA</div>
+      <div class="login-logo-text">
+        <h1>ACCESS REQUIRED</h1>
+        <p>ALLIE DIAGNOSTICS · ALLIE-KAT AUTOMATIONS</p>
+      </div>
+    </div>
+    <div style="padding:14px;background:rgba(232,160,48,0.08);border:1px solid rgba(232,160,48,0.25);border-radius:4px;margin-bottom:20px;">
+      <div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--amber);letter-spacing:0.08em;">ACCESS PENDING APPROVAL</div>
+      <div style="font-size:0.85rem;color:var(--muted);margin-top:6px;">Your account requires authorization before accessing Allie Diagnostics. Submit a request below and an administrator will review it.</div>
+    </div>
+    <div id="requestForm">
+      <label style="display:block;font-family:var(--font-mono);font-size:0.68rem;letter-spacing:0.1em;color:var(--muted);text-transform:uppercase;margin-bottom:6px;margin-top:4px;">Company / Shop Name</label>
+      <input type="text" id="reqCompany" placeholder="e.g. Midwest Trucking" style="width:100%;background:rgba(4,8,13,0.8);border:1px solid var(--border);border-radius:4px;padding:11px 14px;color:var(--text);font-family:var(--font-body);font-size:0.95rem;outline:none;"/>
+      <label style="display:block;font-family:var(--font-mono);font-size:0.68rem;letter-spacing:0.1em;color:var(--muted);text-transform:uppercase;margin-bottom:6px;margin-top:18px;">Reason for Access</label>
+      <textarea id="reqReason" placeholder="Describe your role and how you'll use Allie Diagnostics..." style="width:100%;background:rgba(4,8,13,0.8);border:1px solid var(--border);border-radius:4px;padding:11px 14px;color:var(--text);font-family:var(--font-body);font-size:0.95rem;outline:none;resize:vertical;min-height:90px;"></textarea>
+      <button class="btn-primary" id="submitRequestBtn" style="margin-top:24px;">SUBMIT ACCESS REQUEST</button>
+      <div class="login-err" id="reqErr"></div>
+    </div>
+    <div id="requestSent" style="display:none;text-align:center;padding:20px 0;">
+      <div style="font-size:2rem;margin-bottom:12px;">✓</div>
+      <div style="font-family:var(--font-head);font-size:1.1rem;color:var(--green);letter-spacing:0.08em;">REQUEST SUBMITTED</div>
+      <div style="font-size:0.85rem;color:var(--muted);margin-top:8px;">An administrator will review your request. You'll be able to access the app once approved.</div>
+    </div>
+    <div style="margin-top:20px;text-align:center;">
+      <button class="btn-sm" id="reqLogoutBtn">LOGOUT</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── APP ── -->
+<div id="appShell">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="logo-placeholder" style="width:34px;height:34px;font-size:0.8rem;border-radius:5px;">AKA</div>
+      <div class="topbar-brand-text">
+        <h1>ALLIE DIAGNOSTICS</h1>
+        <p>ALLIE-KAT AUTOMATIONS</p>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="status-chip"><div class="dot"></div>ALLIE AI ONLINE</div>
+      <div class="user-chip" id="userChip">—</div>
+      <button class="btn-sm" id="newJobBtn">+ NEW JOB</button>
+      <button class="btn-sm" id="logoutBtn">LOGOUT</button>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div class="app-body">
+    <!-- SIDENAV -->
+    <nav class="sidenav">
+      <div class="nav-section-label">Workflow</div>
+      <button class="nav-btn active" data-section="intake" onclick="setView('intake')">
+        <span class="nav-icon">🔧</span>
+        <div>
+          <div class="nav-label">Job Intake</div>
+          <span class="nav-sub">Unit · Vehicle · Codes</span>
+        </div>
+      </button>
+      <button class="nav-btn" data-section="diagnosis" onclick="setView('diagnosis')">
+        <span class="nav-icon">⚡</span>
+        <div>
+          <div class="nav-label">Diagnosis</div>
+          <span class="nav-sub">AI trouble tree</span>
+        </div>
+      </button>
+      <button class="nav-btn" data-section="workflow" onclick="setView('workflow')">
+        <span class="nav-icon">📋</span>
+        <div>
+          <div class="nav-label">Workflow</div>
+          <span class="nav-sub">Steps · Results · Fix</span>
+        </div>
+      </button>
+      <div class="nav-section-label">Summary</div>
+      <button class="nav-btn" data-section="summary" onclick="setView('summary')">
+        <span class="nav-icon">📊</span>
+        <div>
+          <div class="nav-label">Job Summary</div>
+          <span class="nav-sub">Full case overview</span>
+        </div>
+      </button>
+      <div class="nav-section-label" id="adminNavLabel" style="display:none;">Admin</div>
+      <button class="nav-btn" id="adminNavBtn" data-section="admin" style="display:none;" onclick="setView('admin')">
+        <span class="nav-icon">🛡</span>
+        <div>
+          <div class="nav-label">Access Requests</div>
+          <span class="nav-sub">Approve · Deny</span>
+        </div>
+      </button>
+    </nav>
+
+    <!-- CONTENT -->
+    <main class="content">
+
+      <!-- INTAKE -->
+      <div class="section active" id="section-intake">
+        <div class="section-header">
+          <div>
+            <h2>JOB INTAKE</h2>
+            <p>Enter unit, vehicle, and fault information to begin diagnosis</p>
+          </div>
+        </div>
+
+        <div class="summary-bar">
+          <div class="summary-card"><div class="s-label">Unit</div><div class="s-value" id="sumUnit">—</div></div>
+          <div class="summary-card"><div class="s-label">Vehicle</div><div class="s-value" id="sumVehicle">—</div></div>
+          <div class="summary-card"><div class="s-label">DTC Codes</div><div class="s-value" id="sumDtc">—</div></div>
+          <div class="summary-card"><div class="s-label">Status</div><div class="s-value" id="sumStatus" style="color:var(--amber)">INTAKE</div></div>
+        </div>
+
+        <div class="field-section-label">Unit Information</div>
+        <div class="field-grid">
+          <div class="field">
+            <label>Unit ID / Asset #</label>
+            <input type="text" id="unitId" placeholder="e.g. TRK-042"/>
+          </div>
+          <div class="field">
+            <label>Vehicle Type</label>
+            <select id="vehicleType">
+              <option value="">Select type...</option>
+              <option>Semi Truck / OTR</option>
+              <option>Straight Truck</option>
+              <option>Box Truck</option>
+              <option>Pickup / Work Truck</option>
+              <option>Bus / Transit</option>
+              <option>Heavy Equipment</option>
+              <option>Van / Cargo</option>
+              <option>Trailer</option>
+              <option>Other</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field-section-label">Vehicle Details</div>
+        <div class="field-grid cols-3">
+          <div class="field">
+            <label>Year</label>
+            <input type="text" id="vYear" placeholder="2019"/>
+          </div>
+          <div class="field">
+            <label>Make</label>
+            <input type="text" id="vMake" placeholder="Kenworth"/>
+          </div>
+          <div class="field">
+            <label>Model</label>
+            <input type="text" id="vModel" placeholder="T680"/>
+          </div>
+          <div class="field full">
+            <label>Engine</label>
+            <input type="text" id="vEngine" placeholder="e.g. Paccar MX-13, Cummins ISX15, DD15"/>
+          </div>
+        </div>
+
+        <div class="field-section-label">Fault Information</div>
+        <div class="field-grid cols-1">
+          <div class="field">
+            <label>DTC / Fault Codes (comma separated)</label>
+            <input type="text" id="dtcCodes" placeholder="P0191, SPN 157 FMI 18, ..."/>
+          </div>
+          <div class="field">
+            <label>Driver Complaint / Symptoms</label>
+            <textarea id="symptoms" placeholder="Describe the complaint, when it happens, any relevant conditions..."></textarea>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn-action" id="saveDiagnoseBtn">RUN DIAGNOSIS</button>
+          <button class="btn-action" onclick="saveIntake()" style="background:rgba(20,40,70,0.6);border-color:var(--border2);">SAVE INTAKE</button>
+        </div>
+      </div>
+
+      <!-- DIAGNOSIS -->
+      <div class="section" id="section-diagnosis">
+        <div class="section-header">
+          <div>
+            <h2>AI DIAGNOSIS</h2>
+            <p>Allie AI analysis — ranked causes, safety flags, trouble tree</p>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span style="font-family:var(--font-mono);font-size:0.68rem;color:var(--muted);">MODE</span>
+            <button id="modeNormal" onclick="setDiagMode('normal')" class="btn-sm" style="background:linear-gradient(135deg,#1a4a78,#142e54);border-color:var(--steel);color:var(--chrome2);">NORMAL</button>
+            <button id="modeExpert" onclick="setDiagMode('expert')" class="btn-sm">EXPERT</button>
+          </div>
+        </div>
+        <div id="diagnosisContent">
+          <div class="empty-state">No diagnosis started yet. Complete intake and click Run Diagnosis.</div>
+        </div>
+      </div>
+
+      <!-- WORKFLOW -->
+      <div class="section" id="section-workflow">
+        <div class="section-header">
+          <div>
+            <h2>TECH WORKFLOW</h2>
+            <p>Step-by-step diagnostic tree · Record results as you go</p>
+          </div>
+          <button class="btn-action" id="addStepBtn">+ MANUAL STEP</button>
+        </div>
+
+        <!-- TREE WALKER -->
+        <div id="treeWalker" style="display:none;">
+          <div id="treeProgress" style="margin-bottom:14px;"></div>
+          <div id="treeCurrentStep"></div>
+          <div id="treeHistory" style="margin-top:18px;"></div>
+        </div>
+        <div id="treeEmpty" class="empty-state">Run Diagnosis first to generate the step-by-step trouble tree.</div>
+
+        <!-- MANUAL STEPS -->
+        <div id="manualStepsWrap" style="margin-top:24px;">
+          <div class="field-section-label">Manual Steps</div>
+          <div id="stepList"></div>
+        </div>
+
+        <!-- CONFIRM FIX -->
+        <div class="confirm-fix-wrap">
+          <h3>CONFIRMED FIX</h3>
+          <div class="field">
+            <label>What was the root cause and repair performed?</label>
+            <textarea id="confirmedFix" placeholder="Describe the confirmed root cause and exact repair performed..."></textarea>
+          </div>
+          <div class="field" style="margin-top:10px;">
+            <label>Final Notes</label>
+            <textarea id="finalNotes" placeholder="Parts used, labor time, follow-up items..." style="min-height:60px;"></textarea>
+          </div>
+          <div class="btn-row">
+            <button class="btn-action btn-success" id="confirmFixBtn">CONFIRM &amp; SAVE TO ALLIE</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUMMARY -->
+      <div class="section" id="section-summary">
+        <div class="section-header">
+          <div>
+            <h2>JOB SUMMARY</h2>
+            <p>Complete case record</p>
+          </div>
+        </div>
+        <div id="summaryContent"></div>
+      </div>
+
+
+      <!-- ADMIN -->
+      <div class="section" id="section-admin">
+        <div class="section-header">
+          <div>
+            <h2>ACCESS REQUESTS</h2>
+            <p>Review and approve technician access to Allie Diagnostics</p>
+          </div>
+          <button class="btn-action" onclick="loadAccessRequests()">↻ REFRESH</button>
+        </div>
+        <div id="adminRequestList"><div class="empty-state">Loading requests...</div></div>
+      </div>
+    </main>
+
+    <!-- CHAT PANEL -->
+    <aside class="chat-shell">
+      <div class="chat-header">
+        <div>
+          <div class="chat-header-title">ASK ALLIE</div>
+          <div class="chat-header-sub">Full context injected · Powered by Allie AI v3.0</div>
+        </div>
+        <button class="btn-sm" id="clearChatBtn">CLEAR</button>
+      </div>
+      <div class="chat-context" id="chatContext">No job started yet.</div>
+      <div class="chat-window" id="chatWindow"></div>
+      <div class="chat-input-row">
+        <input type="text" id="chatInput" placeholder="Ask Allie anything about this job..."/>
+        <button class="btn-send" id="sendBtn">SEND</button>
+      </div>
+    </aside>
+  </div>
+
+  <div class="statusbar">
+    <span class="status-label">SYSTEM</span>
+    <span id="statusMsg">Ready</span>
+    <span style="margin-left:auto;color:var(--dim);">ALLIE-KAT AUTOMATIONS · SEMINOLE TX</span>
+  </div>
+</div>
+
+<script>
+const API = 'https://allie-ai.onrender.com';
+
+let auth = { token: null, userId: null, name: null, role: null, approved: false };
+let chatSessionId = null;
+let diagMode = 'normal';
+
+const state = {
+  intake: { unitId:'', vehicleType:'', year:'', make:'', model:'', engine:'', dtcCodes:'', symptoms:'' },
+  diagnosis: { raw:'', modelUsed:'', tier:0, sessionId:null },
+  tree: { data:null, currentStepId:null, history:[], complete:false },
+  workflow: { steps:[], confirmedFix:'', finalNotes:'' },
+  chat: []
+};
+
+function setDiagMode(mode) {
+  diagMode = mode;
+  document.getElementById('modeNormal').style.background = mode === 'normal' ? 'linear-gradient(135deg,#1a4a78,#142e54)' : 'rgba(4,8,13,0.8)';
+  document.getElementById('modeNormal').style.borderColor = mode === 'normal' ? 'var(--steel)' : 'var(--border)';
+  document.getElementById('modeNormal').style.color = mode === 'normal' ? 'var(--chrome2)' : 'var(--muted)';
+  document.getElementById('modeExpert').style.background = mode === 'expert' ? 'linear-gradient(135deg,#1a4a78,#142e54)' : 'rgba(4,8,13,0.8)';
+  document.getElementById('modeExpert').style.borderColor = mode === 'expert' ? 'var(--steel)' : 'var(--border)';
+  document.getElementById('modeExpert').style.color = mode === 'expert' ? 'var(--chrome2)' : 'var(--muted)';
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────────
+document.getElementById('loginBtn').addEventListener('click', doLogin);
+document.getElementById('loginPassword').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+document.getElementById('reqLogoutBtn').addEventListener('click', doLogout);
+
+// ── Tab Switch ────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  const isLogin = tab === 'login';
+  document.getElementById('loginForm').style.display  = isLogin ? 'block' : 'none';
+  document.getElementById('signupForm').style.display = isLogin ? 'none'  : 'block';
+  document.getElementById('tabLogin').style.background  = isLogin ? 'linear-gradient(135deg,#1a4a78,#142e54)' : 'rgba(4,8,13,0.8)';
+  document.getElementById('tabLogin').style.color        = isLogin ? 'var(--chrome2)' : 'var(--muted)';
+  document.getElementById('tabSignup').style.background = isLogin ? 'rgba(4,8,13,0.8)' : 'linear-gradient(135deg,#1a4a78,#142e54)';
+  document.getElementById('tabSignup').style.color       = isLogin ? 'var(--muted)' : 'var(--chrome2)';
+}
+
+// ── Signup ────────────────────────────────────────────────────────────────
+document.getElementById('signupBtn').addEventListener('click', doSignup);
+document.getElementById('signupPassword').addEventListener('keydown', e => { if(e.key==='Enter') doSignup(); });
+
+async function doSignup() {
+  const name  = document.getElementById('signupName').value.trim();
+  const email = document.getElementById('signupEmail').value.trim();
+  const pass  = document.getElementById('signupPassword').value.trim();
+  const err   = document.getElementById('signupErr');
+  const btn   = document.getElementById('signupBtn');
+  const ok    = document.getElementById('signupSuccess');
+
+  err.style.display = 'none';
+  ok.style.display  = 'none';
+
+  if (!name || !email || !pass) { err.textContent = 'All fields required.'; err.style.display = 'block'; return; }
+  if (pass.length < 6)          { err.textContent = 'Password must be at least 6 characters.'; err.style.display = 'block'; return; }
+
+  btn.textContent = 'CREATING...';
+  btn.disabled = true;
+
+  try {
+    const r = await fetch(`${API}/auth/signup`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ name, email, password: pass })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Signup failed.');
+    ok.style.display = 'block';
+    document.getElementById('signupName').value = '';
+    document.getElementById('signupEmail').value = '';
+    document.getElementById('signupPassword').value = '';
+    setTimeout(() => switchTab('login'), 2000);
+  } catch(e) {
+    err.textContent = e.message;
+    err.style.display = 'block';
+  } finally {
+    btn.textContent = 'CREATE ACCOUNT';
+    btn.disabled = false;
+  }
+}
+document.getElementById('submitRequestBtn').addEventListener('click', submitAccessRequest);
+
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPassword').value.trim();
+  const err   = document.getElementById('loginErr');
+  const btn   = document.getElementById('loginBtn');
+  if (!email || !pass) { showLoginErr('Enter email and password.'); return; }
+
+  btn.textContent = 'AUTHENTICATING...';
+  btn.disabled = true;
+  err.style.display = 'none';
+
+  try {
+    const r = await fetch(`${API}/auth/login`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ email, password: pass })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Login failed.');
+    auth.token  = data.access_token;
+    auth.userId = data.user_id;
+    auth.name   = data.name;
+    auth.role   = data.role;
+
+    // Check approval status
+    const statusR = await fetch(`${API}/access/status`, {
+      headers: { 'Authorization': 'Bearer ' + auth.token }
+    });
+    const statusData = await statusR.json();
+    auth.approved = statusData.approved;
+
+    document.getElementById('loginScreen').style.display = 'none';
+
+    // Internal users always get in
+    if (auth.role === 'internal') {
+      showApp();
+      return;
+    }
+
+    // Public users need approval
+    if (!auth.approved) {
+      // Check if they already have a pending request
+      if (statusData.request && statusData.request.status === 'pending') {
+        document.getElementById('requestForm').style.display = 'none';
+        document.getElementById('requestSent').style.display = 'block';
+      }
+      document.getElementById('requestScreen').style.display = 'flex';
+      return;
+    }
+
+    showApp();
+  } catch(e) {
+    showLoginErr(e.message);
+  } finally {
+    btn.textContent = 'AUTHENTICATE';
+    btn.disabled = false;
+  }
+}
+
+function showApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('requestScreen').style.display = 'none';
+  document.getElementById('appShell').style.display = 'block';
+  document.getElementById('userChip').textContent = auth.name.toUpperCase();
+
+  // Show admin nav if internal
+  if (auth.role === 'internal') {
+    const lbl = document.getElementById('adminNavLabel');
+    const btn = document.getElementById('adminNavBtn');
+    lbl.style.cssText = 'display:block !important';
+    btn.style.cssText = 'display:flex !important';
+  }
+
+  initChat();
+  setStatus('Authenticated as ' + auth.name);
+}
+
+function doLogout() {
+  auth = { token:null, userId:null, name:null, role:null, approved:false };
+  chatSessionId = null;
+  document.getElementById('requestScreen').style.display = 'none';
+  document.getElementById('appShell').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('requestForm').style.display = 'block';
+  document.getElementById('requestSent').style.display = 'none';
+  clearJob();
+}
+
+function showLoginErr(msg) {
+  const err = document.getElementById('loginErr');
+  err.textContent = msg;
+  err.style.display = 'block';
+}
+
+document.getElementById('logoutBtn').addEventListener('click', doLogout);
+
+// ── Access Request ────────────────────────────────────────────────────────
+async function submitAccessRequest() {
+  const company = document.getElementById('reqCompany').value.trim();
+  const reason  = document.getElementById('reqReason').value.trim();
+  const err     = document.getElementById('reqErr');
+  const btn     = document.getElementById('submitRequestBtn');
+
+  if (!reason) { err.textContent = 'Please describe your reason for access.'; err.style.display = 'block'; return; }
+
+  btn.textContent = 'SUBMITTING...';
+  btn.disabled = true;
+  err.style.display = 'none';
+
+  try {
+    const r = await fetch(`${API}/access/request`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + auth.token },
+      body: JSON.stringify({ company, reason })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Submission failed.');
+    document.getElementById('requestForm').style.display = 'none';
+    document.getElementById('requestSent').style.display = 'block';
+  } catch(e) {
+    err.textContent = e.message;
+    err.style.display = 'block';
+  } finally {
+    btn.textContent = 'SUBMIT ACCESS REQUEST';
+    btn.disabled = false;
+  }
+}
+
+// ── Admin ─────────────────────────────────────────────────────────────────
+async function loadAccessRequests() {
+  const list = document.getElementById('adminRequestList');
+  list.innerHTML = '<div class="empty-state">Loading...</div>';
+  try {
+    const r = await fetch(`${API}/admin/access-requests`, {
+      headers: { 'Authorization': 'Bearer ' + auth.token }
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Failed to load.');
+    const requests = data.requests;
+    if (!requests.length) {
+      list.innerHTML = '<div class="empty-state">No access requests yet.</div>';
+      return;
+    }
+    list.innerHTML = requests.map(req => `
+      <div class="step-item" id="req-${req.id}">
+        <div class="step-top">
+          <div>
+            <div style="font-family:var(--font-head);font-size:1rem;font-weight:600;color:var(--chrome2);letter-spacing:0.06em;">${esc(req.name)}</div>
+            <div style="font-family:var(--font-mono);font-size:0.7rem;color:var(--muted);margin-top:2px;">${esc(req.email)}</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span style="font-family:var(--font-mono);font-size:0.68rem;padding:4px 10px;border-radius:3px;border:1px solid ${req.status==='pending'?'rgba(232,160,48,0.4)':req.status==='approved'?'rgba(46,204,138,0.4)':'rgba(232,69,74,0.4)'};color:${req.status==='pending'?'var(--amber)':req.status==='approved'?'var(--green)':'var(--red)'};">${req.status.toUpperCase()}</span>
+            ${req.status === 'pending' ? `
+              <button class="btn-action btn-success" style="padding:6px 14px;font-size:0.8rem;" onclick="handleRequest('${req.id}','approve')">APPROVE</button>
+              <button class="btn-action btn-danger" style="padding:6px 14px;font-size:0.8rem;" onclick="handleRequest('${req.id}','deny')">DENY</button>` : ''}
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px;">
+          <div><div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--dim);margin-bottom:4px;">COMPANY</div><div style="font-size:0.88rem;color:var(--text);">${esc(req.company||'—')}</div></div>
+          <div><div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--dim);margin-bottom:4px;">SUBMITTED</div><div style="font-size:0.88rem;color:var(--text);">${new Date(req.created_at).toLocaleDateString()}</div></div>
+        </div>
+        ${req.reason ? `<div style="margin-top:10px;"><div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--dim);margin-bottom:4px;">REASON</div><div style="font-size:0.88rem;color:var(--text);">${esc(req.reason)}</div></div>` : ''}
+      </div>`).join('');
+  } catch(e) {
+    list.innerHTML = `<div class="result-item danger">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+async function handleRequest(id, action) {
+  try {
+    const r = await fetch(`${API}/admin/access-requests/${id}/${action}`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + auth.token }
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Action failed.');
+    setStatus(action === 'approve' ? 'User approved' : 'Request denied');
+    loadAccessRequests();
+  } catch(e) {
+    setStatus('Error: ' + e.message);
+  }
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────
+function setView(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('section-' + name).classList.add('active');
+  const navBtn = document.querySelector(`[data-section="${name}"]`);
+  if (navBtn) navBtn.classList.add('active');
+  if (name === 'summary') renderSummaryPage();
+  if (name === 'admin') loadAccessRequests();
+  if (name === 'workflow') initTreeWalker();
+}
+
+// ── Intake ────────────────────────────────────────────────────────────────
+function readIntake() {
+  state.intake.unitId      = document.getElementById('unitId').value.trim();
+  state.intake.vehicleType = document.getElementById('vehicleType').value;
+  state.intake.year        = document.getElementById('vYear').value.trim();
+  state.intake.make        = document.getElementById('vMake').value.trim();
+  state.intake.model       = document.getElementById('vModel').value.trim();
+  state.intake.engine      = document.getElementById('vEngine').value.trim();
+  state.intake.dtcCodes    = document.getElementById('dtcCodes').value.trim();
+  state.intake.symptoms    = document.getElementById('symptoms').value.trim();
+}
+
+function saveIntake() {
+  readIntake();
+  updateSummaryBar();
+  updateChatContext();
+  setStatus('Intake saved');
+}
+
+function updateSummaryBar() {
+  const v = [state.intake.year, state.intake.make, state.intake.model].filter(Boolean).join(' ');
+  document.getElementById('sumUnit').textContent    = state.intake.unitId || '—';
+  document.getElementById('sumVehicle').textContent = v || '—';
+  document.getElementById('sumDtc').textContent     = state.intake.dtcCodes || '—';
+}
+
+function updateChatContext() {
+  const parts = [];
+  if (state.intake.unitId)      parts.push('Unit ' + state.intake.unitId);
+  const v = [state.intake.year, state.intake.make, state.intake.model, state.intake.engine].filter(Boolean).join(' ');
+  if (v)                         parts.push(v);
+  if (state.intake.dtcCodes)    parts.push('Codes: ' + state.intake.dtcCodes);
+  if (state.intake.symptoms)    parts.push('Complaint: ' + state.intake.symptoms.slice(0,80));
+  if (state.tree.history.length) {
+    const last = state.tree.history[state.tree.history.length - 1];
+    parts.push('Tree: ' + state.tree.history.length + ' steps done, last=' + last.result);
+  }
+  document.getElementById('chatContext').textContent = parts.length ? parts.join(' · ') : 'No job started yet.';
+}
+
+// ── Diagnosis ─────────────────────────────────────────────────────────────
+document.getElementById('saveDiagnoseBtn').addEventListener('click', runDiagnosis);
+
+async function runDiagnosis() {
+  readIntake();
+  updateSummaryBar();
+  updateChatContext();
+
+  const hasCodes    = state.intake.dtcCodes.trim();
+  const hasSymptoms = state.intake.symptoms.trim();
+  if (!hasCodes && !hasSymptoms) { setStatus('Enter DTC codes or symptoms first'); return; }
+
+  setView('diagnosis');
+  document.getElementById('sumStatus').textContent = 'ANALYZING';
+  document.getElementById('sumStatus').style.color = 'var(--steel)';
+
+  const diagContent = document.getElementById('diagnosisContent');
+  diagContent.innerHTML = `
+    <div class="diag-loading scan-active" style="background:rgba(10,20,32,0.9);border:1px solid var(--border);border-radius:4px;padding:40px;">
+      <div class="spinner" style="width:28px;height:28px;border-width:3px;"></div>
+      <p>ALLIE AI BUILDING DIAGNOSTIC TREE...</p>
+      <p style="color:var(--dim);font-size:0.7rem;">Mode: ${diagMode.toUpperCase()} · Waterfall: Groq → Gemini → OpenRouter → OpenAI → Anthropic</p>
+    </div>`;
+
+  const dtcList     = hasCodes ? state.intake.dtcCodes.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const symptomList = hasSymptoms ? state.intake.symptoms.split('\n').map(s => s.trim()).filter(Boolean) : [state.intake.symptoms];
+  const vehicleStr  = [state.intake.year, state.intake.make, state.intake.model, state.intake.engine, state.intake.vehicleType].filter(Boolean).join(' ') || null;
+
+  try {
+    const r = await fetch(`${API}/diagnose-tree`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + auth.token },
+      body: JSON.stringify({
+        dtc_codes:    dtcList,
+        symptoms:     symptomList,
+        unit_id:      state.intake.unitId || null,
+        vehicle_type: vehicleStr,
+        mode:         diagMode
+      })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Diagnosis failed.');
+
+    state.diagnosis.modelUsed = data.model_used;
+    state.diagnosis.tier      = data.tier;
+    state.tree.data           = data.tree;
+    state.tree.currentStepId  = data.tree.current_step_id || 'step_1';
+    state.tree.history        = [];
+    state.tree.complete       = false;
+
+    renderDiagnosisResults();
+    initTreeWalker();
+
+    document.getElementById('sumStatus').textContent = 'DIAGNOSED';
+    document.getElementById('sumStatus').style.color = 'var(--green)';
+    setStatus('Diagnostic tree ready · ' + data.model_used);
+  } catch(e) {
+    diagContent.innerHTML = `<div class="result-item danger">Diagnosis failed: ${esc(e.message)}</div>`;
+    document.getElementById('sumStatus').textContent = 'ERROR';
+    document.getElementById('sumStatus').style.color = 'var(--red)';
+    setStatus('Diagnosis error: ' + e.message);
+  }
+}
+
+function renderDiagnosisResults() {
+  const tree = state.tree.data;
+  const diagContent = document.getElementById('diagnosisContent');
+  diagContent.innerHTML = `
+    <div class="diag-model-badge" style="margin-bottom:14px;">
+      <div style="width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px rgba(46,204,138,0.5);"></div>
+      ${esc(state.diagnosis.modelUsed)} · TIER ${state.diagnosis.tier} · ${diagMode.toUpperCase()} MODE · ${tree.steps ? tree.steps.length : 0} STEPS
+    </div>
+    <div class="result-group">
+      <div class="result-group-label">Issue Summary</div>
+      <div class="result-item">${esc(tree.issue_summary || '')}</div>
+    </div>
+    <div class="result-group">
+      <div class="result-group-label">Likely Fault Path</div>
+      <div class="result-item">${esc(tree.likely_fault_path || '')}</div>
+    </div>
+    <div class="result-group">
+      <div class="result-group-label">Final Recommendation</div>
+      <div class="result-item">${esc(tree.final_recommendation || '')}</div>
+    </div>
+    <div class="btn-row" style="margin-top:16px;">
+      <button class="btn-action" onclick="setView('workflow')">START TROUBLE TREE →</button>
+    </div>`;
+}
+
+// ── Tree Walker ───────────────────────────────────────────────────────────
+function initTreeWalker() {
+  const walkerEl = document.getElementById('treeWalker');
+  const emptyEl  = document.getElementById('treeEmpty');
+  if (!state.tree.data) {
+    walkerEl.style.display = 'none';
+    emptyEl.style.display  = 'block';
+    return;
+  }
+  walkerEl.style.display = 'block';
+  emptyEl.style.display  = 'none';
+  renderTreeStep();
+}
+
+function getStep(stepId) {
+  return (state.tree.data?.steps || []).find(s => s.id === stepId) || null;
+}
+
+function renderTreeStep() {
+  const tree = state.tree.data;
+  if (!tree) return;
+
+  const totalSteps = tree.steps ? tree.steps.length : 0;
+  const doneCount  = state.tree.history.length;
+  const pct        = totalSteps > 0 ? Math.min(100, Math.round((doneCount / totalSteps) * 100)) : 0;
+
+  // Progress bar
+  document.getElementById('treeProgress').innerHTML = `
+    <div class="tree-progress-bar">
+      <span>STEP ${doneCount + 1} OF ~${totalSteps}</span>
+      <div class="tree-progress-track"><div class="tree-progress-fill" style="width:${pct}%"></div></div>
+      <span>${pct}%</span>
+    </div>`;
+
+  // Complete state
+  if (state.tree.complete || state.tree.currentStepId === 'complete') {
+    state.tree.complete = true;
+    document.getElementById('treeCurrentStep').innerHTML = `
+      <div class="tree-complete-card">
+        <div style="font-size:2rem;margin-bottom:12px;">✓</div>
+        <div style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;color:var(--green);letter-spacing:0.08em;">TREE COMPLETE</div>
+        <div style="font-size:0.88rem;color:var(--muted);margin-top:8px;max-width:400px;margin-left:auto;margin-right:auto;">${esc(tree.final_recommendation || 'Record the confirmed fix below.')}</div>
+        <div style="margin-top:16px;">
+          <button class="btn-action btn-success" onclick="document.getElementById('confirmedFix').focus();document.querySelector('.confirm-fix-wrap').scrollIntoView({behavior:'smooth'})">ENTER CONFIRMED FIX ↓</button>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const step = getStep(state.tree.currentStepId);
+  if (!step) {
+    state.tree.complete = true;
+    renderTreeStep();
+    return;
+  }
+
+  const specs = step.expected_specs || {};
+  const specEntries = [
+    ['Voltage', specs.voltage],
+    ['Ohms / Resistance', specs.ohms],
+    ['Pressure', specs.pressure],
+    ['Signal', specs.signal],
+    ['Voltage Drop', specs.voltage_drop]
+  ].filter(([, v]) => v && v !== 'Verify exact OEM spec/pinout for this platform');
+
+  const specAll = [
+    ['Voltage', specs.voltage],
+    ['Ohms', specs.ohms],
+    ['Pressure', specs.pressure],
+    ['Signal', specs.signal],
+    ['Drop', specs.voltage_drop]
+  ];
+
+  const btns = (step.result_buttons || []).map(btn => {
+    const cls = btn.label === 'PASS' ? 'pass' : btn.label === 'FAIL' ? 'fail' : 'skip';
+    return `<button class="tree-btn ${cls}" onclick="recordTreeResult('${esc(btn.label)}','${esc(btn.next_step_id)}','${esc(step.id)}','${esc(step.title)}')">${esc(btn.label)}</button>`;
+  }).join('');
+
+  document.getElementById('treeCurrentStep').innerHTML = `
+    <div class="tree-step-card">
+      <div class="tree-step-header">
+        <div>
+          <div class="tree-step-num">STEP ${doneCount + 1} · ${esc(step.id)}</div>
+          <div class="tree-step-title">${esc(step.title)}</div>
+        </div>
+      </div>
+      <div class="tree-step-body">
+        <div class="tree-field-label">Instruction</div>
+        <div class="tree-field-value">${esc(step.instruction || '')}</div>
+
+        <div class="tree-field-label">Where to Test</div>
+        <div class="tree-field-value">${esc(step.where_to_test || '')}</div>
+
+        <div class="tree-field-label">Expected Specs</div>
+        <div class="tree-specs-grid">
+          ${specAll.map(([label, val]) => `
+            <div class="tree-spec-cell">
+              <div class="spec-label">${label}</div>
+              <div class="spec-val">${esc(val || '—')}</div>
+            </div>`).join('')}
+        </div>
+
+        <div class="tree-field-label">How to Test</div>
+        <div class="tree-field-value">${esc(step.how_to_test || '')}</div>
+
+        <div class="tree-btn-row">${btns}</div>
+      </div>
+    </div>`;
+
+  // History
+  renderTreeHistory();
+}
+
+function renderTreeHistory() {
+  const hist = state.tree.history;
+  if (!hist.length) { document.getElementById('treeHistory').innerHTML = ''; return; }
+  document.getElementById('treeHistory').innerHTML = `
+    <div class="field-section-label">Completed Steps</div>
+    ${hist.slice().reverse().map(h => `
+      <div class="tree-history-item">
+        <span class="tree-history-badge badge-${h.result === 'PASS' ? 'pass' : h.result === 'FAIL' ? 'fail' : 'skip'}">${esc(h.result)}</span>
+        <div class="tree-history-text"><strong>${esc(h.stepTitle)}</strong></div>
+      </div>`).join('')}`;
+}
+
+function recordTreeResult(result, nextStepId, stepId, stepTitle) {
+  state.tree.history.push({ stepId, stepTitle, result, nextStepId });
+  state.tree.currentStepId = nextStepId;
+  if (nextStepId === 'complete' || !getStep(nextStepId)) {
+    state.tree.complete = true;
+  }
+  renderTreeStep();
+  // Update chat context with tree progress
+  updateChatContext();
+}
+
+// ── Workflow ──────────────────────────────────────────────────────────────
+document.getElementById('addStepBtn').addEventListener('click', addStep);
+document.getElementById('confirmFixBtn').addEventListener('click', confirmFix);
+
+function addStep() {
+  state.workflow.steps.push({ id: crypto.randomUUID(), name:'', result:'Inconclusive', notes:'' });
+  renderWorkflow();
+  setStatus('Step added');
+}
+
+function removeStep(id) {
+  state.workflow.steps = state.workflow.steps.filter(s => s.id !== id);
+  renderWorkflow();
+}
+
+function updateStep(id, field, val) {
+  const s = state.workflow.steps.find(s => s.id === id);
+  if (s) s[field] = val;
+}
+
+function renderWorkflow() {
+  const list = document.getElementById('stepList');
+  if (!state.workflow.steps.length) {
+    list.innerHTML = '<div class="empty-state">No steps yet. Add a technician step to begin capturing diagnostic evidence.</div>';
+    return;
+  }
+  list.innerHTML = state.workflow.steps.map((step, i) => `
+    <div class="step-item">
+      <div class="step-top">
+        <div class="step-number">STEP ${i+1}</div>
+        <button class="btn-sm" onclick="removeStep('${step.id}')">REMOVE</button>
+      </div>
+      <div class="step-grid">
+        <div class="field">
+          <label>Step Name / Test Performed</label>
+          <input type="text" value="${esc(step.name)}" placeholder="e.g. Check 5V ref at pressure sensor"
+            onchange="updateStep('${step.id}','name',this.value)"/>
+        </div>
+        <div class="field">
+          <label>Result</label>
+          <select onchange="updateStep('${step.id}','result',this.value)">
+            <option ${step.result==='Inconclusive'?'selected':''}>Inconclusive</option>
+            <option ${step.result==='Pass'?'selected':''}>Pass</option>
+            <option ${step.result==='Fail'?'selected':''}>Fail</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Notes / Measurements</label>
+        <textarea placeholder="Measured values, connector condition, what you found..."
+          onchange="updateStep('${step.id}','notes',this.value)">${esc(step.notes)}</textarea>
+      </div>
+    </div>`).join('');
+}
+
+async function confirmFix() {
+  const fix   = document.getElementById('confirmedFix').value.trim();
+  const notes = document.getElementById('finalNotes').value.trim();
+  if (!fix) { setStatus('Enter confirmed fix first'); return; }
+  state.workflow.confirmedFix = fix;
+  state.workflow.finalNotes   = notes;
+  const btn = document.getElementById('confirmFixBtn');
+  btn.textContent = 'SAVING...';
+  btn.disabled = true;
+  const dtcList     = state.intake.dtcCodes ? state.intake.dtcCodes.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const symptomList = state.intake.symptoms ? [state.intake.symptoms] : [];
+  try {
+    const r = await fetch(`${API}/diagnose`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + auth.token },
+      body: JSON.stringify({
+        dtc_codes:    dtcList, symptoms: symptomList,
+        unit_id:      state.intake.unitId || null,
+        vehicle_type: [state.intake.year, state.intake.make, state.intake.model, state.intake.engine].filter(Boolean).join(' ') || null,
+        confirm_fix:  fix + (notes ? '\nNotes: ' + notes : '')
+      })
+    });
+    if (!r.ok) throw new Error('Save failed.');
+    setStatus('Confirmed fix saved to Allie knowledge base');
+    document.getElementById('sumStatus').textContent = 'COMPLETE';
+    document.getElementById('sumStatus').style.color = 'var(--green)';
+    appendChat("assistant", "✓ Confirmed fix saved to Allie repair knowledge base. This repair will improve future diagnoses on similar vehicles and codes.");
+  } catch(e) {
+    setStatus('Save error: ' + e.message);
+  } finally {
+    btn.textContent = 'CONFIRM & SAVE TO ALLIE';
+    btn.disabled = false;
+  }
+}
+
+// ── Chat ──────────────────────────────────────────────────────────────────
+function initChat() {
+  state.chat = [{ role:'assistant', content:"Allie online. Open a job and I will have full context — unit, vehicle, DTCs, symptoms, and workflow history. What do you need?" }];
+  chatSessionId = null;
+  renderChat();
+}
+
+document.getElementById('sendBtn').addEventListener('click', sendChat);
+document.getElementById('chatInput').addEventListener('keydown', e => { if(e.key==='Enter') sendChat(); });
+document.getElementById('clearChatBtn').addEventListener('click', () => { chatSessionId = null; initChat(); setStatus('Chat cleared'); });
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const msg   = input.value.trim();
+  if (!msg) return;
+  appendChat('user', msg);
+  input.value = '';
+  const parts = [];
+  if (state.intake.unitId)      parts.push('Unit: ' + state.intake.unitId);
+  const v = [state.intake.year, state.intake.make, state.intake.model, state.intake.engine].filter(Boolean).join(' ');
+  if (v)                         parts.push('Vehicle: ' + v);
+  if (state.intake.dtcCodes)    parts.push('DTC Codes: ' + state.intake.dtcCodes);
+  if (state.intake.symptoms)    parts.push('Complaint: ' + state.intake.symptoms);
+  if (state.tree.data)          parts.push('Diagnosis: ' + (state.tree.data.issue_summary || '').slice(0, 200));
+  if (state.tree.history.length) parts.push('Tree steps completed: ' + state.tree.history.map(h => h.stepTitle + ' → ' + h.result).join(', '));
+  const steps = state.workflow.steps.filter(s => s.name);
+  if (steps.length)              parts.push('Workflow steps: ' + steps.map(s => `${s.name} (${s.result})`).join(', '));
+  if (state.workflow.confirmedFix) parts.push('Confirmed fix: ' + state.workflow.confirmedFix);
+  const contextStr = parts.length ? parts.join('\n') : null;
+  const thinkId = 'think-' + Date.now();
+  const chatWindow = document.getElementById('chatWindow');
+  const think = document.createElement('div');
+  think.id = thinkId;
+  think.className = 'thinking-bubble';
+  think.innerHTML = '<div class="spinner"></div> Allie is analyzing...';
+  chatWindow.appendChild(think);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+  try {
+    const r = await fetch(`${API}/ask-allie`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + auth.token },
+      body: JSON.stringify({ message: msg, session_id: chatSessionId || undefined, context: contextStr })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Chat failed.');
+    chatSessionId = data.session_id;
+    document.getElementById(thinkId)?.remove();
+    appendChat('assistant', data.reply);
+    setStatus('Allie responded · ' + data.model_used);
+  } catch(e) {
+    document.getElementById(thinkId)?.remove();
+    appendChat('assistant', 'Error: ' + e.message);
+    setStatus('Chat error');
+  }
+}
+
+function appendChat(role, content) {
+  state.chat.push({ role, content });
+  renderChat();
+}
+
+function renderChat() {
+  const win = document.getElementById('chatWindow');
+  win.innerHTML = state.chat.map(m => `
+    <div class="bubble ${m.role}">
+      <span class="b-role">${m.role === 'assistant' ? 'ALLIE' : auth.name?.toUpperCase() || 'TECH'}</span>
+      ${esc(m.content)}
+    </div>`).join('');
+  win.scrollTop = win.scrollHeight;
+}
+
+// ── Summary Page ──────────────────────────────────────────────────────────
+function renderSummaryPage() {
+  const el = document.getElementById('summaryContent');
+  const vehicle = [state.intake.year, state.intake.make, state.intake.model, state.intake.engine].filter(Boolean).join(' ');
+  el.innerHTML = `
+    <div class="summary-bar" style="grid-template-columns:repeat(3,1fr)">
+      <div class="summary-card"><div class="s-label">Unit</div><div class="s-value">${esc(state.intake.unitId||'—')}</div></div>
+      <div class="summary-card"><div class="s-label">Vehicle</div><div class="s-value">${esc(vehicle||'—')}</div></div>
+      <div class="summary-card"><div class="s-label">DTC Codes</div><div class="s-value">${esc(state.intake.dtcCodes||'—')}</div></div>
+    </div>
+    ${state.intake.symptoms ? `<div class="field-section-label">Driver Complaint</div><div class="result-item">${esc(state.intake.symptoms)}</div>` : ''}
+    ${state.diagnosis.raw ? `<div class="field-section-label">Allie AI Diagnosis</div><div class="diag-ai-output">${esc(state.diagnosis.raw)}</div>` : ''}
+    ${state.workflow.steps.length ? `
+      <div class="field-section-label">Workflow Steps (${state.workflow.steps.length})</div>
+      ${state.workflow.steps.map((s,i) => `
+        <div class="result-item ${s.result==='Fail'?'danger':s.result==='Pass'?'':'warn'}">
+          <strong>Step ${i+1}: ${esc(s.name||'Unnamed')}</strong> — <span>${esc(s.result)}</span>
+          ${s.notes ? '<br/>' + esc(s.notes) : ''}
+        </div>`).join('')}` : ''}
+    ${state.workflow.confirmedFix ? `
+      <div class="field-section-label">Confirmed Fix</div>
+      <div class="result-item" style="border-left-color:var(--green)">${esc(state.workflow.confirmedFix)}</div>
+      ${state.workflow.finalNotes ? `<div class="result-item">${esc(state.workflow.finalNotes)}</div>` : ''}` : ''}`;
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────
+document.getElementById('newJobBtn').addEventListener('click', () => {
+  if (confirm('Clear current job and start fresh?')) clearJob();
+});
+
+function clearJob() {
+  state.intake    = { unitId:'', vehicleType:'', year:'', make:'', model:'', engine:'', dtcCodes:'', symptoms:'' };
+  state.diagnosis = { raw:'', modelUsed:'', tier:0, sessionId:null };
+  state.tree      = { data:null, currentStepId:null, history:[], complete:false };
+  state.workflow  = { steps:[], confirmedFix:'', finalNotes:'' };
+  ['unitId','vehicleType','vYear','vMake','vModel','vEngine','dtcCodes','symptoms','confirmedFix','finalNotes']
+    .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  updateSummaryBar();
+  updateChatContext();
+  renderWorkflow();
+  document.getElementById('diagnosisContent').innerHTML = '<div class="empty-state">No diagnosis started yet. Complete intake and click Run Diagnosis.</div>';
+  document.getElementById('sumStatus').textContent = 'INTAKE';
+  document.getElementById('sumStatus').style.color = 'var(--amber)';
+  if (auth.token) initChat();
+  setView('intake');
+  setStatus('New job started');
+}
+
+function setStatus(msg) {
+  document.getElementById('statusMsg').textContent = msg;
+}
+
+function esc(str) {
+  return String(str||'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;').replace(/\n/g,'<br/>');
+}
+
+renderWorkflow();
+</script>
+</body>
+</html>
