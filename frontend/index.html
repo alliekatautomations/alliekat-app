@@ -1463,6 +1463,7 @@ let auth = { token: null, userId: null, name: null, role: null, approved: false 
 let chatSessionId = null;
 let diagMode = 'normal';
 let currentJobId = null;   // id of the job currently being worked / saved
+let knownFixes = [];       // confirmed shop repairs returned with the last diagnosis
 
 const state = {
   intake: { unitId:'', vehicleType:'', year:'', make:'', model:'', engine:'', dtcCodes:'', symptoms:'' },
@@ -1865,6 +1866,7 @@ async function runDiagnosis() {
     state.tree.currentStepId  = data.tree.current_step_id || 'step_1';
     state.tree.history        = [];
     state.tree.complete       = false;
+    knownFixes                = data.known_fixes || [];
 
     renderDiagnosisResults();
     initTreeWalker();
@@ -1884,11 +1886,28 @@ async function runDiagnosis() {
 function renderDiagnosisResults() {
   const tree = state.tree.data;
   const diagContent = document.getElementById('diagnosisContent');
+
+  const fixesHtml = (knownFixes && knownFixes.length) ? `
+    <div class="result-group">
+      <div class="result-group-label" style="color:var(--green)">✓ CONFIRMED REPAIRS FROM YOUR SHOP</div>
+      ${knownFixes.map(f => {
+        const veh   = [f.make, f.model].filter(Boolean).join(' ');
+        const codes = Array.isArray(f.dtc_codes) ? f.dtc_codes.join(', ') : '';
+        const meta  = [veh, codes].filter(Boolean).join(' · ');
+        return `<div class="result-item" style="border-left-color:var(--green);background:rgba(46,204,138,0.06)">
+          <strong style="color:#6dd9aa">${esc(f.confirmed_fix || '')}</strong>
+          ${meta ? `<div style="font-family:var(--font-mono);font-size:0.7rem;color:var(--muted);margin-top:4px;">${esc(meta)}</div>` : ''}
+          ${f.notes ? `<div style="font-size:0.82rem;color:var(--text);margin-top:4px;">${esc(f.notes)}</div>` : ''}
+        </div>`;
+      }).join('')}
+    </div>` : '';
+
   diagContent.innerHTML = `
     <div class="diag-model-badge" style="margin-bottom:14px;">
       <div style="width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px rgba(46,204,138,0.5);"></div>
       ALLIE · ${diagMode.toUpperCase()} MODE · ${tree.steps ? tree.steps.length : 0} STEPS
     </div>
+    ${fixesHtml}
     <div class="result-group">
       <div class="result-group-label">Issue Summary</div>
       <div class="result-item">${esc(tree.issue_summary || '')}</div>
@@ -1984,6 +2003,10 @@ function renderTreeStep() {
     return `<button class="tree-btn ${cls}" onclick="recordTreeResult('${esc(btn.label)}','${esc(btn.next_step_id)}','${esc(step.id)}','${esc(step.title)}')">${esc(btn.label)}</button>`;
   }).join('');
 
+  const srcMap = { confirmed:['CONFIRMED','var(--green)'], oem:['OEM','var(--steel2)'], ai:['ALLIE','var(--chrome)'] };
+  const [srcLabel, srcColor] = srcMap[(step.source || 'ai').toLowerCase()] || srcMap.ai;
+  const srcBadge = `<span style="font-family:var(--font-mono);font-size:0.6rem;letter-spacing:0.08em;padding:4px 9px;border-radius:3px;border:1px solid ${srcColor};color:${srcColor};white-space:nowrap;">${srcLabel}</span>`;
+
   document.getElementById('treeCurrentStep').innerHTML = `
     <div class="tree-step-card">
       <div class="tree-step-header">
@@ -1991,6 +2014,7 @@ function renderTreeStep() {
           <div class="tree-step-num">STEP ${doneCount + 1} · ${esc(step.id)}</div>
           <div class="tree-step-title">${esc(step.title)}</div>
         </div>
+        ${srcBadge}
       </div>
       <div class="tree-step-body">
         <div class="tree-field-label">Instruction</div>
@@ -2010,6 +2034,10 @@ function renderTreeStep() {
 
         <div class="tree-field-label">How to Test</div>
         <div class="tree-field-value">${esc(step.how_to_test || '')}</div>
+
+        ${step.why ? `
+        <button class="btn-sm" style="margin-top:16px;" onclick="var d=this.nextElementSibling;d.style.display=d.style.display==='none'?'block':'none'">WHY THIS STEP</button>
+        <div style="display:none;margin-top:8px;padding:12px 14px;background:rgba(74,144,196,0.06);border:1px solid var(--border);border-left:3px solid var(--steel);border-radius:3px;font-size:0.85rem;color:var(--text);line-height:1.55;">${esc(step.why)}</div>` : ''}
 
         <div class="tree-btn-row">${btns}</div>
       </div>
@@ -2291,6 +2319,7 @@ async function openJob(jobId) {
 
     // diagnosis tree isn't stored per-step; re-run diagnosis to regenerate it if needed
     state.tree = { data:null, currentStepId:null, history:[], complete:false };
+    knownFixes = [];
 
     updateSummaryBar();
     updateChatContext();
@@ -2311,6 +2340,7 @@ document.getElementById('newJobBtn').addEventListener('click', () => {
 
 function clearJob() {
   currentJobId = null;
+  knownFixes = [];
   state.intake    = { unitId:'', vehicleType:'', year:'', make:'', model:'', engine:'', dtcCodes:'', symptoms:'' };
   state.diagnosis = { raw:'', modelUsed:'', tier:0, sessionId:null };
   state.tree      = { data:null, currentStepId:null, history:[], complete:false };
