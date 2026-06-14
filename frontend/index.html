@@ -1107,6 +1107,110 @@ body::after {
   transition: width 0.4s ease;
 }
 
+/* ═══════════════════════════════════════════════
+   MOBILE RESPONSIVE (additive — desktop unchanged)
+   ═══════════════════════════════════════════════ */
+
+/* Floating "ASK ALLIE" button — only visible on mobile when logged in */
+#chatFab {
+  display: none;
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 120;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 20px;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 1.5px;
+  color: #eaf4ff;
+  background: linear-gradient(160deg, #15324a, #0c1f30);
+  border: 1px solid var(--steel);
+  border-radius: 30px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.5), 0 0 14px rgba(74,144,196,0.35);
+  cursor: pointer;
+}
+#chatFab .fab-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--steel2);
+  box-shadow: 0 0 8px var(--steel2);
+}
+#chatCloseBtn { display: none; }
+
+@media (max-width: 860px) {
+  /* single-column app body */
+  .app-body {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  /* topbar: let it wrap, stop pinning so content isn't crushed */
+  .topbar {
+    position: static;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px 14px;
+  }
+  .status-chip { display: none; }
+
+  /* nav becomes a horizontal scrolling tab strip */
+  .sidenav {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 8px 10px;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+  }
+  .nav-section-label { display: none; }
+  .nav-btn .nav-sub { display: none; }
+  .nav-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    box-shadow: none !important;
+  }
+
+  /* collapse multi-column grids */
+  .summary-bar { grid-template-columns: repeat(2, 1fr); }
+  .field-grid,
+  .field-grid.cols-3 { grid-template-columns: 1fr; }
+  .tree-specs-grid { grid-template-columns: 1fr; }
+
+  /* login + request boxes go full width */
+  .login-box {
+    width: 100% !important;
+    max-width: 440px;
+    padding: 32px 22px 28px;
+  }
+
+  /* CHAT becomes a full-screen slide-up drawer */
+  .chat-shell {
+    position: fixed;
+    inset: 0;
+    height: 100%;
+    z-index: 110;
+    transform: translateY(100%);
+    transition: transform 0.28s ease;
+    border-left: none;
+  }
+  body.chat-open .chat-shell { transform: translateY(0); }
+  body.chat-open #chatFab { display: none !important; }
+
+  #appShell #chatFab { display: flex; }
+  #chatCloseBtn { display: inline-block; }
+}
+
+@media (max-width: 480px) {
+  .summary-bar { grid-template-columns: 1fr; }
+  .topbar-brand-text p { display: none; }
+  .login-box { padding: 26px 16px 22px; }
+}
 </style>
 </head>
 <body>
@@ -1508,7 +1612,10 @@ body::after {
           <div class="chat-header-title">ASK ALLIE</div>
           <div class="chat-header-sub">Full context injected · Powered by Allie v3.0</div>
         </div>
-        <button class="btn-sm" id="clearChatBtn">CLEAR</button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn-sm" id="clearChatBtn">CLEAR</button>
+          <button class="btn-sm" id="chatCloseBtn" onclick="toggleChat(false)">✕ CLOSE</button>
+        </div>
       </div>
       <div class="chat-context" id="chatContext">No job started yet.</div>
       <div class="chat-window" id="chatWindow"></div>
@@ -1524,6 +1631,8 @@ body::after {
     <span id="statusMsg">Ready</span>
     <span style="margin-left:auto;color:var(--dim);">ALLIE-KAT AUTOMATIONS · SEMINOLE TX</span>
   </div>
+
+  <button id="chatFab" onclick="toggleChat(true)"><span class="fab-dot"></span>ASK ALLIE</button>
 </div>
 
 <script>
@@ -2455,6 +2564,15 @@ function clearJob() {
 
 function setStatus(msg) {
   document.getElementById('statusMsg').textContent = msg;
+}
+
+function toggleChat(open) {
+  document.body.classList.toggle('chat-open', open);
+  if (open) {
+    setTimeout(() => document.getElementById('chatInput')?.focus(), 250);
+    const win = document.getElementById('chatWindow');
+    if (win) win.scrollTop = win.scrollHeight;
+  }
 }
 
 function esc(str) {
