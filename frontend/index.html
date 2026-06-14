@@ -1115,7 +1115,7 @@ body::after {
       <div class="logo-placeholder">AKA</div>
       <div class="login-logo-text">
         <h1>ALLIE DIAGNOSTICS</h1>
-        <p>ALLIE-KAT AUTOMATIONS · POWERED BY ALLIE AI</p>
+        <p>ALLIE-KAT AUTOMATIONS · POWERED BY ALLIE</p>
       </div>
     </div>
 
@@ -1195,7 +1195,7 @@ body::after {
       </div>
     </div>
     <div class="topbar-right">
-      <div class="status-chip"><div class="dot"></div>ALLIE AI ONLINE</div>
+      <div class="status-chip"><div class="dot"></div>ALLIE ONLINE</div>
       <div class="user-chip" id="userChip">—</div>
       <button class="btn-sm" id="newJobBtn">+ NEW JOB</button>
       <button class="btn-sm" id="logoutBtn">LOGOUT</button>
@@ -1218,7 +1218,7 @@ body::after {
         <span class="nav-icon">⚡</span>
         <div>
           <div class="nav-label">Diagnosis</div>
-          <span class="nav-sub">AI trouble tree</span>
+          <span class="nav-sub">Trouble tree</span>
         </div>
       </button>
       <button class="nav-btn" data-section="workflow" onclick="setView('workflow')">
@@ -1338,8 +1338,8 @@ body::after {
       <div class="section" id="section-diagnosis">
         <div class="section-header">
           <div>
-            <h2>AI DIAGNOSIS</h2>
-            <p>Allie AI analysis — ranked causes, safety flags, trouble tree</p>
+            <h2>DIAGNOSIS</h2>
+            <p>Allie analysis — ranked causes, safety flags, trouble tree</p>
           </div>
           <div style="display:flex;gap:8px;align-items:center;">
             <span style="font-family:var(--font-mono);font-size:0.68rem;color:var(--muted);">MODE</span>
@@ -1436,7 +1436,7 @@ body::after {
       <div class="chat-header">
         <div>
           <div class="chat-header-title">ASK ALLIE</div>
-          <div class="chat-header-sub">Full context injected · Powered by Allie AI v3.0</div>
+          <div class="chat-header-sub">Full context injected · Powered by Allie v3.0</div>
         </div>
         <button class="btn-sm" id="clearChatBtn">CLEAR</button>
       </div>
@@ -1836,8 +1836,8 @@ async function runDiagnosis() {
   diagContent.innerHTML = `
     <div class="diag-loading scan-active" style="background:rgba(10,20,32,0.9);border:1px solid var(--border);border-radius:4px;padding:40px;">
       <div class="spinner" style="width:28px;height:28px;border-width:3px;"></div>
-      <p>ALLIE AI BUILDING DIAGNOSTIC TREE...</p>
-      <p style="color:var(--dim);font-size:0.7rem;">Mode: ${diagMode.toUpperCase()} · Waterfall: Groq → Gemini → OpenRouter → OpenAI → Anthropic</p>
+      <p>ALLIE IS BUILDING YOUR DIAGNOSTIC TREE...</p>
+      <p style="color:var(--dim);font-size:0.7rem;">Mode: ${diagMode.toUpperCase()} · Allie is selecting the best diagnostic engine</p>
     </div>`;
 
   const dtcList     = hasCodes ? state.intake.dtcCodes.split(',').map(s => s.trim()).filter(Boolean) : [];
@@ -1871,7 +1871,7 @@ async function runDiagnosis() {
 
     document.getElementById('sumStatus').textContent = 'DIAGNOSED';
     document.getElementById('sumStatus').style.color = 'var(--green)';
-    setStatus('Diagnostic tree ready · ' + data.model_used);
+    setStatus('Diagnostic tree ready');
     try { await saveJob('diagnosed'); } catch (e) { /* non-blocking: diagnosis still shows */ }
   } catch(e) {
     diagContent.innerHTML = `<div class="result-item danger">Diagnosis failed: ${esc(e.message)}</div>`;
@@ -1887,7 +1887,7 @@ function renderDiagnosisResults() {
   diagContent.innerHTML = `
     <div class="diag-model-badge" style="margin-bottom:14px;">
       <div style="width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px rgba(46,204,138,0.5);"></div>
-      ${esc(state.diagnosis.modelUsed)} · TIER ${state.diagnosis.tier} · ${diagMode.toUpperCase()} MODE · ${tree.steps ? tree.steps.length : 0} STEPS
+      ALLIE · ${diagMode.toUpperCase()} MODE · ${tree.steps ? tree.steps.length : 0} STEPS
     </div>
     <div class="result-group">
       <div class="result-group-label">Issue Summary</div>
@@ -2168,7 +2168,7 @@ async function sendChat() {
     chatSessionId = data.session_id;
     document.getElementById(thinkId)?.remove();
     appendChat('assistant', data.reply);
-    setStatus('Allie responded · ' + data.model_used);
+    setStatus('Allie responded');
   } catch(e) {
     document.getElementById(thinkId)?.remove();
     appendChat('assistant', 'Error: ' + e.message);
@@ -2202,7 +2202,7 @@ function renderSummaryPage() {
       <div class="summary-card"><div class="s-label">DTC Codes</div><div class="s-value">${esc(state.intake.dtcCodes||'—')}</div></div>
     </div>
     ${state.intake.symptoms ? `<div class="field-section-label">Driver Complaint</div><div class="result-item">${esc(state.intake.symptoms)}</div>` : ''}
-    ${state.diagnosis.raw ? `<div class="field-section-label">Allie AI Diagnosis</div><div class="diag-ai-output">${esc(state.diagnosis.raw)}</div>` : ''}
+    ${state.diagnosis.raw ? `<div class="field-section-label">Allie Diagnosis</div><div class="diag-ai-output">${esc(state.diagnosis.raw)}</div>` : ''}
     ${state.workflow.steps.length ? `
       <div class="field-section-label">Workflow Steps (${state.workflow.steps.length})</div>
       ${state.workflow.steps.map((s,i) => `
