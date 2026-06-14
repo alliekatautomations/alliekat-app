@@ -1236,6 +1236,14 @@ body::after {
           <span class="nav-sub">Full case overview</span>
         </div>
       </button>
+      <div class="nav-section-label">Records</div>
+      <button class="nav-btn" data-section="jobs" onclick="setView('jobs')">
+        <span class="nav-icon">🗂</span>
+        <div>
+          <div class="nav-label">My Jobs</div>
+          <span class="nav-sub">Saved jobs · Reopen</span>
+        </div>
+      </button>
       <div class="nav-section-label" id="adminNavLabel" style="display:none;">Admin</div>
       <button class="nav-btn" id="adminNavBtn" data-section="admin" style="display:none;" onclick="setView('admin')">
         <span class="nav-icon">🛡</span>
@@ -1397,6 +1405,19 @@ body::after {
       </div>
 
 
+      <!-- MY JOBS -->
+      <div class="section" id="section-jobs">
+        <div class="section-header">
+          <div>
+            <h2>MY JOBS</h2>
+            <p>Every saved job — open one to pick up where you left off</p>
+          </div>
+          <button class="btn-action" onclick="loadJobs()">↻ REFRESH</button>
+        </div>
+        <div id="jobsList"><div class="empty-state">Loading jobs...</div></div>
+      </div>
+
+
       <!-- ADMIN -->
       <div class="section" id="section-admin">
         <div class="section-header">
@@ -1441,6 +1462,7 @@ const API = 'https://allie-ai.onrender.com';
 let auth = { token: null, userId: null, name: null, role: null, approved: false };
 let chatSessionId = null;
 let diagMode = 'normal';
+let currentJobId = null;   // id of the job currently being worked / saved
 
 const state = {
   intake: { unitId:'', vehicleType:'', year:'', make:'', model:'', engine:'', dtcCodes:'', symptoms:'' },
@@ -1713,6 +1735,7 @@ function setView(name) {
   if (name === 'summary') renderSummaryPage();
   if (name === 'admin') loadAccessRequests();
   if (name === 'workflow') initTreeWalker();
+  if (name === 'jobs') loadJobs();
 }
 
 // ── Intake ────────────────────────────────────────────────────────────────
@@ -1727,11 +1750,49 @@ function readIntake() {
   state.intake.symptoms    = document.getElementById('symptoms').value.trim();
 }
 
-function saveIntake() {
+// Build the job payload from current state and persist it.
+// Creates a new job (POST) the first time, then updates the same row (PATCH).
+async function saveJob(status) {
+  readIntake();
+  const payload = {
+    unit_id:      state.intake.unitId || null,
+    vehicle_type: state.intake.vehicleType || null,
+    year:         state.intake.year || null,
+    make:         state.intake.make || null,
+    model:        state.intake.model || null,
+    engine:       state.intake.engine || null,
+    dtc_codes:    state.intake.dtcCodes ? state.intake.dtcCodes.split(',').map(s => s.trim()).filter(Boolean) : [],
+    symptoms:     state.intake.symptoms || null
+  };
+  if (state.tree.data)              payload.diagnosis     = state.tree.data.issue_summary || null;
+  if (state.workflow.confirmedFix)  payload.confirmed_fix = state.workflow.confirmedFix;
+  if (state.workflow.finalNotes)    payload.final_notes   = state.workflow.finalNotes;
+  if (status)                       payload.status        = status;
+
+  const url    = currentJobId ? `${API}/jobs/${currentJobId}` : `${API}/jobs`;
+  const method = currentJobId ? 'PATCH' : 'POST';
+  const r = await fetch(url, {
+    method,
+    headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + auth.token },
+    body: JSON.stringify(payload)
+  });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.detail || 'Save failed.');
+  if (data.job && data.job.id) currentJobId = data.job.id;
+  return data.job;
+}
+
+async function saveIntake() {
   readIntake();
   updateSummaryBar();
   updateChatContext();
-  setStatus('Intake saved');
+  setStatus('Saving intake...');
+  try {
+    await saveJob('intake');
+    setStatus('Intake saved ✓');
+  } catch (e) {
+    setStatus('Save failed: ' + e.message);
+  }
 }
 
 function updateSummaryBar() {
@@ -1811,6 +1872,7 @@ async function runDiagnosis() {
     document.getElementById('sumStatus').textContent = 'DIAGNOSED';
     document.getElementById('sumStatus').style.color = 'var(--green)';
     setStatus('Diagnostic tree ready · ' + data.model_used);
+    try { await saveJob('diagnosed'); } catch (e) { /* non-blocking: diagnosis still shows */ }
   } catch(e) {
     diagContent.innerHTML = `<div class="result-item danger">Diagnosis failed: ${esc(e.message)}</div>`;
     document.getElementById('sumStatus').textContent = 'ERROR';
@@ -2044,24 +2106,12 @@ async function confirmFix() {
   const btn = document.getElementById('confirmFixBtn');
   btn.textContent = 'SAVING...';
   btn.disabled = true;
-  const dtcList     = state.intake.dtcCodes ? state.intake.dtcCodes.split(',').map(s => s.trim()).filter(Boolean) : [];
-  const symptomList = state.intake.symptoms ? [state.intake.symptoms] : [];
   try {
-    const r = await fetch(`${API}/diagnose`, {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + auth.token },
-      body: JSON.stringify({
-        dtc_codes:    dtcList, symptoms: symptomList,
-        unit_id:      state.intake.unitId || null,
-        vehicle_type: [state.intake.year, state.intake.make, state.intake.model, state.intake.engine].filter(Boolean).join(' ') || null,
-        confirm_fix:  fix + (notes ? '\nNotes: ' + notes : '')
-      })
-    });
-    if (!r.ok) throw new Error('Save failed.');
-    setStatus('Confirmed fix saved to Allie knowledge base');
+    await saveJob('complete');
+    setStatus('Confirmed fix saved · job complete ✓');
     document.getElementById('sumStatus').textContent = 'COMPLETE';
     document.getElementById('sumStatus').style.color = 'var(--green)';
-    appendChat("assistant", "✓ Confirmed fix saved to Allie repair knowledge base. This repair will improve future diagnoses on similar vehicles and codes.");
+    appendChat("assistant", "✓ Confirmed fix saved. Job marked complete and added to Allie's repair knowledge base. This will improve future diagnoses on similar vehicles and codes.");
   } catch(e) {
     setStatus('Save error: ' + e.message);
   } finally {
@@ -2166,12 +2216,101 @@ function renderSummaryPage() {
       ${state.workflow.finalNotes ? `<div class="result-item">${esc(state.workflow.finalNotes)}</div>` : ''}` : ''}`;
 }
 
+// ── My Jobs ───────────────────────────────────────────────────────────────
+async function loadJobs() {
+  const list = document.getElementById('jobsList');
+  list.innerHTML = '<div class="empty-state">Loading jobs...</div>';
+  try {
+    const r = await fetch(`${API}/jobs`, { headers: { 'Authorization':'Bearer ' + auth.token } });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Failed to load jobs.');
+    const jobs = data.jobs || [];
+    if (!jobs.length) {
+      list.innerHTML = '<div class="empty-state">No saved jobs yet. Start one in Job Intake and hit Save Intake.</div>';
+      return;
+    }
+    list.innerHTML = jobs.map(j => {
+      const vehicle = [j.year, j.make, j.model].filter(Boolean).join(' ') || j.vehicle_type || '—';
+      const codes   = Array.isArray(j.dtc_codes) ? j.dtc_codes.join(', ') : '';
+      const status  = (j.status || 'intake');
+      const color   = status === 'complete' ? 'var(--green)' : status === 'diagnosed' ? 'var(--steel)' : 'var(--amber)';
+      const when    = new Date(j.updated_at || j.created_at).toLocaleString();
+      return `
+      <div class="step-item">
+        <div class="step-top">
+          <div>
+            <div style="font-family:var(--font-head);font-size:1rem;font-weight:600;color:var(--chrome2);letter-spacing:0.04em;">${esc(j.unit_id || 'No Unit ID')} — ${esc(vehicle)}</div>
+            <div style="font-family:var(--font-mono);font-size:0.7rem;color:var(--muted);margin-top:3px;">${esc(codes || 'No codes')} · ${esc(when)}</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span style="font-family:var(--font-mono);font-size:0.65rem;padding:4px 10px;border-radius:3px;border:1px solid ${color};color:${color};">${esc(status.toUpperCase())}</span>
+            <button class="btn-sm" onclick="openJob('${j.id}')">OPEN</button>
+          </div>
+        </div>
+        ${j.symptoms ? `<div style="font-size:0.85rem;color:var(--text);margin-top:8px;">${esc(String(j.symptoms).slice(0,160))}</div>` : ''}
+        ${j.confirmed_fix ? `<div style="font-size:0.85rem;color:#6dd9aa;margin-top:6px;">✓ ${esc(String(j.confirmed_fix).slice(0,160))}</div>` : ''}
+      </div>`;
+    }).join('');
+  } catch(e) {
+    list.innerHTML = `<div class="result-item danger">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+async function openJob(jobId) {
+  setStatus('Loading job...');
+  try {
+    const r = await fetch(`${API}/jobs/${jobId}`, { headers: { 'Authorization':'Bearer ' + auth.token } });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Failed to load job.');
+    const j = data.job;
+    currentJobId = j.id;
+
+    state.intake = {
+      unitId:      j.unit_id || '',
+      vehicleType: j.vehicle_type || '',
+      year:        j.year || '',
+      make:        j.make || '',
+      model:       j.model || '',
+      engine:      j.engine || '',
+      dtcCodes:    Array.isArray(j.dtc_codes) ? j.dtc_codes.join(', ') : '',
+      symptoms:    j.symptoms || ''
+    };
+    document.getElementById('unitId').value      = state.intake.unitId;
+    document.getElementById('vehicleType').value = state.intake.vehicleType;
+    document.getElementById('vYear').value        = state.intake.year;
+    document.getElementById('vMake').value        = state.intake.make;
+    document.getElementById('vModel').value       = state.intake.model;
+    document.getElementById('vEngine').value      = state.intake.engine;
+    document.getElementById('dtcCodes').value     = state.intake.dtcCodes;
+    document.getElementById('symptoms').value     = state.intake.symptoms;
+
+    state.workflow.confirmedFix = j.confirmed_fix || '';
+    state.workflow.finalNotes   = j.final_notes || '';
+    document.getElementById('confirmedFix').value = state.workflow.confirmedFix;
+    document.getElementById('finalNotes').value   = state.workflow.finalNotes;
+
+    // diagnosis tree isn't stored per-step; re-run diagnosis to regenerate it if needed
+    state.tree = { data:null, currentStepId:null, history:[], complete:false };
+
+    updateSummaryBar();
+    updateChatContext();
+    const status = (j.status || 'intake');
+    document.getElementById('sumStatus').textContent = status.toUpperCase();
+    document.getElementById('sumStatus').style.color = status === 'complete' ? 'var(--green)' : status === 'diagnosed' ? 'var(--steel)' : 'var(--amber)';
+    setView('intake');
+    setStatus('Job loaded · ' + (state.intake.unitId || 'job'));
+  } catch(e) {
+    setStatus('Load error: ' + e.message);
+  }
+}
+
 // ── Utilities ─────────────────────────────────────────────────────────────
 document.getElementById('newJobBtn').addEventListener('click', () => {
   if (confirm('Clear current job and start fresh?')) clearJob();
 });
 
 function clearJob() {
+  currentJobId = null;
   state.intake    = { unitId:'', vehicleType:'', year:'', make:'', model:'', engine:'', dtcCodes:'', symptoms:'' };
   state.diagnosis = { raw:'', modelUsed:'', tier:0, sessionId:null };
   state.tree      = { data:null, currentStepId:null, history:[], complete:false };
